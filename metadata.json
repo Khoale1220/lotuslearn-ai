@@ -1,0 +1,6 @@
+{
+  "name": "LotusLearn AI",
+  "description": "From student work to targeted intervention in 60 seconds. AI-assisted formative assessment and teaching decision support powered by Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
