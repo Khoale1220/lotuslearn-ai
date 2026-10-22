@@ -1,4 +1,6 @@
 import {
+  DeterministicMatchType,
+  DifferentiatedIntervention,
   InstructionalGroup,
   MisconceptionCluster,
   NormalizedSourceEvidence,
@@ -31,32 +33,60 @@ export function normalizeTextForSearch(str: string): string {
 }
 
 /**
- * Verifies if an excerpt exists in the source text (typed vs image transcribed)
+ * Verifies if an excerpt exists in the source text (typed vs image transcribed).
+ * P2C / P2D / P2E / P2.1:
+ * - Literal exact substring match -> exact_quote_found (or image_transcription_match / image_transcription_verified)
+ * - Conservative normalized exact match -> normalized_exact_match (or image_transcription_match / image_transcription_verified)
+ * - Contiguous token sequence match (>= 3 consecutive words in sequence) -> approximate_match (review_required)
+ * - Scattered tokens without contiguous sequence -> unsupported_citation
+ * - Empty or missing excerpt/source -> unsupported_citation
  */
 export function checkQuoteInSource(
   excerpt: string,
   sourceText: string,
-  sourceType: 'typed' | 'image_transcription' = 'typed'
-): 'exact_quote_found' | 'image_transcription_match' | 'approximate_match' | 'unsupported_citation' {
+  sourceType: 'typed' | 'image_transcription' = 'typed',
+  isTranscriptionVerified: boolean = false
+): DeterministicMatchType {
   if (!excerpt || !sourceText) return 'unsupported_citation';
 
-  const cleanExcerpt = normalizeTextForSearch(excerpt);
-  const cleanSource = normalizeTextForSearch(sourceText);
+  const trimmedExcerpt = excerpt.trim();
+  if (!trimmedExcerpt) return 'unsupported_citation';
 
-  if (cleanSource.includes(cleanExcerpt)) {
-    // Never claim verbatim match for image transcriptions
-    return sourceType === 'image_transcription' ? 'image_transcription_match' : 'exact_quote_found';
+  // 1. Literal exact substring match (case, punctuation, and inner spacing preserved)
+  if (sourceText.includes(trimmedExcerpt)) {
+    if (sourceType === 'image_transcription') {
+      return isTranscriptionVerified ? 'image_transcription_verified' : 'image_transcription_match';
+    }
+    return 'exact_quote_found';
   }
 
-  // Check if significant keywords (3+ words in sequence) match
-  const words = cleanExcerpt.split(' ').filter((w) => w.length > 2);
-  if (words.length >= 3) {
-    let matchCount = 0;
-    for (const w of words) {
-      if (cleanSource.includes(w)) matchCount++;
+  // 2. Conservative normalized exact match (lowercased, punctuation stripped, normalized spacing)
+  const cleanExcerpt = normalizeTextForSearch(trimmedExcerpt);
+  const cleanSource = normalizeTextForSearch(sourceText);
+
+  if (!cleanExcerpt || !cleanSource) return 'unsupported_citation';
+
+  if (cleanSource.includes(cleanExcerpt)) {
+    if (sourceType === 'image_transcription') {
+      return isTranscriptionVerified ? 'image_transcription_verified' : 'image_transcription_match';
     }
-    if (matchCount / words.length >= 0.75) {
-      return sourceType === 'image_transcription' ? 'image_transcription_match' : 'approximate_match';
+    return 'normalized_exact_match';
+  }
+
+  // 3. Approximate contiguous sequence match (testing actual contiguous token sequence >= 3 words)
+  const words = cleanExcerpt.split(' ').filter((w) => w.length > 0);
+  if (words.length >= 3) {
+    const windowSize = Math.min(3, words.length);
+    let foundContiguousSequence = false;
+    for (let i = 0; i <= words.length - windowSize; i++) {
+      const windowStr = words.slice(i, i + windowSize).join(' ');
+      if (cleanSource.includes(windowStr)) {
+        foundContiguousSequence = true;
+        break;
+      }
+    }
+    if (foundContiguousSequence) {
+      return 'approximate_match';
     }
   }
 
@@ -388,12 +418,19 @@ export function validateEvidenceQuotes(
   }
 
   // When normalizedEvidence IS available, build lookup
-  const sourceTextById = new Map<string, { text: string; sourceType: 'typed' | 'image_transcription' }>();
+  const sourceTextById = new Map<
+    string,
+    { text: string; sourceType: 'typed' | 'image_transcription'; isTranscriptionVerified: boolean }
+  >();
   if (normalizedEvidence && Array.isArray(normalizedEvidence)) {
     for (const norm of normalizedEvidence) {
+      const isVerified =
+        norm.confidenceOrStatus === 'transcription_reviewed' ||
+        norm.confidenceOrStatus === 'transcription_supported';
       sourceTextById.set(norm.studentId, {
         text: norm.extractedText,
         sourceType: norm.sourceType,
+        isTranscriptionVerified: isVerified,
       });
     }
   }
@@ -408,10 +445,17 @@ export function validateEvidenceQuotes(
             sub.workType === 'handwritten_work' || sub.workType === 'worksheet' || !!sub.imageBase64
               ? 'image_transcription'
               : 'typed',
+          isTranscriptionVerified: false,
         });
       }
     }
   }
+
+  const isGroundedMatch = (m: string) =>
+    m === 'exact_match' ||
+    m === 'exact_quote_found' ||
+    m === 'normalized_exact_match' ||
+    m === 'image_transcription_verified';
 
   let quotesGroundedCount = 0;
   let quotesFlaggedCount = 0;
@@ -423,21 +467,29 @@ export function validateEvidenceQuotes(
       const sourceInfo = sourceTextById.get(ex.studentId);
       const sourceType = sourceInfo?.sourceType || 'typed';
       const matchResult = sourceInfo
-        ? checkQuoteInSource(ex.excerpt, sourceInfo.text, sourceType)
+        ? checkQuoteInSource(ex.excerpt, sourceInfo.text, sourceType, sourceInfo.isTranscriptionVerified)
         : 'unsupported_citation';
 
-      if (
-        matchResult === 'exact_quote_found' ||
-        matchResult === 'image_transcription_match' ||
-        matchResult === 'approximate_match'
-      ) {
+      // P2C / P2D / P2.1: Only exact source quotes (literal or normalized) or human-reviewed transcriptions count as grounded.
+      // Unreviewed image transcriptions and approximate matches require teacher review and MUST NOT increment quotesGroundedCount.
+      if (isGroundedMatch(matchResult)) {
         quotesGroundedCount++;
         clusterQuotesPassed++;
       } else {
         quotesFlaggedCount++;
-        issues.push(
-          `Unverified quote in cluster "${cluster.misconceptionTitle}": Student ${ex.studentId} quote "${ex.excerpt}" not found in source text.`
-        );
+        if (matchResult === 'image_transcription_match') {
+          issues.push(
+            `Unverified transcription quote in cluster "${cluster.misconceptionTitle}": Student ${ex.studentId} quote "${ex.excerpt}" matches unverified image transcription and requires review.`
+          );
+        } else if (matchResult === 'approximate_match') {
+          issues.push(
+            `Approximate quote in cluster "${cluster.misconceptionTitle}": Student ${ex.studentId} quote "${ex.excerpt}" is only an approximate match and requires teacher review.`
+          );
+        } else {
+          issues.push(
+            `Unverified quote in cluster "${cluster.misconceptionTitle}": Student ${ex.studentId} quote "${ex.excerpt}" not found in source text.`
+          );
+        }
       }
 
       return {
@@ -450,10 +502,17 @@ export function validateEvidenceQuotes(
     let evidenceStrength: 'strong' | 'moderate' | 'review_required' = 'moderate';
     if (
       clusterQuotesPassed >= 2 &&
-      auditedEvidence.every((e) => e.deterministicMatch !== 'unsupported_citation')
+      auditedEvidence.every((e) => isGroundedMatch(e.deterministicMatch || ''))
     ) {
       evidenceStrength = 'strong';
-    } else if (auditedEvidence.some((e) => e.deterministicMatch === 'unsupported_citation')) {
+    } else if (
+      auditedEvidence.some(
+        (e) =>
+          e.deterministicMatch === 'unsupported_citation' ||
+          e.deterministicMatch === 'approximate_match' ||
+          e.deterministicMatch === 'image_transcription_match'
+      )
+    ) {
       evidenceStrength = 'review_required';
     }
 
@@ -470,14 +529,10 @@ export function validateEvidenceQuotes(
     let strongQuotes = 0;
     const auditedEvidence = (obs.supportingEvidence || []).map((ev) => {
       const match = sourceInfo
-        ? checkQuoteInSource(ev.quoteOrDetail, sourceInfo.text, sourceInfo.sourceType)
+        ? checkQuoteInSource(ev.quoteOrDetail, sourceInfo.text, sourceInfo.sourceType, sourceInfo.isTranscriptionVerified)
         : 'unsupported_citation';
 
-      if (
-        match === 'exact_quote_found' ||
-        match === 'image_transcription_match' ||
-        match === 'approximate_match'
-      ) {
+      if (isGroundedMatch(match)) {
         strongQuotes++;
       }
 
@@ -488,8 +543,14 @@ export function validateEvidenceQuotes(
       };
     });
 
+    const hasFlagged = auditedEvidence.some(
+      (e) =>
+        e.deterministicMatch === 'unsupported_citation' ||
+        e.deterministicMatch === 'approximate_match' ||
+        e.deterministicMatch === 'image_transcription_match'
+    );
     const evidenceStrength: 'strong' | 'moderate' | 'review_required' =
-      strongQuotes >= 1 ? 'strong' : auditedEvidence.length > 0 ? 'moderate' : 'review_required';
+      hasFlagged ? 'review_required' : strongQuotes >= 1 ? 'strong' : auditedEvidence.length > 0 ? 'moderate' : 'review_required';
 
     return {
       ...obs,
@@ -563,3 +624,109 @@ export function runDeterministicValidation(params: {
     auditedObservations: quoteResult.auditedObservations,
   };
 }
+
+/**
+ * P2.1 Stable Domain Identity & Linkage Validator
+ * Enforces:
+ * - clusterId uniqueness among clusters
+ * - interventionId uniqueness among interventions
+ * - clusterId referenced by intervention actually exists in clusters
+ * - NEW DATA: clusterId is mandatory and cannot be omitted
+ * - LEGACY DATA: missing clusterId is migrated only when relationship is unambiguous
+ *   (exactly 1 cluster matches by title). If ambiguous (multiple clusters same title or none),
+ *   do NOT guess! Mark as unresolved.
+ */
+export function validateInterventionRelationships(
+  interventions: DifferentiatedIntervention[],
+  clusters: MisconceptionCluster[],
+  options?: { isNewData?: boolean }
+): {
+  passed: boolean;
+  issues: string[];
+  auditedInterventions: DifferentiatedIntervention[];
+} {
+  const issues: string[] = [];
+  const clusterIdSet = new Set<string>();
+  const duplicateClusterIds = new Set<string>();
+
+  for (const c of clusters) {
+    if (clusterIdSet.has(c.clusterId)) {
+      duplicateClusterIds.add(c.clusterId);
+    }
+    clusterIdSet.add(c.clusterId);
+  }
+
+  if (duplicateClusterIds.size > 0) {
+    issues.push(`Duplicate cluster IDs detected: ${Array.from(duplicateClusterIds).join(', ')}`);
+  }
+
+  const interventionIdSet = new Set<string>();
+  const duplicateInterventionIds = new Set<string>();
+  const auditedInterventions: DifferentiatedIntervention[] = [];
+
+  for (const int of interventions) {
+    if (int.interventionId) {
+      if (interventionIdSet.has(int.interventionId)) {
+        duplicateInterventionIds.add(int.interventionId);
+      }
+      interventionIdSet.add(int.interventionId);
+    }
+
+    if (!int.clusterId) {
+      if (options?.isNewData) {
+        issues.push(`New canonical intervention "${int.title || int.interventionId}" is missing required clusterId.`);
+        auditedInterventions.push({
+          ...int,
+          clusterId: 'unresolved_missing_cluster_id',
+        });
+      } else {
+        // Legacy migration: try unambiguous title match
+        const matchingClusters = clusters.filter(
+          (c) =>
+            c.misconceptionTitle.trim().toLowerCase() ===
+            (int.targetMisconceptionTitle || '').trim().toLowerCase()
+        );
+        if (matchingClusters.length === 1) {
+          auditedInterventions.push({
+            ...int,
+            clusterId: matchingClusters[0].clusterId,
+          });
+        } else {
+          // 0 or >1 matching clusters: DO NOT GUESS!
+          issues.push(
+            `Legacy intervention "${int.title || int.interventionId}" has ambiguous relationship (${matchingClusters.length} matching clusters for "${int.targetMisconceptionTitle}"). Relationship cannot be inferred.`
+          );
+          auditedInterventions.push({
+            ...int,
+            clusterId: 'unresolved_ambiguous_relationship',
+          });
+        }
+      }
+    } else {
+      if (!clusterIdSet.has(int.clusterId)) {
+        issues.push(
+          `Intervention "${int.title || int.interventionId}" references unknown clusterId: "${int.clusterId}"`
+        );
+      }
+      auditedInterventions.push(int);
+    }
+  }
+
+  if (duplicateInterventionIds.size > 0) {
+    issues.push(`Duplicate intervention IDs detected: ${Array.from(duplicateInterventionIds).join(', ')}`);
+  }
+
+  return {
+    passed: issues.length === 0,
+    issues,
+    auditedInterventions,
+  };
+}
+
+export function migrateLegacyInterventions(
+  interventions: DifferentiatedIntervention[],
+  clusters: MisconceptionCluster[]
+): DifferentiatedIntervention[] {
+  return validateInterventionRelationships(interventions, clusters, { isNewData: false }).auditedInterventions;
+}
+

@@ -322,6 +322,8 @@ export function generateGroundedDemoAnalysis(
       confidence: 0.97,
       recommendedInstructionalResponse:
         'Implement the "Open vs. Closed Door Timeline" visual drill. Teach students to check for closed past time words before choosing verb tense.',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
     {
       clusterId: 'cluster-2',
@@ -347,6 +349,8 @@ export function generateGroundedDemoAnalysis(
       confidence: 0.95,
       recommendedInstructionalResponse:
         'Use duration bridge frames: "Action started in past + still true today = HAVE/HAS + V3". Contrast with completed life events.',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
     {
       clusterId: 'cluster-3',
@@ -372,6 +376,8 @@ export function generateGroundedDemoAnalysis(
       confidence: 0.98,
       recommendedInstructionalResponse:
         'Run high-frequency irregular V1-V2-V3 speed-matching cards focusing specifically on write-wrote-written, eat-ate-eaten, and go-went-gone.',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
     {
       clusterId: 'cluster-4',
@@ -397,6 +403,8 @@ export function generateGroundedDemoAnalysis(
       confidence: 0.94,
       recommendedInstructionalResponse:
         'Provide a quick 2-column subject-auxiliary anchor chart (I/You/We/They HAVE vs. He/She/It HAS) and color-coded pronoun warmups.',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
   ];
 
@@ -531,6 +539,7 @@ export function generateGroundedDemoAnalysis(
   const interventions: DifferentiatedIntervention[] = [
     {
       interventionId: 'int-1',
+      clusterId: 'cluster-1',
       targetMisconceptionTitle: 'Present Perfect with Finished-Time Expressions',
       title: 'The Closed Calendar Filter',
       supportTier: 'Concept Clarification',
@@ -544,9 +553,12 @@ export function generateGroundedDemoAnalysis(
         'Fill in: "My sister ______ (buy) a new bicycle two days ago."',
       exitTicketQuestion:
         'Choose and explain: "I (have seen / saw) that documentary last Friday."',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
     {
       interventionId: 'int-2',
+      clusterId: 'cluster-2',
       targetMisconceptionTitle: 'Past Simple Substitution for Unfinished Time & Experiences',
       title: 'The Duration Bridge Protocol',
       supportTier: 'Guided Practice',
@@ -560,9 +572,12 @@ export function generateGroundedDemoAnalysis(
         'Combine into one sentence: "Nam started playing the guitar in 2022. He still plays it now."',
       exitTicketQuestion:
         'Complete with for or since: "Our teacher has worked at this high school ______ five years."',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
     {
       interventionId: 'int-3',
+      clusterId: 'cluster-3',
       targetMisconceptionTitle: 'Irregular Past Participle Morphology Overgeneralization',
       title: 'Irregular V3 Rapid Match',
       supportTier: 'Error Correction',
@@ -576,9 +591,12 @@ export function generateGroundedDemoAnalysis(
         'Correct the mistake: "They have went to the school library."',
       exitTicketQuestion:
         'Write the correct participle for: write -> ________, eat -> ________, break -> ________.',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
     {
       interventionId: 'int-4',
+      clusterId: 'cluster-4',
       targetMisconceptionTitle: 'Discourse-Level Narrative Mastery',
       title: 'The Career Biographer Synthesis',
       supportTier: 'Ready for Extension',
@@ -592,6 +610,8 @@ export function generateGroundedDemoAnalysis(
         'Create a sentence contrasting a milestone in 2021 with an ongoing project since 2023.',
       exitTicketQuestion:
         'Write 2 sentences: one about something you have achieved this year, and one about what you did last weekend.',
+      status: 'pending',
+      teacherDecision: 'pending',
     },
   ];
 
@@ -667,14 +687,31 @@ export function generateGroundedDemoAnalysis(
     nextLessonPlan,
     interventions,
     verification,
+    privacyAudit: {
+      status: 'passed',
+      findingCount: 0,
+      findingTypeCounts: {},
+      sanitizationApplied: false,
+      provider: 'google-sensitive-data-protection',
+      providerVersionOrPolicyId: 'prevalidated-demo-fixture',
+      durationMs: 0,
+      rawValuesRetained: false,
+      failClosed: true,
+    },
     executionMetadata: {
       executionMode: 'demo_resilience',
       primaryModel: 'demo_fallback_cache',
       modelsUsed: ['cached_demo_baseline'],
       totalDurationMs: 0,
+      privacyScanDurationMs: 0,
       stageDurationsMs: {},
       submissionCount: submissions.length,
       deterministicAuditPassed: true,
+      runId: id,
+      pipelineVersion: '2.0.0',
+      fallbackUsed: true,
+      startedAt: timestamp,
+      completedAt: timestamp,
     },
   };
 }

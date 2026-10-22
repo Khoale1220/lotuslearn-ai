@@ -1,9 +1,7 @@
 import React from 'react';
 import { MisconceptionCluster, StudentObservation } from '../../types';
-import { Quote, Search, User, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck, Check } from 'lucide-react';
-import { ProvenanceBadge } from '../ProvenanceBadge';
-import { GlowEdgeCard } from '../GlowEdgeCard';
-import { getDeterministicMatchDisplay } from '../../utils/verificationDisplay';
+import { Quote, User, AlertCircle, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { getEvidenceDisplay, getDeterministicMatchDisplay } from '../../utils/verificationDisplay';
 
 interface EvidencePanelProps {
   clusters: MisconceptionCluster[];
@@ -22,51 +20,88 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
     clusters.find((c) => c.clusterId === selectedClusterId) || clusters[0] || null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-2">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xs space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-              Section 03 · Verbatim Grounding &amp; Provenance
+            <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+              Student Evidence &amp; Citations
             </span>
-            <span className="text-slate-300">·</span>
-            <ProvenanceBadge type="verified" label="Evidence Grounded" size="sm" />
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            {(() => {
+              if (!activeCluster?.evidenceExamples || activeCluster.evidenceExamples.length === 0) {
+                return (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300">
+                    Evidence Not Checked
+                  </span>
+                );
+              }
+              const allSupported = activeCluster.evidenceExamples.every(
+                (e) =>
+                  e.deterministicMatch === 'exact_match' ||
+                  e.deterministicMatch === 'exact_quote_found' ||
+                  e.deterministicMatch === 'normalized_exact_match' ||
+                  e.deterministicMatch === 'image_transcription_verified'
+              );
+              return (
+                <span
+                  className={`text-xs font-semibold px-2 py-0.5 rounded border flex items-center gap-1 ${
+                    allSupported
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : 'bg-amber-50 text-amber-800 border-amber-300'
+                  }`}
+                >
+                  {allSupported ? (
+                    <>
+                      <CheckCircle2 size={12} className="text-emerald-600" />
+                      <span>Evidence Grounded</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle size={12} className="text-amber-600" />
+                      <span>Evidence Review Required</span>
+                    </>
+                  )}
+                </span>
+              );
+            })()}
           </div>
           <h2 className="text-xl font-bold tracking-tight text-slate-900 mt-1">
             Grounded Evidence Panel
           </h2>
           <p className="text-xs text-slate-500">
-            Every diagnosed pattern is anchored in verified student excerpts with an observable end-to-end provenance chain.
+            Every diagnosed pattern is anchored directly to verbatim student excerpts and checked for grounded support.
           </p>
         </div>
 
         {activeCluster && (
-          <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono">
-            <span className="text-slate-400">Cluster:</span>
-            <span className="font-bold text-slate-900">{activeCluster.misconceptionTitle}</span>
+          <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-mono self-start sm:self-auto">
+            <span className="text-slate-500">Selected:</span>
+            <span className="font-bold text-slate-900 truncate max-w-xs">{activeCluster.misconceptionTitle}</span>
           </div>
         )}
       </div>
 
       {!activeCluster ? (
-        <div className="text-xs text-slate-500 text-center py-6">
+        <div className="text-xs text-slate-500 text-center py-8">
           Select a misconception cluster above to view supporting student evidence.
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Active Diagnostic Claim Banner (Requested Feature) */}
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-2">
+          {/* Active Diagnostic Claim Context Banner */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] font-bold text-indigo-700 uppercase tracking-wider bg-white px-2 py-0.5 rounded border border-indigo-200">
-                  DIAGNOSTIC CLAIM
+                <span className="text-[11px] font-bold text-blue-800 bg-blue-100/70 px-2 py-0.5 rounded border border-blue-200">
+                  DIAGNOSED PATTERN
                 </span>
                 <span className="font-bold text-slate-900 text-sm">
                   {activeCluster.misconceptionTitle}
                 </span>
               </div>
-              <div className="font-mono text-[11px] text-slate-600 font-semibold bg-white px-2.5 py-0.5 rounded border border-slate-200">
-                AFFECTED: {activeCluster.studentCount} / {observations.length} Students ({activeCluster.percentageAffected}%)
+              <div className="font-mono text-xs text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200 font-medium">
+                Impact: {activeCluster.studentCount} / {observations.length} Students ({activeCluster.percentageAffected}%)
               </div>
             </div>
             <p className="text-xs text-slate-700 leading-relaxed">
@@ -76,122 +111,92 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
 
           {/* Evidence Citations Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activeCluster.evidenceExamples.map((item, idx) => (
-              <GlowEdgeCard
-                key={idx}
-                variant="validation"
-                className="hover:shadow-xs transition"
-              >
-                <div className="p-4 space-y-3">
-                  {/* Header */}
-                  {(() => {
-                    const matchDisplay = getDeterministicMatchDisplay(item.deterministicMatch, item.sourceType);
-                    return (
-                      <div className="flex items-center justify-between text-xs">
-                        <button
-                          onClick={() => onInspectStudent(item.studentId)}
-                          className="font-mono font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded transition flex items-center gap-1.5"
-                        >
-                          <User size={12} />
-                          <span>{item.studentId}</span>
-                        </button>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${matchDisplay.badgeClass}`}>
-                            {matchDisplay.label}
-                          </span>
-                          <span className="text-[11px] text-slate-400">#{idx + 1}</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
+            {activeCluster.evidenceExamples.map((item, idx) => {
+              const display = getEvidenceDisplay(item.deterministicMatch, item.sourceType);
+              const legacyDisplay = getDeterministicMatchDisplay(item.deterministicMatch, item.sourceType);
 
-                  {/* Excerpt Quote */}
-                  <div className="relative pl-3 border-l-2 border-rose-500 bg-white p-3 rounded-r-lg shadow-2xs">
-                    <Quote size={14} className="text-slate-400 absolute top-2 right-2 opacity-40" />
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                      Student Work Excerpt:
-                    </span>
-                    <p className="text-xs font-medium text-slate-900 italic font-serif">
-                      &quot;{item.excerpt}&quot;
-                    </p>
+              return (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-slate-200 bg-white p-5 space-y-3.5 shadow-2xs hover:border-slate-300 transition"
+                >
+                  {/* Top line: Student ID & Grounding Match Status */}
+                  <div className="flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      onClick={() => onInspectStudent(item.studentId)}
+                      className="font-mono font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-1 rounded-md transition flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                      aria-label={`Inspect ${item.studentId} submission`}
+                    >
+                      <User size={13} />
+                      <span>{item.studentId}</span>
+                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${display.badgeClass}`}>
+                        {display.label}
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-mono">#{idx + 1}</span>
+                    </div>
                   </div>
 
-                  {/* Pedagogical Grounding */}
-                  <div className="rounded-lg bg-blue-50/60 border border-blue-100 p-3 text-xs text-slate-800 space-y-1">
-                    <span className="font-semibold text-blue-900 text-[11px] block uppercase tracking-wider">
-                      Diagnostic Justification:
+                  {/* Student Work Excerpt */}
+                  <div className="relative pl-3.5 border-l-2 border-blue-600 bg-slate-50/80 p-3 rounded-r-lg">
+                    <Quote size={14} className="text-slate-400 absolute top-2 right-2 opacity-30" aria-hidden="true" />
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                      Student Work Excerpt ({item.sourceType === 'image_transcription' ? 'Photographed Worksheet' : 'Typed Response'}):
+                    </span>
+                    <blockquote className="text-xs font-medium text-slate-900 italic font-serif leading-relaxed">
+                      &quot;{item.excerpt}&quot;
+                    </blockquote>
+                  </div>
+
+                  {/* Diagnostic Justification */}
+                  <div className="rounded-lg bg-blue-50/50 border border-blue-100 p-3 text-xs text-slate-800 space-y-1">
+                    <span className="font-semibold text-blue-950 text-[11px] block uppercase tracking-wider">
+                      Why this excerpt was cited:
                     </span>
                     <p className="text-slate-700 leading-relaxed text-xs">
                       {item.groundingReason}
                     </p>
                   </div>
 
-                  {/* VISUAL PROVENANCE CHAIN (Requested in Prompt) */}
-                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2">
-                    <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">
-                      Factual Provenance Chain:
-                    </span>
-                    <div className="space-y-1.5 text-[11px] font-mono">
-                      {/* Step 1: Source Evidence */}
-                      <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-slate-200/80">
-                        <span className="text-slate-500">1. Source Evidence</span>
-                        <span className="font-semibold text-slate-800">
-                          {item.sourceType === 'image_transcription' ? 'Handwritten Image' : 'Typed Response'}
+                  {/* Progressive Disclosure: How this evidence was checked */}
+                  <details className="group rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs">
+                    <summary className="cursor-pointer font-semibold text-slate-700 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded">
+                      <span className="text-[11px] text-slate-600">Verification Details &amp; Grounding</span>
+                      <ChevronDown size={13} className="text-slate-400 group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="mt-2 pt-2 border-t border-slate-200 text-[11px] space-y-1.5 text-slate-600 font-mono">
+                      <p>
+                        <strong>Source Format:</strong> {item.sourceType === 'image_transcription' ? 'Handwritten Image (OCR)' : 'Direct Typed Text'}
+                      </p>
+                      <p>
+                        <strong>Deterministic Match:</strong> {item.deterministicMatch || 'not_checked'}
+                      </p>
+                      <p>
+                        <strong>Explanation:</strong> {display.explanation}
+                      </p>
+                      <p>
+                        <strong>Support Status:</strong>{' '}
+                        <span className={display.isSupported ? 'text-emerald-700 font-bold' : 'text-amber-800 font-bold'}>
+                          {display.isSupported ? 'Supported & Grounded' : 'Review Required'}
                         </span>
-                      </div>
-                      <div className="text-center text-slate-400 text-[10px] leading-none">↓</div>
-
-                      {/* Step 2: Gemini Observer Extraction */}
-                      <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-slate-200/80">
-                        <span className="text-slate-500">2. Gemini Observer Extraction</span>
-                        <span className="font-semibold text-indigo-700">Verbatim Excerpt Isolated</span>
-                      </div>
-                      <div className="text-center text-slate-400 text-[10px] leading-none">↓</div>
-
-                      {/* Step 3: Code Grounding Check */}
-                      {(() => {
-                        const match = getDeterministicMatchDisplay(item.deterministicMatch, item.sourceType);
-                        return (
-                          <>
-                            <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-slate-200/80">
-                              <span className="text-slate-500">3. Code Grounding Check</span>
-                              <span className="font-semibold text-teal-700">
-                                {match.label}
-                              </span>
-                            </div>
-                            <div className="text-center text-slate-400 text-[10px] leading-none">↓</div>
-
-                            {/* Step 4: Gemini Diagnosis */}
-                            <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-slate-200/80">
-                              <span className="text-slate-500">4. Gemini Diagnosis</span>
-                              <span className="font-semibold text-blue-700">Root-Cause Synthesized</span>
-                            </div>
-                            <div className="text-center text-slate-400 text-[10px] leading-none">↓</div>
-
-                            {/* Step 5: Verification Status */}
-                            <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-slate-200/80">
-                              <span className="text-slate-500">5. Verification Status</span>
-                              <span className={`font-semibold ${match.isSupported ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                {match.isSupported ? 'Supported & Grounded' : 'Unsupported Citation · Review Required'}
-                              </span>
-                            </div>
-                          </>
-                        );
-                      })()}
+                      </p>
                     </div>
-                  </div>
+                  </details>
                 </div>
-              </GlowEdgeCard>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Quick Roster Drilldown */}
-          <div className="mt-6 pt-4 border-t border-slate-200">
-            <div className="flex items-center justify-between mb-3 text-xs">
+          {/* Student Roster Drill-Down Bar */}
+          <div className="pt-4 border-t border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 text-xs gap-1">
               <span className="font-semibold text-slate-800">
-                All Student Work Submissions in Cohort ({observations.length} Students)
+                All Student Responses in Cohort ({observations.length} Students)
               </span>
-              <span className="text-slate-500">Click any student for complete diagnostic profile</span>
+              <span className="text-slate-500">Click any student to view their complete individual profile</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
@@ -200,19 +205,23 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 return (
                   <button
                     key={obs.studentId}
+                    type="button"
                     onClick={() => onInspectStudent(obs.studentId)}
-                    className={`p-2.5 rounded-lg border text-left text-xs transition ${
+                    className={`p-2.5 rounded-lg border text-left text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
                       isAffected
-                        ? 'border-rose-300 bg-rose-50/50 hover:bg-rose-100/70 text-rose-950 font-semibold'
+                        ? 'border-blue-300 bg-blue-50/70 hover:bg-blue-100 text-blue-950 font-semibold shadow-2xs'
                         : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                     }`}
+                    aria-label={`Inspect ${obs.studentId} profile ${isAffected ? '(affected by this pattern)' : ''}`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-mono">{obs.studentId}</span>
-                      {isAffected && <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />}
+                      {isAffected && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600" aria-label="Affected student" />
+                      )}
                     </div>
                     <div className="mt-1 text-[10px] text-slate-500 truncate">
-                      {obs.recommendedSupportLevel.replace('_', ' ')}
+                      {obs.recommendedSupportLevel ? obs.recommendedSupportLevel.replace('_', ' ') : 'Review'}
                     </div>
                   </button>
                 );

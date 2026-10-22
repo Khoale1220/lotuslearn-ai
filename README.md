@@ -1,137 +1,98 @@
 # LotusLearn AI
-> **From student work to targeted intervention in 60 seconds.**  
-> *AI-assisted formative assessment and teaching decision support.*
 
-[![Google Cloud AI Builder Cup 2026](https://img.shields.io/badge/Google%20Cloud-AI%20Builder%20Cup%202026-4285F4?logo=google-cloud&logoColor=white)](https://hack2skill.com)
-[![Gemini 3.8 Flash](https://img.shields.io/badge/Model-Gemini%203.8%20Flash-1a73e8?logo=google-gemini&logoColor=white)](https://ai.google.dev)
-[![Team TTKK](https://img.shields.io/badge/Team-TTKK%20(Vietnam)-E11D48)](https://github.com)
+> **Turn real student work into a verifiable next-lesson plan.**  
+> *Privacy before inference. Evidence behind every insight. Teacher in control.*
 
 ---
 
-## 1. Executive Summary & Problem
+## 1. Why LotusLearn Exists
 
-In classrooms worldwide — from high schools in Vietnam to secondary schools globally — teachers collect dozens of student artifacts every week:
-- Handwritten worksheets
-- Quick-write exit tickets
-- Paragraph diagnostic answers
-- Quiz responses
+Teachers already possess the evidence they need: handwritten worksheets, exit tickets, and written responses collected at the end of class.
 
-**The Bottleneck:** Inspecting 35–45 individual student responses manually takes 1.5 to 2 hours after a tiring teaching day. By the time a teacher has categorized student errors, the opportunity for timely intervention has passed.
+However, synthesizing 30–45 individual student artifacts to identify root learning misconceptions takes 1.5 to 2 hours of manual diagnostic effort after a full day of teaching. By the time errors are manually categorized, the opportune instructional window for timely intervention has passed.
 
-**Existing GenAI Shortcomings:** Most AI tools analyze one student submission at a time or output generic pedagogical recommendations ("Provide differentiated practice"). They cannot reason across an entire cohort to detect systemic class-wide misconceptions and convert them into tomorrow's concrete lesson steps.
-
-**LotusLearn AI's Solution:** LotusLearn turns messy multimodal student evidence into an evidence-grounded instructional decision map in 60 seconds.
+**The Solution:** LotusLearn bridges the gap between **assessment → interpretation → next teaching action**, transforming messy student artifacts into an evidence-verifiable, differentiated 25-minute lesson sequence.
 
 ---
 
-## 2. Core Differentiators
+## 2. What Makes LotusLearn Different
 
-1. **Multimodal Student Work Understanding:** Accepts typed text, photographed worksheets, and handwritten exit tickets.
-2. **Whole-Cohort Reasoning:** Reasons across all students simultaneously rather than analyzing students in silos.
-3. **Verbatim Evidence Grounding:** Every diagnosed misconception is paired with exact student quotations and pedagogical justification.
-4. **Non-Stigmatizing Instructional Grouping:** Groups students dynamically by immediate learning need (`Ready for Extension`, `Needs Concept Clarification`, `Needs Guided Practice`) with zero permanent ability labels.
-5. **Actionable 25-Minute Next-Lesson Plan:** Delivers a realistic timeline for tomorrow morning with teacher prompts and mini-activities.
-6. **Dynamic Scaffolds:** Generates differentiated micro-interventions with on-the-fly Gemini adjustments (`Simplify`, `Challenge`, `New Exit Ticket`).
-7. **Adversarial AI Verifier (Stage 4):** An independent verification stage audits generated claims against raw student text to prevent hallucinations.
-8. **Human-in-the-Loop Agency:** Teachers can Accept, Edit, or Dismiss any AI diagnosis or intervention card.
+- **Artifact-First & Paper-Friendly:** Works directly from student artifacts teachers already have — typed text or photographed handwritten worksheets.
+- **Privacy Before Inference:** All student names, emails, and phone numbers are de-identified via Google Cloud Sensitive Data Protection before content ever reaches Gemini.
+- **Evidence-Verifiable Insights:** Every diagnosed misconception is directly anchored to verbatim student quotations and pedagogical grounding reasons.
+- **Hybrid Verification:** Combines Gemini generative reasoning with deterministic programmatic validation code that checks roster math, student identities, and quotation presence.
+- **Teacher Sovereignty (Human-in-the-Loop):** AI recommends; teachers decide. Educators can Accept, Edit, or Dismiss any diagnosed cluster or intervention scaffold.
+- **Non-Stigmatizing Cohorts:** Replaces permanent ability labels with temporary, action-oriented cohorts (*Ready for Extension*, *Needs Concept Clarification*, *Guided Practice*).
 
 ---
 
-## 3. Four-Stage Gemini Reasoning Architecture
+## 3. Architecture & Analysis Pipeline
 
-LotusLearn AI does not use a single monolithic prompt. It operates as a 4-stage pipeline executed server-side via `@google/genai`:
+LotusLearn operates as a synchronized 6-stage pipeline:
 
-```
-               [ RAW STUDENT WORK ]
-     (Photographed Worksheets, Exit Tickets, Text)
-                        │
-                        ▼
-   ┌─────────────────────────────────────────┐
-   │          STAGE 1: OBSERVER              │
-   │  - Individual Evidence Extraction       │
-   │  - Rubric & Objective Benchmarking      │
-   │  - Verbatim Quotation Anchoring         │
-   └────────────────────┬────────────────────┘
-                        │
-                        ▼
-   ┌─────────────────────────────────────────┐
-   │         STAGE 2: DIAGNOSIS              │
-   │  - Whole-Cohort Cross-Reasoning         │
-   │  - Misconception Cluster Discovery      │
-   │  - Prevalence & Teaching Priority Calc  │
-   └────────────────────┬────────────────────┘
-                        │
-                        ▼
-   ┌─────────────────────────────────────────┐
-   │    STAGE 3: TEACHING STRATEGIST         │
-   │  - Non-Stigmatizing Group Formation     │
-   │  - 25-Minute Tomorrow Lesson Sequence   │
-   │  - Differentiated Scaffolds & Prompts   │
-   └────────────────────┬────────────────────┘
-                        │
-                        ▼
-   ┌─────────────────────────────────────────┐
-   │          STAGE 4: VERIFIER              │
-   │  - Adversarial Quality Audit            │
-   │  - Verification against Ground Truth    │
-   │  - Anti-Hallucination & Scope Check     │
-   └────────────────────┬────────────────────┘
-                        │
-                        ▼
-          [ TEACHER DECISION DASHBOARD ]
-  (Snapshot · Map · Grounding · Groups · Plan · Audit)
+```mermaid
+flowchart LR
+    A[Student Artifacts] --> B[Privacy Gateway]
+    B --> C[Sanitized Artifacts]
+    C --> D[Gemini Observer]
+    D --> E[Gemini Diagnosis]
+    E --> F[Deterministic Validator]
+    F --> G[Teaching Strategist]
+    G --> H[Gemini Verifier]
+    H --> I[Teacher Review]
+    I --> J[Next-Lesson Plan]
 ```
 
----
+### The 6 Stages:
 
-## 4. Google Technologies & Models Used
-
-- **Google GenAI SDK (`@google/genai` v2.4.0):** Used exclusively server-side for structured output generation and multi-stage orchestration.
-- **Model:** `gemini-3.8-flash` (with automated fallback resilience to `gemini-flash-latest` and `gemini-3.1-flash-lite`).
-- **Google Cloud Run:** Serverless container hosting providing sub-second latency and zero-config autoscaling.
-- **Vite + React 19 + TypeScript + Tailwind CSS:** Fast, accessible, high-contrast user interface engineered according to the Universal Frontend Design Constitution.
-
----
-
-## 5. Responsible AI & Ethical Guardrails
-
-LotusLearn is engineered from the ground up to respect student dignity and empower teacher agency:
-
-1. **Human-in-the-Loop Philosophy:** LotusLearn supports teacher decision-making; it does not replace it. AI-generated insights are presented as recommendations for teacher review.
-2. **Zero Permanent Ability Labels:** Explicit system instructions forbid labels such as "weak", "smart", "low ability", or "gifted".
-3. **No Student Ranking or Tracking:** Does not generate comparative scores or rank students against peers.
-4. **Zero Extraneous Inferences:** Prohibits inferences regarding intelligence, medical status, mental health, socioeconomic background, or protected attributes.
-5. **Strict Anonymization:** Ingests anonymized identifiers (`Student 01`, `Student 02`). No PII is collected or transmitted.
-6. **Anti-Hallucination Grounding:** Stage 4 Verifier checks every claim against raw student work excerpts before display.
+1. **Protect (Stage 1 · Privacy Gateway):** Google Cloud Sensitive Data Protection (REST v2) strips student PII and normalizes roster keys to stable pseudonyms (`Student 01` – `Student 12`). Operates on a fail-closed basis.
+2. **Observe (Stage 2 · Gemini Observer):** Gemini 3.8 Flash extracts structured student observations, benchmarking each against the lesson rubric and anchoring verbatim quotes without premature labeling.
+3. **Diagnose (Stage 3 · Gemini Diagnosis):** Cross-reasons across the whole cohort to synthesize collective misconception patterns, affected student counts, and instructional priorities.
+4. **Validate (Stage 4 · Deterministic Code Validator):** Independent programmatic code audits roster arithmetic, group partitioning, and validates verbatim quotation presence against raw submissions to prevent hallucinated citations.
+5. **Plan (Stage 5 · Gemini Teaching Strategist):** Produces a differentiated 25-minute next-lesson sequence, non-stigmatizing cohorts, teacher prompts, and exit tickets.
+6. **Verify (Stage 6 · Gemini Semantic Verifier & Teacher Authority):** Independent semantic audit evaluates claim plausibility. Teacher retains sovereign decision authority (Accept, Edit, Dismiss).
 
 ---
 
-## 6. Pre-Loaded Demo Classroom (Grade 10 English)
+## 4. Google Technologies Used
 
-To enable frictionless 60-second judging, LotusLearn includes a pre-loaded Grade 10 English diagnostic dataset:
-- **Objective:** Correctly distinguish between Present Perfect and Past Simple across experiences, finished past events, and unfinished time periods.
-- **Cohort Size:** 12 anonymized student submissions.
-- **Target Misconceptions:**
-  - *Pattern A:* Using past simple where present perfect is required for unfinished periods or experiences.
-  - *Pattern B:* Pairing present perfect with finished-time adverbs (*yesterday*, *last year*, *in 2024*).
-  - *Pattern C:* Irregular past participle errors (*writed*, *ate*, *breaked*).
-  - *Pattern D:* Auxiliary agreement or omission (*he have*, *we has*, *I been*).
-  - *Mastery submissions:* Solid correct responses demonstrating tense contrast.
-
-*Note: The demo submissions are fixed; the analysis is generated live by Gemini.*
+- **Gemini 3.8 Flash (`@google/genai` v2.4.0):** Multi-stage reasoning engine for structured observations, diagnostic pattern clustering, and instructional planning.
+- **Google Cloud Sensitive Data Protection (Cloud DLP REST v2):** Pre-AI PII de-identification (`content:deidentify` and `image:redact`) ensuring sensitive student data never reaches model boundaries.
+- **Google Cloud Run:** Serverless container execution with automated scaling and sub-second latency.
 
 ---
 
-## 7. Local Development Setup
+## 5. Privacy & Data Governance Model
+
+- **Fail-Closed Privacy Contract:** If the privacy provider encounters a network timeout, quota exhaustion, or outage, the pipeline aborts immediately. Zero un-sanitized content reaches Gemini.
+- **Zero Raw PII Persistence:** Privacy audit metadata stores finding counts only, never raw sensitive values.
+- **Zero PII in Server Logs:** Console and operational logs record stage durations, error taxonomy, and submission counts only.
+- **Local Device Storage:** Saved session records reside in browser local storage. Data is never synchronized to unauthorized third-party trackers.
+
+---
+
+## 6. One-Click Interactive Demo
+
+LotusLearn includes an interactive one-click demonstration using an authentic Grade 10 English classroom scenario (Unit: *Present Perfect vs. Past Simple* with contextual references to Hội An, Đà Nẵng, Huế, and Hạ Long):
+
+1. Click **Try Demo Class** in the top navigation or sidebar.
+2. The system executes the full 6-stage pipeline across 12 authentic student submissions.
+3. Inspect diagnosed misconception clusters, click **Why?** to examine anchored evidence quotes, and review tomorrow's 25-minute lesson plan.
+
+---
+
+## 7. Local Development & Setup
 
 ### Prerequisites
-- Node.js >= 18.0.0
-- A valid Gemini API key from [Google AI Studio](https://aistudio.google.com)
+- Node.js 20+
+- npm 10+
+- Google Gemini API Key
 
 ### Installation
+
 ```bash
 # Clone the repository
-git clone https://github.com/ttkk-team/lotuslearn-ai.git
+git clone <repo-url>
 cd lotuslearn-ai
 
 # Install dependencies
@@ -139,10 +100,9 @@ npm install
 
 # Configure environment variables
 cp .env.example .env
-# Set your GEMINI_API_KEY in .env:
-# GEMINI_API_KEY="your-api-key-here"
+# Add your GEMINI_API_KEY in .env
 
-# Start the full-stack development server (Express + Vite)
+# Start development server
 npm run dev
 ```
 
@@ -150,33 +110,36 @@ Visit `http://localhost:3000` in your browser.
 
 ---
 
-## 8. Deployment to Google Cloud Run
+## 8. Test Suite & Verification
 
-LotusLearn AI is container-ready:
+LotusLearn maintains a comprehensive regression and validation test suite:
+
 ```bash
-# Build the production frontend assets
+# Run TypeScript typecheck
+npm run typecheck
+
+# Run 181 automated tests (39 suites)
+npm test
+
+# Run ESLint validation
+npm run lint
+
+# Production build
 npm run build
-
-# Start the Node.js production server
-npm start
 ```
 
-Deploy to Google Cloud Run:
-```bash
-gcloud run deploy lotuslearn-ai \
-  --source . \
-  --platform managed \
-  --region asia-east1 \
-  --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY="your-key"
-```
+**Quality Baseline:**
+- 181 / 181 Tests Pass (39 suites, 0 failures, 0 skips)
+- TypeScript strict typecheck: Pass
+- Canonical Demo SHA-256 Fingerprint: `f82100e176cd233e0b65efbf00fc7b8947e7dab66aadff9389f1f25f128bf1ce`
 
 ---
 
-## 9. Team TTKK
+## 9. Current Limitations & Roadmap
 
-- **Team Name:** TTKK
-- **Location:** Vietnam
-- **Competition:** Google Cloud AI Builder Cup 2026 (Powered by Hack2skill)
-- **Primary Theme:** Media, Content & Digital Experiences (Education)
-- **Objective:** Grand Finale Shortlist — Singapore
+- **Current Scope:** Optimized for English Language Arts, reading comprehension, and structured concept diagnostics.
+- **Handwritten OCR:** Multi-page handwriting currently relies on high-resolution image uploads (`image/jpeg`, `image/png`).
+- **Roadmap:**
+  - Multi-class longitudinal progress tracking.
+  - Multi-rubric simultaneous evaluation.
+  - Direct LMS export integrations (Google Classroom).

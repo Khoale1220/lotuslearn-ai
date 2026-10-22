@@ -1,24 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Header } from './components/Header';
-import { Hero } from './components/Hero';
-import { Dashboard } from './components/Dashboard';
+import { Sidebar, NavigationTarget } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
+import { OverviewDashboard } from './components/OverviewDashboard';
 import { NewAnalysisWizard } from './components/NewAnalysisWizard';
 import { PipelineVisualizer } from './components/PipelineVisualizer';
 import { ResultsView } from './components/ResultsView';
+import { ClassesView } from './components/views/ClassesView';
+import { StudentsView } from './components/views/StudentsView';
+import { PrivacyTrustView } from './components/views/PrivacyTrustView';
 import { ResponsibleAIModal } from './components/ResponsibleAIModal';
+import { HowItWorksModal } from './components/HowItWorksModal';
 import {
   ClassAnalysisResult,
   DifferentiatedIntervention,
   LearningContext,
   StudentSubmission,
   SavedSession,
+  TeacherDecision,
 } from './types';
 import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from './data/demoClassroom';
+import { getCanonicalTeacherDecision } from './utils/verificationDisplay';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<
-    'landing' | 'dashboard' | 'new-analysis' | 'processing' | 'results'
-  >('landing');
+  const [currentView, setCurrentView] = useState<NavigationTarget>('overview');
 
   const [activeAnalysis, setActiveAnalysis] = useState<ClassAnalysisResult | null>(null);
   const [rawSubmissions, setRawSubmissions] = useState<StudentSubmission[]>([]);
@@ -29,11 +33,16 @@ export default function App() {
   // Pipeline execution state
   const [pipelineStage, setPipelineStage] = useState<number>(1);
   const [pipelineDetail, setPipelineDetail] = useState<string>('');
-  const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [pipelineError, setPipelineError] = useState<
+    string | { message: string; code?: string; stage?: string; retryable?: boolean } | null
+  >(null);
 
-  // Modals
+  // Modals and accessibility announcements
   const [isResponsibleAIModalOpen, setIsResponsibleAIModalOpen] = useState(false);
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
+  const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [initialDemoLoad, setInitialDemoLoad] = useState(false);
+  const [statusAnnouncement, setStatusAnnouncement] = useState<string>('');
 
   // Load saved sessions from localStorage on mount
   useEffect(() => {
@@ -43,12 +52,38 @@ export default function App() {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const sessions: SavedSession[] = parsed.map((item: any) => {
+            const res = (item.result || item) as ClassAnalysisResult;
+            const normalizedClusters = (res.misconceptionClusters || []).map((c: any) => {
+              const canonical = getCanonicalTeacherDecision(c);
+              return {
+                ...c,
+                status: canonical,
+                teacherDecision: canonical,
+              };
+            });
+            const normalizedInterventions = (res.interventions || []).map((i: any) => {
+              const canonical = getCanonicalTeacherDecision(i);
+              return {
+                ...i,
+                status: canonical,
+                teacherDecision: canonical,
+              };
+            });
+            const normalizedResult: ClassAnalysisResult = {
+              ...res,
+              misconceptionClusters: normalizedClusters,
+              interventions: normalizedInterventions,
+            };
+
             if (item.result && Array.isArray(item.rawSubmissions)) {
-              return item as SavedSession;
+              return {
+                result: normalizedResult,
+                rawSubmissions: item.rawSubmissions,
+                savedAt: item.savedAt || new Date().toISOString(),
+              };
             }
-            // For legacy sessions without stored submissions, do NOT inject demo data
             return {
-              result: item as ClassAnalysisResult,
+              result: normalizedResult,
               rawSubmissions: [],
               savedAt: item.timestamp || new Date().toISOString(),
             };
@@ -98,7 +133,7 @@ export default function App() {
     setPipelineStage(1);
     setPipelineDetail('Initializing server-side Gemini 3.8 Flash pipeline...');
     setPipelineError(null);
-    setCurrentView('processing');
+    setCurrentView('processing' as any);
 
     try {
       // Attempt SSE streaming for live visual progression
@@ -118,7 +153,10 @@ export default function App() {
 
         if (!fallbackRes.ok) {
           const errData = await fallbackRes.json().catch(() => ({}));
-          throw new Error(errData.error || `HTTP error ${fallbackRes.status}`);
+          setPipelineError(
+            errData.code ? errData : (errData.error || errData.message || `HTTP error ${fallbackRes.status}`)
+          );
+          return;
         }
 
         const data: ClassAnalysisResult = await fallbackRes.json();
@@ -176,7 +214,7 @@ export default function App() {
               }, 600);
             } else if (eventType === 'error') {
               console.error('[LotusLearn AI] SSE pipeline stage error:', parsedData);
-              setPipelineError(parsedData.message || 'Pipeline stage failed');
+              setPipelineError(parsedData.code ? parsedData : (parsedData.message || 'Pipeline stage failed'));
               return;
             }
           }
@@ -185,7 +223,7 @@ export default function App() {
     } catch (err: any) {
       console.error('[LotusLearn AI] Pipeline execution error:', err);
       setPipelineError(
-        err.message || 'A network or model error occurred during the analysis pipeline.'
+        err.code ? err : (err.message || 'A network or model error occurred during the analysis pipeline.')
       );
     }
   };
@@ -193,12 +231,6 @@ export default function App() {
   // Launch Demo Classroom path directly
   const handleQuickDemo = () => {
     startPipelineAnalysis(DEMO_CONTEXT, DEMO_SUBMISSIONS);
-  };
-
-  // Open New Analysis with demo pre-filled
-  const handleOpenDemoInWizard = () => {
-    setInitialDemoLoad(true);
-    setCurrentView('new-analysis');
   };
 
   // Adjust intervention with server-side Gemini
@@ -234,15 +266,25 @@ export default function App() {
     }
   };
 
-  // Human-in-the-loop: update misconception status
+  // Human-in-the-loop: update misconception status and/or title
   const handleUpdateMisconceptionStatus = (
     clusterId: string,
-    status: 'accepted' | 'edited' | 'dismissed'
+    status: TeacherDecision,
+    newTitle?: string
   ) => {
     if (!activeAnalysis) return;
-    const updatedClusters = activeAnalysis.misconceptionClusters.map((c) =>
-      c.clusterId === clusterId ? { ...c, status } : c
-    );
+    const updatedClusters = activeAnalysis.misconceptionClusters.map((c) => {
+      if (c.clusterId === clusterId) {
+        return {
+          ...c,
+          status,
+          teacherDecision: status,
+          misconceptionTitle:
+            newTitle && newTitle.trim() ? newTitle.trim() : c.misconceptionTitle,
+        };
+      }
+      return c;
+    });
     const updated = {
       ...activeAnalysis,
       misconceptionClusters: updatedClusters,
@@ -254,11 +296,13 @@ export default function App() {
   // Human-in-the-loop: update intervention status
   const handleUpdateInterventionStatus = (
     interventionId: string,
-    status: 'accepted' | 'edited' | 'dismissed'
+    status: TeacherDecision
   ) => {
     if (!activeAnalysis) return;
     const updatedInterventions = activeAnalysis.interventions.map((i) =>
-      i.interventionId === interventionId ? { ...i, status } : i
+      i.interventionId === interventionId
+        ? { ...i, status, teacherDecision: status }
+        : i
     );
     const updated = {
       ...activeAnalysis,
@@ -268,114 +312,216 @@ export default function App() {
     saveAnalysis(updated);
   };
 
+  // Flexible Navigation Dispatcher
+  const handleNavigate = (target: NavigationTarget) => {
+    if (target === 'misconceptions') {
+      if (activeAnalysis) {
+        setCurrentView('results');
+        setTimeout(() => {
+          document.getElementById('section-what-happened')?.scrollIntoView({ behavior: 'smooth' });
+        }, 120);
+      } else {
+        handleQuickDemo();
+      }
+      return;
+    }
+    if (target === 'interventions' || target === 'lesson-plans') {
+      if (activeAnalysis) {
+        setCurrentView('results');
+        setTimeout(() => {
+          document.getElementById('section-what-next')?.scrollIntoView({ behavior: 'smooth' });
+        }, 120);
+      } else {
+        handleQuickDemo();
+      }
+      return;
+    }
+    if (target === 'evidence') {
+      if (activeAnalysis) {
+        setCurrentView('results');
+        setTimeout(() => {
+          document.getElementById('section-why-evidence')?.scrollIntoView({ behavior: 'smooth' });
+        }, 120);
+      } else {
+        handleQuickDemo();
+      }
+      return;
+    }
+    if (target === 'results' && !activeAnalysis) {
+      handleQuickDemo();
+      return;
+    }
+    setCurrentView(target);
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
-      {/* Navigation Header */}
-      <Header
-        currentView={currentView}
-        onNavigate={(view) => setCurrentView(view)}
-        onOpenResponsibleAI={() => setIsResponsibleAIModalOpen(true)}
+    <div className="min-h-screen bg-[#F8FAFC] flex font-sans selection:bg-indigo-100 selection:text-indigo-900">
+      {/* Persistent Desktop Sidebar */}
+      <Sidebar
+        activeView={currentView}
+        onNavigate={handleNavigate}
         onQuickDemo={handleQuickDemo}
+        onOpenResponsibleAI={() => setIsResponsibleAIModalOpen(true)}
+        onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
         hasActiveResult={!!activeAnalysis}
-        onViewResults={() => setCurrentView('results')}
+        isOpenMobile={isSidebarOpenMobile}
+        onCloseMobile={() => setIsSidebarOpenMobile(false)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1">
-        {currentView === 'landing' && (
-          <Hero
-            onStartAnalysis={() => {
-              setInitialDemoLoad(false);
-              setCurrentView('new-analysis');
-            }}
-            onTryDemo={handleQuickDemo}
-          />
-        )}
+      {/* Main App Layout (offset on desktop by sidebar width 280px / lg:pl-70) */}
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-70">
+        {/* Restrained Top Navigation Bar */}
+        <TopBar
+          currentView={currentView}
+          onNavigate={handleNavigate}
+          onToggleSidebarMobile={() => setIsSidebarOpenMobile(true)}
+          onQuickDemo={handleQuickDemo}
+          onOpenResponsibleAI={() => setIsResponsibleAIModalOpen(true)}
+          hasActiveResult={!!activeAnalysis}
+          activeLessonTitle={activeAnalysis?.context.lessonTitle}
+        />
 
-        {currentView === 'dashboard' && (
-          <Dashboard
-            onNewAnalysis={() => {
-              setInitialDemoLoad(false);
-              setCurrentView('new-analysis');
-            }}
-            onTryDemo={handleQuickDemo}
-            onSelectSavedAnalysis={(analysis) => {
-              const matched = savedSessions.find((s) => s.result.id === analysis.id);
-              setActiveAnalysis(analysis);
-              setRawSubmissions(matched?.rawSubmissions || []);
-              setCurrentView('results');
-            }}
-            savedAnalyses={savedAnalyses}
-          />
-        )}
-
-        {currentView === 'new-analysis' && (
-          <NewAnalysisWizard
-            onCancel={() => setCurrentView('dashboard')}
-            onStartAnalysis={(context, submissions) =>
-              startPipelineAnalysis(context, submissions)
-            }
-            initialDemoLoad={initialDemoLoad}
-          />
-        )}
-
-        {currentView === 'processing' && (
-          <PipelineVisualizer
-            currentStage={pipelineStage}
-            currentDetail={pipelineDetail}
-            errorMessage={pipelineError || undefined}
-            onRetry={() => {
-              if (activeContext && rawSubmissions.length > 0) {
-                startPipelineAnalysis(activeContext, rawSubmissions);
-              }
-            }}
-            onCancel={() => setCurrentView('new-analysis')}
-          />
-        )}
-
-        {currentView === 'results' && activeAnalysis && (
-          <ResultsView
-            result={activeAnalysis}
-            rawSubmissions={rawSubmissions}
-            onBackToDashboard={() => setCurrentView('dashboard')}
-            onNewAnalysis={() => {
-              setInitialDemoLoad(false);
-              setCurrentView('new-analysis');
-            }}
-            onAdjustIntervention={handleAdjustIntervention}
-            onUpdateMisconceptionStatus={handleUpdateMisconceptionStatus}
-            onUpdateInterventionStatus={handleUpdateInterventionStatus}
-          />
-        )}
-      </main>
-
-      {/* Footer (Anti-slop: quiet, clean, with real links & branding) */}
-      <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-800">LotusLearn AI</span>
-            <span>·</span>
-            <span>From student work to targeted intervention in 60 seconds</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 text-slate-500">
-            <span>Google Cloud AI Builder Cup 2026</span>
-            <span>·</span>
-            <span>Team TTKK • Vietnam</span>
-            <span>·</span>
-            <button
-              onClick={() => setIsResponsibleAIModalOpen(true)}
-              className="hover:text-slate-900 underline underline-offset-2"
-            >
-              Responsible AI Charter
-            </button>
-          </div>
+        {/* Accessibility Announcement Region */}
+        <div role="status" aria-live="polite" className="sr-only">
+          {statusAnnouncement}
         </div>
-      </footer>
 
-      {/* Responsible AI Transparency Modal */}
+        {/* Dynamic Content Views */}
+        <main className="flex-1">
+          {currentView === 'overview' && (
+            <OverviewDashboard
+              onStartAnalysis={() => {
+                setInitialDemoLoad(false);
+                setCurrentView('new-analysis');
+              }}
+              onTryDemo={handleQuickDemo}
+              onSelectSavedAnalysis={(analysis) => {
+                const matched = savedSessions.find((s) => s.result.id === analysis.id);
+                setActiveAnalysis(analysis);
+                setRawSubmissions(matched?.rawSubmissions || []);
+                setCurrentView('results');
+              }}
+              savedAnalyses={savedAnalyses}
+              onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+            />
+          )}
+
+          {currentView === 'classes' && (
+            <ClassesView
+              onStartAnalysis={() => {
+                setInitialDemoLoad(false);
+                setCurrentView('new-analysis');
+              }}
+              onTryDemo={handleQuickDemo}
+              onSelectSavedAnalysis={(analysis) => {
+                const matched = savedSessions.find((s) => s.result.id === analysis.id);
+                setActiveAnalysis(analysis);
+                setRawSubmissions(matched?.rawSubmissions || []);
+                setCurrentView('results');
+              }}
+              savedAnalyses={savedAnalyses}
+            />
+          )}
+
+          {currentView === 'students' && (
+            <StudentsView
+              analysis={activeAnalysis}
+              onTryDemo={handleQuickDemo}
+              onInspectStudent={(studentId) => {
+                if (activeAnalysis) {
+                  setCurrentView('results');
+                }
+              }}
+            />
+          )}
+
+          {currentView === 'privacy' && (
+            <PrivacyTrustView
+              onOpenCharter={() => setIsResponsibleAIModalOpen(true)}
+            />
+          )}
+
+          {currentView === 'new-analysis' && (
+            <NewAnalysisWizard
+              onCancel={() => setCurrentView('overview')}
+              onStartAnalysis={(context, submissions) =>
+                startPipelineAnalysis(context, submissions)
+              }
+              initialDemoLoad={initialDemoLoad}
+            />
+          )}
+
+          {(currentView as string) === 'processing' && (
+            <PipelineVisualizer
+              currentStage={pipelineStage}
+              currentDetail={pipelineDetail}
+              errorMessage={pipelineError || undefined}
+              onRetry={() => {
+                if (activeContext && rawSubmissions.length > 0) {
+                  startPipelineAnalysis(activeContext, rawSubmissions);
+                }
+              }}
+              onCancel={() => setCurrentView('new-analysis')}
+            />
+          )}
+
+          {currentView === 'results' && activeAnalysis && (
+            <ResultsView
+              result={activeAnalysis}
+              rawSubmissions={rawSubmissions}
+              onBackToDashboard={() => setCurrentView('overview')}
+              onNewAnalysis={() => {
+                setInitialDemoLoad(false);
+                setCurrentView('new-analysis');
+              }}
+              onAdjustIntervention={handleAdjustIntervention}
+              onUpdateMisconceptionStatus={handleUpdateMisconceptionStatus}
+              onUpdateInterventionStatus={handleUpdateInterventionStatus}
+            />
+          )}
+        </main>
+
+        {/* Global Restrained Footer */}
+        <footer className="border-t border-slate-200 bg-white py-6 text-xs text-slate-500">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-800">LotusLearn AI</span>
+              <span>·</span>
+              <span>Evidence-grounded formative assessment</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-slate-500">
+              <button
+                onClick={() => setIsHowItWorksOpen(true)}
+                className="hover:text-slate-900 transition"
+              >
+                6-Stage Pipeline
+              </button>
+              <button
+                onClick={() => setCurrentView('privacy')}
+                className="hover:text-slate-900 transition"
+              >
+                Privacy Model
+              </button>
+              <button
+                onClick={() => setIsResponsibleAIModalOpen(true)}
+                className="hover:text-slate-900 underline underline-offset-2"
+              >
+                Responsible AI Charter
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+
+      {/* Responsible AI Modal */}
       {isResponsibleAIModalOpen && (
         <ResponsibleAIModal onClose={() => setIsResponsibleAIModalOpen(false)} />
+      )}
+
+      {/* How LotusLearn Works Modal */}
+      {isHowItWorksOpen && (
+        <HowItWorksModal onClose={() => setIsHowItWorksOpen(false)} />
       )}
     </div>
   );

@@ -11,8 +11,10 @@ import { verifyAnalysisPipeline } from './verifierService';
 import { runDeterministicValidation } from './deterministicValidator';
 import { generateGroundedDemoAnalysis } from './demoFallbackGenerator';
 import { PRIMARY_GEMINI_MODEL } from '../geminiClient';
+import { getPrivacyGateway } from './privacyGateway';
 
-import { isExactDemoClassroom } from './demoFingerprint';
+import { isExactDemoClassroom, computeDatasetFingerprint } from './demoFingerprint';
+import { PipelineError, classifyGeminiError, classifyPrivacyError } from '../errors/pipelineErrors';
 
 export type ProgressCallback = (stage: number, stageName: string, detail: string) => void;
 export { isExactDemoClassroom };
@@ -28,33 +30,58 @@ export async function runFullAnalysisPipeline(
   const stageDurations: Record<string, number> = {};
   const modelsUsed: string[] = [];
   let currentStageNumber = 1;
-  let currentStageName = 'Reading evidence';
+  let currentStageName = 'Privacy Gateway';
 
   try {
-    // Stage 1: Source Evidence - Ingestion
-    currentStageNumber = 1;
-    currentStageName = 'Source Evidence';
-    onProgress?.(1, 'Source Evidence', `Ingesting ${submissions.length} student submissions & learning context`);
-    const s1Start = Date.now();
-    await new Promise((r) => setTimeout(r, 200));
-    stageDurations['Stage 1: Source Evidence'] = Date.now() - s1Start;
+    const PIPELINE_TOTAL_DEADLINE_MS = 120_000;
+    const enforceDeadline = (stageName: string) => {
+      if (Date.now() - pipelineStartTime > PIPELINE_TOTAL_DEADLINE_MS) {
+        throw new PipelineError({
+          code: 'TRANSIENT_NETWORK_ERROR',
+          stage: stageName,
+          message: `Total pipeline deadline (${PIPELINE_TOTAL_DEADLINE_MS}ms) exceeded at "${stageName}".`,
+          retryable: true,
+        });
+      }
+    };
 
-    // Stage 2: Gemini Observer - Evidence extraction & multimodal transcription
+    // Stage 1: Privacy Gateway — Identity Normalization & SDP Sanitization (Pre-AI Boundary)
+    currentStageNumber = 1;
+    currentStageName = 'Privacy Gateway';
+    enforceDeadline(currentStageName);
+    onProgress?.(
+      1,
+      'Privacy Gateway',
+      `Checking student privacy & sanitizing sensitive information across ${submissions.length} submissions`
+    );
+    const privacyStart = Date.now();
+    const privacyGateway = getPrivacyGateway();
+    const { sanitizedSubmissions, privacyAudit, privacyScanDurationMs } =
+      await privacyGateway.sanitizeBatch(submissions);
+    stageDurations['Stage 1: Privacy Gateway'] = privacyScanDurationMs || (Date.now() - privacyStart);
+
+    // Stage 2: Gemini Observer - Evidence extraction on sanitized submissions
     currentStageNumber = 2;
     currentStageName = 'Gemini Observer';
-    onProgress?.(2, 'Gemini Observer', 'Multimodal evidence extraction & handwriting OCR transcription');
+    enforceDeadline(currentStageName);
+    onProgress?.(
+      2,
+      'Gemini Observer',
+      'Multimodal evidence extraction & handwriting OCR transcription on sanitized submissions'
+    );
     const obsStart = Date.now();
-    const { observations, normalizedEvidence, modelUsed: obsModel, durationMs: obsDuration } =
-      await observeSubmissions(context, submissions);
+    const { observations, normalizedEvidence, modelUsed: obsModel, durationMs: obsDuration, telemetry: obsTelemetry } =
+      await observeSubmissions(context, sanitizedSubmissions);
     stageDurations['Stage 2: Gemini Observer'] = obsDuration || (Date.now() - obsStart);
     if (obsModel && !modelsUsed.includes(obsModel)) modelsUsed.push(obsModel);
 
     // Stage 3: Gemini Diagnosis - Misconception synthesis
     currentStageNumber = 3;
     currentStageName = 'Gemini Diagnosis';
+    enforceDeadline(currentStageName);
     onProgress?.(3, 'Gemini Diagnosis', 'Synthesizing class-wide misconception patterns and root causes');
     const diagStart = Date.now();
-    const { classSnapshot, misconceptionClusters, modelUsed: diagModel, durationMs: diagDuration } =
+    const { classSnapshot, misconceptionClusters, modelUsed: diagModel, durationMs: diagDuration, telemetry: diagTelemetry } =
       await diagnoseClassPatterns(context, observations);
     stageDurations['Stage 3: Gemini Diagnosis'] = diagDuration || (Date.now() - diagStart);
     if (diagModel && !modelsUsed.includes(diagModel)) modelsUsed.push(diagModel);
@@ -62,10 +89,11 @@ export async function runFullAnalysisPipeline(
     // Stage 4: Deterministic Validation - Code grounding & arithmetic checks
     currentStageNumber = 4;
     currentStageName = 'Deterministic Validation';
+    enforceDeadline(currentStageName);
     onProgress?.(4, 'Deterministic Validation', 'Verifying student ID coverage, cluster math, and exact quotes');
     const valStart = Date.now();
     const deterministicAudit = runDeterministicValidation({
-      submissions,
+      submissions: sanitizedSubmissions,
       normalizedEvidence,
       observations,
       clusters: misconceptionClusters,
@@ -76,9 +104,10 @@ export async function runFullAnalysisPipeline(
     // Stage 5: Gemini Teaching Strategist - Interventions & 25-minute lesson sequence
     currentStageNumber = 5;
     currentStageName = 'Gemini Teaching Strategist';
+    enforceDeadline(currentStageName);
     onProgress?.(5, 'Gemini Teaching Strategist', 'Generating differentiated scaffolds and 25-minute lesson sequence');
     const stratStart = Date.now();
-    const { instructionalGroups, nextLessonPlan, interventions, modelUsed: stratModel, durationMs: stratDuration } =
+    const { instructionalGroups, nextLessonPlan, interventions, modelUsed: stratModel, durationMs: stratDuration, telemetry: stratTelemetry } =
       await planTeachingStrategy(context, observations, misconceptionClusters);
     stageDurations['Stage 5: Gemini Teaching Strategist'] = stratDuration || (Date.now() - stratStart);
     if (stratModel && !modelsUsed.includes(stratModel)) modelsUsed.push(stratModel);
@@ -86,7 +115,7 @@ export async function runFullAnalysisPipeline(
     // Run complete deterministic audit with groups now populated
     const audit2Start = Date.now();
     const completeDeterministicAudit = runDeterministicValidation({
-      submissions,
+      submissions: sanitizedSubmissions,
       normalizedEvidence,
       observations,
       clusters: misconceptionClusters,
@@ -98,11 +127,12 @@ export async function runFullAnalysisPipeline(
     // Stage 6: Gemini Verification - Adversarial grounding audit pass
     currentStageNumber = 6;
     currentStageName = 'Gemini Verification';
+    enforceDeadline(currentStageName);
     onProgress?.(6, 'Gemini Verification', 'Adversarial pass auditing claims against student evidence');
     const verifierStart = Date.now();
     const verification = await verifyAnalysisPipeline(
       context,
-      submissions,
+      sanitizedSubmissions,
       normalizedEvidence,
       completeDeterministicAudit.auditedObservations,
       completeDeterministicAudit.auditedClusters,
@@ -112,6 +142,9 @@ export async function runFullAnalysisPipeline(
       completeDeterministicAudit
     );
     stageDurations['Stage 6: Gemini Verification'] = Date.now() - verifierStart;
+    if (verification.modelUsed && !modelsUsed.includes(verification.modelUsed)) {
+      modelsUsed.push(verification.modelUsed);
+    }
 
     // Stage 7: Complete
     currentStageNumber = 7;
@@ -119,6 +152,27 @@ export async function runFullAnalysisPipeline(
     onProgress?.(7, 'Complete', 'Diagnostic assessment ready for teacher review & decision');
 
     const totalDurationMs = Date.now() - pipelineStartTime;
+
+    const stageModels: Record<string, string> = {
+      'Stage 2: Gemini Observer': obsModel || 'gemini-3.5-flash-lite',
+      'Stage 3: Gemini Diagnosis': diagModel || 'gemini-3.8-flash',
+      'Stage 5: Gemini Teaching Strategist': stratModel || 'gemini-3.8-flash',
+      'Stage 6: Gemini Verification': verification.modelUsed || 'gemini-3.6-flash',
+    };
+
+    const stageTelemetryList = [
+      obsTelemetry,
+      diagTelemetry,
+      stratTelemetry,
+      verification.modelUsed
+        ? {
+            stage: 'Stage 6: Gemini Verification',
+            requestedModel: 'gemini-3.6-flash',
+            actualModel: verification.modelUsed,
+            latencyMs: stageDurations['Stage 6: Gemini Verification'] || 0,
+          }
+        : undefined,
+    ].filter(Boolean);
 
     return {
       id: analysisId,
@@ -131,24 +185,34 @@ export async function runFullAnalysisPipeline(
       nextLessonPlan,
       interventions,
       verification,
+      privacyAudit,
       normalizedSourceEvidence: normalizedEvidence,
       executionMetadata: {
         executionMode: 'live_gemini',
         primaryModel: PRIMARY_GEMINI_MODEL,
         modelsUsed: modelsUsed.length > 0 ? modelsUsed : [PRIMARY_GEMINI_MODEL],
+        stageModels,
+        stageTelemetry: stageTelemetryList,
         totalDurationMs,
+        privacyScanDurationMs,
         stageDurationsMs: stageDurations,
-        submissionCount: submissions.length,
+        submissionCount: sanitizedSubmissions.length,
         deterministicAuditPassed:
           completeDeterministicAudit.coveragePassed &&
           completeDeterministicAudit.clusterMathPassed &&
           completeDeterministicAudit.groupPartitionPassed &&
           completeDeterministicAudit.evidenceValidationPassed,
+        runId: analysisId,
+        pipelineVersion: '2.0.0',
+        datasetFingerprint: computeDatasetFingerprint(context, submissions),
+        fallbackUsed: false,
+        startedAt: new Date(pipelineStartTime).toISOString(),
+        completedAt: new Date().toISOString(),
       },
     };
   } catch (err: any) {
     const errorMsg = err?.message || String(err);
-    console.warn(`[LotusLearn AI] Pipeline failed at Stage ${currentStageNumber} (${currentStageName}):`, errorMsg);
+    console.log(`[LotusLearn AI] Pipeline notice at Stage ${currentStageNumber} (${currentStageName}):`, errorMsg);
 
     // PRIORITY 1: Strict demo identity check!
     const isDemo = isExactDemoClassroom(context, submissions);
@@ -158,12 +222,12 @@ export async function runFullAnalysisPipeline(
 
       // Animate remaining visual stages so user experiences full workflow
       const stages = [
-        { stage: 1, name: 'Source Evidence', detail: `Ingested ${submissions.length} student submissions & learning context` },
+        { stage: 1, name: 'Privacy Gateway', detail: 'Checked student privacy & verified clean demonstration dataset' },
         { stage: 2, name: 'Gemini Observer', detail: 'Multimodal evidence extraction & handwriting OCR transcription' },
         { stage: 3, name: 'Gemini Diagnosis', detail: 'Synthesized 4 core misconception clusters and root causes' },
         { stage: 4, name: 'Deterministic Validation', detail: 'Verified student ID coverage, cluster math, and exact quotes' },
         { stage: 5, name: 'Gemini Teaching Strategist', detail: 'Generated differentiated scaffolds and 25-minute lesson sequence' },
-        { stage: 6, name: 'Gemini Verification', detail: 'Audited claims against raw student evidence' },
+        { stage: 6, name: 'Gemini Verification', detail: 'Audited claims against student evidence' },
         { stage: 7, name: 'Complete', detail: 'All 7 stages verified · preparing diagnostic results' },
       ];
 
@@ -178,19 +242,16 @@ export async function runFullAnalysisPipeline(
     }
 
     // For ANY non-demo or custom submission: NEVER substitute demo analysis!
-    // Throw clean stage-specific error with retry instruction
-    let cleanMsg = errorMsg;
-    try {
-      const parsed = typeof errorMsg === 'string' && errorMsg.startsWith('{') ? JSON.parse(errorMsg) : null;
-      if (parsed?.error?.message) {
-        cleanMsg = parsed.error.message.split('\n')[0];
-      }
-    } catch {
-      // Keep original message
+    // P3.1 / P4.0: Strictly preserve typed PipelineError metadata so code, stage, and retryable survive orchestration.
+    if (err instanceof PipelineError) {
+      throw err;
     }
 
-    throw new Error(
-      `Stage ${currentStageNumber} (${currentStageName}) failed: ${cleanMsg}. Please try again.`
-    );
+    if (currentStageName === 'Privacy Gateway') {
+      throw classifyPrivacyError(err, 'Privacy Gateway');
+    }
+
+    const classified = classifyGeminiError(err, `Stage ${currentStageNumber}: ${currentStageName}`);
+    throw classified;
   }
 }

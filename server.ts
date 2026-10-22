@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import apiRoutes from './server/routes/api';
+import { PRIMARY_GEMINI_MODEL } from './server/geminiClient';
 
 dotenv.config();
 
@@ -26,7 +27,7 @@ async function startServer() {
       status: 'ok',
       service: 'LotusLearn AI',
       runtime: 'Google Cloud Node.js',
-      model: 'gemini-3.8-flash',
+      primaryModel: PRIMARY_GEMINI_MODEL,
     });
   });
 

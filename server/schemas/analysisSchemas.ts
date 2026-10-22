@@ -4,14 +4,32 @@ export const NormalizedSourceEvidenceSchema = z.object({
   studentId: z.string(),
   sourceType: z.enum(['typed', 'image_transcription']),
   extractedText: z.string(),
-  confidenceOrStatus: z.enum(['exact_source', 'transcription_high', 'transcription_moderate', 'unreadable']),
+  confidenceOrStatus: z.enum([
+    'exact_source',
+    'transcription_unverified',
+    'transcription_supported',
+    'transcription_reviewed',
+    'unreadable',
+    'transcription_high',
+    'transcription_moderate',
+  ]),
 });
 
 export const SupportingEvidenceItemSchema = z.object({
   quoteOrDetail: z.string(),
   interpretation: z.string(),
   sourceType: z.enum(['typed', 'image_transcription']).optional(),
-  deterministicMatch: z.enum(['exact_quote_found', 'image_transcription_match', 'approximate_match', 'unsupported_citation']).optional(),
+  deterministicMatch: z
+    .enum([
+      'exact_match',
+      'exact_quote_found',
+      'normalized_exact_match',
+      'image_transcription_match',
+      'image_transcription_verified',
+      'approximate_match',
+      'unsupported_citation',
+    ])
+    .optional(),
 });
 
 export const StudentObservationSchema = z.object({
@@ -28,12 +46,24 @@ export const StudentObservationSchema = z.object({
 
 export const StudentObservationListSchema = z.array(StudentObservationSchema);
 
+export const TeacherDecisionSchema = z.enum(['pending', 'accepted', 'edited', 'dismissed']);
+
 export const ClusterEvidenceItemSchema = z.object({
   studentId: z.string(),
   excerpt: z.string(),
   groundingReason: z.string(),
   sourceType: z.enum(['typed', 'image_transcription']).optional(),
-  deterministicMatch: z.enum(['exact_quote_found', 'image_transcription_match', 'approximate_match', 'unsupported_citation']).optional(),
+  deterministicMatch: z
+    .enum([
+      'exact_match',
+      'exact_quote_found',
+      'normalized_exact_match',
+      'image_transcription_match',
+      'image_transcription_verified',
+      'approximate_match',
+      'unsupported_citation',
+    ])
+    .optional(),
 });
 
 export const MisconceptionClusterSchema = z.object({
@@ -48,7 +78,8 @@ export const MisconceptionClusterSchema = z.object({
   confidence: z.number().min(0).max(1).default(0.9),
   evidenceStrength: z.enum(['strong', 'moderate', 'review_required']).optional(),
   recommendedInstructionalResponse: z.string(),
-  status: z.enum(['accepted', 'edited', 'dismissed']).default('accepted'),
+  status: TeacherDecisionSchema.default('pending'),
+  teacherDecision: TeacherDecisionSchema.default('pending'),
 });
 
 export const ClassSnapshotSchema = z.object({
@@ -93,6 +124,7 @@ export const NextLessonPlanSchema = z.object({
 
 export const DifferentiatedInterventionSchema = z.object({
   interventionId: z.string(),
+  clusterId: z.string().optional(),
   targetMisconceptionTitle: z.string(),
   title: z.string(),
   supportTier: z.enum(['Guided Practice', 'Concept Clarification', 'Ready for Extension', 'Error Correction']).default('Guided Practice'),
@@ -101,14 +133,25 @@ export const DifferentiatedInterventionSchema = z.object({
   teacherScript: z.string(),
   exampleQuestion: z.string(),
   exitTicketQuestion: z.string(),
-  status: z.enum(['accepted', 'edited', 'dismissed']).default('accepted'),
+  status: TeacherDecisionSchema.default('pending'),
+  teacherDecision: TeacherDecisionSchema.default('pending'),
 });
 
-export const StrategyResultSchema = z.object({
+/**
+ * P2.1 Strict Canonical Intervention Schema
+ * For newly generated canonical interventions, clusterId is MANDATORY and cannot be omitted.
+ */
+export const CanonicalInterventionSchema = DifferentiatedInterventionSchema.extend({
+  clusterId: z.string().min(1, 'New canonical interventions require a valid clusterId'),
+});
+
+export const CanonicalStrategyResultSchema = z.object({
   instructionalGroups: z.array(InstructionalGroupSchema).default([]),
   nextLessonPlan: NextLessonPlanSchema,
-  interventions: z.array(DifferentiatedInterventionSchema).default([]),
+  interventions: z.array(CanonicalInterventionSchema).default([]),
 });
+
+export const StrategyResultSchema = CanonicalStrategyResultSchema;
 
 export const GroundedCheckDetailSchema = z.object({
   claim: z.string(),
@@ -130,8 +173,11 @@ export const VerificationResultSchema = z.object({
       coveragePassed: z.boolean(),
       clusterMathPassed: z.boolean(),
       groupPartitionPassed: z.boolean(),
+      evidenceValidationPassed: z.boolean().optional(),
       quotesGroundedCount: z.number(),
       quotesFlaggedCount: z.number(),
     })
     .optional(),
+  modelUsed: z.string().optional(),
+  durationMs: z.number().optional(),
 });

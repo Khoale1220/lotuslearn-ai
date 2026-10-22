@@ -11,75 +11,76 @@ import {
   Compass,
   ShieldCheck,
   CheckCheck,
-  XCircle,
-  Cpu,
+  ChevronDown,
+  Clock,
+  ArrowLeft,
 } from 'lucide-react';
-import { LotusIcon } from './icons/LotusIcon';
+import { getPipelineErrorDisplay } from '../utils/verificationDisplay';
 
-export interface ObservatoryStage {
+export interface UserFacingStage {
   id: number;
   label: string;
   name: string;
   subhead: string;
-  icon: React.ElementType;
+  technicalName: string;
   engine: 'data' | 'gemini' | 'code' | 'gemini_verifier' | 'system';
 }
 
-export const OBSERVATORY_STAGES: ObservatoryStage[] = [
+export const USER_FACING_STAGES: UserFacingStage[] = [
   {
     id: 1,
     label: '01',
-    name: 'Source Evidence',
-    subhead: 'Evidence ingestion & multimodal artifact loading',
-    icon: FileText,
+    name: 'Checking student privacy & preparing work',
+    subhead: 'Sensitive information is checked and removed before AI analysis',
+    technicalName: 'Stage 1: Privacy Gateway & Source Ingestion',
     engine: 'data',
   },
   {
     id: 2,
     label: '02',
-    name: 'Gemini Observer',
-    subhead: 'Evidence extraction & handwriting OCR transcription',
-    icon: Eye,
+    name: 'Isolating student evidence',
+    subhead: 'Transcribing handwriting and extracting verbatim quotes against rubric',
+    technicalName: 'Stage 2: Gemini Observer',
     engine: 'gemini',
   },
   {
     id: 3,
     label: '03',
-    name: 'Gemini Diagnosis',
-    subhead: 'Class-wide misconception synthesis & root causes',
-    icon: Activity,
+    name: 'Identifying learning patterns',
+    subhead: 'Synthesizing class-wide misconception clusters and priority rankings',
+    technicalName: 'Stage 3: Gemini Diagnosis',
     engine: 'gemini',
   },
   {
     id: 4,
     label: '04',
-    name: 'Deterministic Validation',
-    subhead: 'Code verification: coverage, cluster math & exact quotes',
-    icon: Calculator,
+    name: 'Checking evidence & arithmetic (Code)',
+    subhead: 'Deterministic code checks: roster coverage, cluster math, and exact quotations',
+    technicalName: 'Stage 4: Deterministic Validation',
     engine: 'code',
   },
   {
     id: 5,
     label: '05',
-    name: 'Gemini Teaching Strategist',
-    subhead: 'Differentiated scaffolds & 25-minute lesson sequence',
-    icon: Compass,
+    name: 'Preparing teaching recommendations',
+    subhead: 'Formulating a 25-minute lesson sequence and differentiated scaffolds',
+    technicalName: 'Stage 5: Teaching Strategist',
     engine: 'gemini',
   },
   {
     id: 6,
     label: '06',
-    name: 'Gemini Verification',
-    subhead: 'Adversarial grounding audit & claim verification',
-    icon: ShieldCheck,
+    name: 'Running independent verification audit',
+    subhead: 'Auditing claims and grounding evidence to ensure pedagogical plausibility',
+    technicalName: 'Stage 6: Gemini Verification',
     engine: 'gemini_verifier',
   },
   {
     id: 7,
     label: '07',
-    name: 'Complete',
-    subhead: 'Diagnostic assessment ready for teacher review & decision',
-    icon: CheckCheck,
+    name: 'Analysis ready for teacher review',
+    subhead: 'Diagnostic assessment complete and formatted for educator review & decisions',
+    technicalName: 'Stage 7: Output Finalization',
     engine: 'system',
   },
 ];
@@ -87,7 +88,7 @@ export const OBSERVATORY_STAGES: ObservatoryStage[] = [
 interface PipelineVisualizerProps {
   currentStage: number; // 1 to 7
   currentDetail?: string;
-  errorMessage?: string;
+  errorMessage?: string | { message: string; code?: string; stage?: string; retryable?: boolean };
   onRetry?: () => void;
   onCancel?: () => void;
 }
@@ -116,7 +117,7 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = ({
   useEffect(() => {
     if (currentStage > lastStageRef.current) {
       const prevStage = lastStageRef.current;
-      const durationSeconds = Math.max(0.3, Math.round(((Date.now() - stageStartTimeRef.current) / 100) / 10));
+      const durationSeconds = Math.max(0.2, Math.round(((Date.now() - stageStartTimeRef.current) / 100) / 10));
       setStageDurations((prev) => ({
         ...prev,
         [prevStage]: durationSeconds,
@@ -126,267 +127,186 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = ({
     }
   }, [currentStage]);
 
-  const progressPercent = Math.min(
-    100,
-    errorMessage
-      ? Math.round(((currentStage - 1) / 7) * 100)
-      : Math.round((currentStage / 7) * 100)
-  );
+  const activeStageObj = USER_FACING_STAGES[currentStage - 1] || USER_FACING_STAGES[0];
+  const errorDisplay = errorMessage ? getPipelineErrorDisplay(errorMessage) : null;
 
   return (
-    <div className="py-10 px-4 sm:px-6 max-w-5xl mx-auto space-y-6">
-      {/* Light Outer Intro Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-2">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-700 uppercase tracking-wider">
-            <span>AI Pipeline Observatory</span>
-            <span className="text-slate-300">·</span>
-            <span className="text-slate-500 font-mono">Visible Intelligence</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Multi-Stage Gemini Reasoning Engine
-          </h1>
-          <p className="text-xs text-slate-500">
-            Real-time execution of server-side Gemini 3.8 Flash, hybrid deterministic code checks, and adversarial verification.
-          </p>
-        </div>
+    <div className="py-10 px-4 sm:px-6 max-w-4xl mx-auto space-y-8">
+      {/* Polite live region for screen readers */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {errorMessage
+          ? `Analysis halted at step ${currentStage}: ${errorDisplay?.title}. ${errorDisplay?.message}`
+          : `Step ${currentStage} of 7: ${activeStageObj.name}. ${currentDetail || activeStageObj.subhead}`}
+      </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-mono text-slate-600 shadow-2xs">
-            <Cpu size={14} className="text-indigo-600" />
-            <span>Time Elapsed: {elapsedSec}s</span>
-          </div>
+      {/* Main Status Header */}
+      <div className="text-center max-w-2xl mx-auto space-y-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-semibold border border-blue-200">
+          <Loader2 size={13} className="animate-spin text-blue-600" />
+          <span>Analyzing Student Work</span>
+          <span className="text-slate-300" aria-hidden="true">·</span>
+          <span>Step {currentStage} of 7</span>
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          {activeStageObj.name}
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          {currentDetail || activeStageObj.subhead}
+        </p>
+        <div className="pt-1 flex items-center justify-center gap-2 text-xs font-mono text-slate-500">
+          <Clock size={13} className="text-slate-400" />
+          <span>Time elapsed: {elapsedSec}s</span>
         </div>
       </div>
 
-      {/* DEEP NAVY CONTAINED OBSERVATORY PANEL */}
-      <div className="rounded-2xl border border-slate-800 bg-[#0B132B] p-6 sm:p-8 text-white shadow-xl space-y-6 relative overflow-hidden">
-        {/* Subtle Ambient Background Gradient */}
-        <div
-          className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-teal-600/15 blur-3xl pointer-events-none"
-          aria-hidden="true"
-        />
+      {/* Semantic Ordered Progress List */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
+        <h2 className="sr-only">Analysis Progress Steps</h2>
+        <ol className="divide-y divide-slate-100">
+          {USER_FACING_STAGES.map((st) => {
+            const isCurrent = currentStage === st.id && !errorMessage;
+            const isCompleted = currentStage > st.id;
+            const isFailed = currentStage === st.id && Boolean(errorMessage);
+            const duration = stageDurations[st.id];
 
-        {/* Observatory Panel Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-800 gap-4 relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 border border-slate-700/80 text-rose-400 shadow-inner">
-              <LotusIcon size={24} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-indigo-400">
-                  Live Stage Execution
-                </span>
-                <span className="text-slate-600">·</span>
-                <span className="text-[11px] font-mono text-slate-400">gemini-3.8-flash</span>
-              </div>
-              <h2 className="text-base font-bold text-white tracking-tight">
-                {errorMessage
-                  ? 'Pipeline Execution Halted'
-                  : currentStage >= 7
-                  ? 'All 7 Stages Verified · Preparing Diagnostic Results'
-                  : `Active Stage ${currentStage} of 7: ${OBSERVATORY_STAGES[currentStage - 1]?.name}`}
-              </h2>
+            return (
+              <li
+                key={st.id}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={`py-3.5 flex items-center justify-between gap-4 transition-colors ${
+                  isCurrent ? 'bg-blue-50/50 -mx-6 px-6' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-colors ${
+                      isCompleted
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : isCurrent
+                        ? 'bg-blue-600 text-white shadow-xs ring-4 ring-blue-100'
+                        : isFailed
+                        ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                        : 'bg-slate-100 text-slate-500 border border-slate-200'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 size={16} className="text-emerald-700" />
+                    ) : isCurrent ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : isFailed ? (
+                      <AlertTriangle size={15} className="text-rose-600" />
+                    ) : (
+                      <span>{st.id}</span>
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-semibold truncate ${
+                        isCurrent ? 'text-blue-900 font-bold' : isCompleted ? 'text-slate-900' : 'text-slate-600'
+                      }`}>
+                        {st.name}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 truncate hidden sm:block">
+                      {st.subhead}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 text-xs">
+                  {isCompleted && (
+                    <span className="font-mono text-emerald-700 font-medium">
+                      {duration ? `${duration}s` : 'Done'}
+                    </span>
+                  )}
+                  {isCurrent && (
+                    <span className="text-blue-700 font-semibold flex items-center gap-1 font-mono">
+                      In progress
+                    </span>
+                  )}
+                  {isFailed && (
+                    <span className="text-rose-700 font-semibold font-mono">
+                      Issue detected
+                    </span>
+                  )}
+                  {!isCompleted && !isCurrent && !isFailed && (
+                    <span className="text-slate-400 font-mono">Queued</span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      {/* Controlled Error Display with Human-Oriented Recovery Paths */}
+      {errorDisplay && (
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50/70 p-6 space-y-4 text-xs"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-rose-900">
+                {errorDisplay.title}
+              </h3>
+              <p className="text-rose-800 leading-relaxed">
+                {errorDisplay.message}
+              </p>
+              <p className="text-rose-700 font-medium pt-1">
+                {errorDisplay.recommendedAction}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            {errorMessage ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/80 border border-rose-700 text-rose-200 text-xs font-semibold">
-                <XCircle size={14} className="text-rose-400" />
-                <span>Error at Stage {currentStage}</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-950/80 border border-indigo-700/80 text-indigo-200 text-xs font-mono font-semibold">
-                <Loader2 size={13} className="animate-spin text-indigo-400" />
-                <span>Processing Stage {currentStage} of 7</span>
-              </span>
+          <div className="flex items-center gap-3 pt-2 border-t border-rose-200">
+            {errorDisplay.retryAllowed && onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition active:scale-98"
+              >
+                <RefreshCw size={13} />
+                <span>Retry Analysis</span>
+              </button>
+            )}
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition"
+              >
+                <ArrowLeft size={13} />
+                <span>Return to Wizard</span>
+              </button>
             )}
           </div>
         </div>
+      )}
 
-        {/* Real-time Progress Bar */}
-        <div className="space-y-2 relative z-10">
-          <div className="flex justify-between text-xs font-mono text-slate-400">
-            <span>PIPELINE PROGRESS (7-STAGE OBSERVATORY)</span>
-            <span className={errorMessage ? 'text-rose-400' : 'text-indigo-400 font-bold'}>
-              {errorMessage ? 'Halted' : `${progressPercent}%`}
-            </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
-            <div
-              className={`h-full transition-all duration-500 ease-out ${
-                errorMessage
-                  ? 'bg-rose-500'
-                  : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-teal-400'
-              }`}
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          {currentDetail && !errorMessage && (
-            <p className="text-xs text-slate-300 font-mono italic pt-1">
-              &gt; {currentDetail}
-            </p>
-          )}
+      {/* Progressive Technical Disclosure for Judges / Engineers */}
+      <details className="group rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
+        <summary className="cursor-pointer font-semibold text-slate-700 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded">
+          <span>Technical Architecture &amp; Engine Details</span>
+          <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform" />
+        </summary>
+        <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-2 text-slate-600 font-mono text-[11px]">
+          <p>
+            <strong>Active Pipeline Stage:</strong> {activeStageObj.technicalName}
+          </p>
+          <p>
+            <strong>Primary Model:</strong> Gemini 3.8 Flash (server-side proxy)
+          </p>
+          <p>
+            <strong>Verification Architecture:</strong> Dual-layer (Deterministic TypeScript validation + Independent Gemini Verifier)
+          </p>
+          <p>
+            <strong>Decision Authority:</strong> Human Educator (All recommendations start with teacherDecision: &apos;pending&apos;)
+          </p>
         </div>
-
-        {/* SEVEN STAGE OBSERVATORY CARDS WITH GLOWING-EDGE TREATMENT */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 relative z-10 pt-2">
-          {OBSERVATORY_STAGES.map((st) => {
-            const Icon = st.icon;
-            const isCurrent = currentStage === st.id && !errorMessage;
-            const isCompleted = currentStage > st.id;
-            const isFailed = errorMessage && currentStage === st.id;
-            const duration = stageDurations[st.id];
-
-            // Visible glowing-edge styling for active stage (blue -> indigo -> violet glow)
-            let borderClass = 'border-slate-800/80 bg-slate-900/60 text-slate-400';
-            let glowStyle: React.CSSProperties = {};
-
-            if (isCurrent) {
-              borderClass = 'border-indigo-400 bg-gradient-to-br from-indigo-950/90 via-slate-900 to-indigo-950/70 text-white';
-              glowStyle = {
-                boxShadow: '0 0 0 1.5px #818cf8, 0 0 24px -2px rgba(99, 102, 241, 0.55), inset 0 0 16px -4px rgba(99, 102, 241, 0.35)',
-              };
-            } else if (isCompleted) {
-              borderClass = 'border-teal-500/50 bg-teal-950/20 text-slate-300';
-              glowStyle = {
-                boxShadow: '0 0 12px -2px rgba(20, 184, 166, 0.25)',
-              };
-            } else if (isFailed) {
-              borderClass = 'border-rose-500 bg-rose-950/40 text-white';
-              glowStyle = {
-                boxShadow: '0 0 20px -2px rgba(244, 63, 94, 0.6)',
-              };
-            }
-
-            return (
-              <div
-                key={st.id}
-                style={glowStyle}
-                className={`rounded-xl border p-4 space-y-3 transition-all duration-300 relative ${borderClass}`}
-              >
-                {/* Active pulsating beacon indicator */}
-                {isCurrent && (
-                  <span className="absolute top-2 right-2 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
-                  </span>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] font-bold text-slate-400">
-                    STAGE {st.label}
-                  </span>
-                  <div
-                    className={`p-1.5 rounded-lg ${
-                      isCurrent
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : isCompleted
-                        ? 'bg-teal-500/20 text-teal-400'
-                        : isFailed
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-slate-800 text-slate-400'
-                    }`}
-                  >
-                    <Icon size={14} />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <span>{st.name}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-snug line-clamp-2 mt-0.5">
-                    {st.subhead}
-                  </p>
-                </div>
-
-                {/* Status Row with Real Stage Duration */}
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-slate-500 text-[10px]">
-                    {st.engine === 'code'
-                      ? 'Deterministic Code'
-                      : st.engine === 'gemini_verifier'
-                      ? 'Adversarial Pass'
-                      : st.engine === 'data'
-                      ? 'Source Ingestion'
-                      : st.engine === 'system'
-                      ? 'Ready for Decision'
-                      : 'Gemini 3.8 Flash'}
-                  </span>
-
-                  <div>
-                    {isCurrent && (
-                      <span className="text-indigo-400 font-semibold flex items-center gap-1 text-[11px]">
-                        <Loader2 size={11} className="animate-spin" />
-                        <span>Active</span>
-                      </span>
-                    )}
-                    {isCompleted && (
-                      <span className="text-teal-400 font-semibold flex items-center gap-1 text-[11px]">
-                        <CheckCircle2 size={12} />
-                        <span>{duration ? `${duration}s` : 'Completed'}</span>
-                      </span>
-                    )}
-                    {isFailed && (
-                      <span className="text-rose-400 font-semibold flex items-center gap-1 text-[11px]">
-                        <AlertTriangle size={12} />
-                        <span>Failed</span>
-                      </span>
-                    )}
-                    {!isCurrent && !isCompleted && !isFailed && (
-                      <span className="text-slate-500 text-[11px]">Queued</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Error Details & Controlled Retry */}
-        {errorMessage && (
-          <div className="rounded-xl border border-rose-600 bg-rose-950/60 p-4 space-y-3 relative z-10 text-xs">
-            <div className="flex items-start gap-3">
-              <AlertTriangle size={18} className="text-rose-400 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h4 className="font-bold text-rose-200">
-                  Stage {currentStage} Failure: {OBSERVATORY_STAGES[currentStage - 1]?.name}
-                </h4>
-                <p className="text-rose-300 leading-relaxed font-mono text-[11px]">
-                  {errorMessage}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              {onRetry && (
-                <button
-                  onClick={onRetry}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 px-4 py-2 text-xs font-semibold text-white transition shadow-sm"
-                >
-                  <RefreshCw size={13} />
-                  <span>Retry Stage</span>
-                </button>
-              )}
-              {onCancel && (
-                <button
-                  onClick={onCancel}
-                  className="text-xs font-medium text-slate-400 hover:text-white transition px-2 py-1"
-                >
-                  Cancel to Wizard
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      </details>
     </div>
   );
 };

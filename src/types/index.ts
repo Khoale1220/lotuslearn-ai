@@ -1,3 +1,25 @@
+export type CheckState = 'not_checked' | 'passed' | 'failed' | 'review_required';
+export type TeacherDecision = 'pending' | 'accepted' | 'edited' | 'dismissed';
+export type ArtifactProvenance =
+  | 'source'
+  | 'gemini'
+  | 'deterministic_code'
+  | 'gemini_verifier'
+  | 'human';
+
+export interface ArtifactTrustState {
+  provenance: ArtifactProvenance;
+  deterministic: {
+    state: CheckState;
+    reasons?: string[];
+  };
+  semanticVerification: {
+    state: CheckState;
+    reasons?: string[];
+  };
+  teacherDecision: TeacherDecision;
+}
+
 export interface LearningContext {
   subject: string;
   gradeLevel: string;
@@ -19,8 +41,24 @@ export interface NormalizedSourceEvidence {
   studentId: string;
   sourceType: 'typed' | 'image_transcription';
   extractedText: string;
-  confidenceOrStatus: 'exact_source' | 'transcription_high' | 'transcription_moderate' | 'unreadable';
+  confidenceOrStatus:
+    | 'exact_source'
+    | 'transcription_unverified'
+    | 'transcription_supported'
+    | 'transcription_reviewed'
+    | 'unreadable'
+    | 'transcription_high'
+    | 'transcription_moderate';
 }
+
+export type DeterministicMatchType =
+  | 'exact_match'
+  | 'exact_quote_found'
+  | 'normalized_exact_match'
+  | 'image_transcription_match'
+  | 'image_transcription_verified'
+  | 'approximate_match'
+  | 'unsupported_citation';
 
 export interface StudentObservation {
   studentId: string;
@@ -30,7 +68,7 @@ export interface StudentObservation {
     quoteOrDetail: string;
     interpretation: string;
     sourceType?: 'typed' | 'image_transcription';
-    deterministicMatch?: 'exact_quote_found' | 'image_transcription_match' | 'approximate_match' | 'unsupported_citation';
+    deterministicMatch?: DeterministicMatchType;
   }>;
   rubricAlignment: string;
   confidence: number;
@@ -50,13 +88,14 @@ export interface MisconceptionCluster {
     excerpt: string;
     groundingReason: string;
     sourceType?: 'typed' | 'image_transcription';
-    deterministicMatch?: 'exact_quote_found' | 'image_transcription_match' | 'approximate_match' | 'unsupported_citation';
+    deterministicMatch?: DeterministicMatchType;
   }>;
   teachingPriority: 'urgent' | 'high' | 'moderate';
   confidence: number;
   evidenceStrength?: 'strong' | 'moderate' | 'review_required';
   recommendedInstructionalResponse: string;
-  status?: 'accepted' | 'edited' | 'dismissed';
+  status?: TeacherDecision;
+  teacherDecision?: TeacherDecision;
 }
 
 export interface InstructionalGroup {
@@ -88,6 +127,11 @@ export interface NextLessonPlan {
 
 export interface DifferentiatedIntervention {
   interventionId: string;
+  /**
+   * Required for new canonical interventions.
+   * Optional only in raw legacy payloads before deterministic migration.
+   */
+  clusterId?: string;
   targetMisconceptionTitle: string;
   title: string;
   supportTier: 'Guided Practice' | 'Concept Clarification' | 'Ready for Extension' | 'Error Correction';
@@ -96,7 +140,8 @@ export interface DifferentiatedIntervention {
   teacherScript: string;
   exampleQuestion: string;
   exitTicketQuestion: string;
-  status?: 'accepted' | 'edited' | 'dismissed';
+  status?: TeacherDecision;
+  teacherDecision?: TeacherDecision;
 }
 
 export interface VerificationResult {
@@ -116,9 +161,26 @@ export interface VerificationResult {
     coveragePassed: boolean;
     clusterMathPassed: boolean;
     groupPartitionPassed: boolean;
+    evidenceValidationPassed?: boolean;
     quotesGroundedCount: number;
     quotesFlaggedCount: number;
   };
+  modelUsed?: string;
+  durationMs?: number;
+}
+
+export interface PrivacyAudit {
+  status: 'passed' | 'review_required' | 'failed' | 'not_checked';
+  findingCount: number;
+  findingTypeCounts: {
+    [infoType: string]: number;
+  };
+  sanitizationApplied: boolean;
+  provider: 'google-sensitive-data-protection';
+  providerVersionOrPolicyId?: string;
+  durationMs?: number;
+  rawValuesRetained: false;
+  failClosed: true;
 }
 
 export interface ClassSnapshot {
@@ -133,10 +195,19 @@ export interface ExecutionMetadata {
   executionMode: 'live_gemini' | 'demo_resilience';
   primaryModel: string;
   modelsUsed: string[];
+  stageModels?: Record<string, string>;
+  stageTelemetry?: any[];
   totalDurationMs: number;
+  privacyScanDurationMs?: number;
   stageDurationsMs: Record<string, number>;
   submissionCount: number;
   deterministicAuditPassed: boolean;
+  runId?: string;
+  pipelineVersion?: string;
+  datasetFingerprint?: string;
+  fallbackUsed?: boolean;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface ClassAnalysisResult {
@@ -150,6 +221,7 @@ export interface ClassAnalysisResult {
   nextLessonPlan: NextLessonPlan;
   interventions: DifferentiatedIntervention[];
   verification: VerificationResult;
+  privacyAudit?: PrivacyAudit;
   normalizedSourceEvidence?: NormalizedSourceEvidence[];
   executionMetadata?: ExecutionMetadata;
 }

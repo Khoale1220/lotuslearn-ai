@@ -1,5 +1,5 @@
 import { Type } from '@google/genai';
-import { generateContentDetailed, generateContentWithRetry } from '../geminiClient';
+import { StageModelTelemetry, generateContentDetailed, generateContentWithRetry } from '../geminiClient';
 import {
   DifferentiatedIntervention,
   InstructionalGroup,
@@ -9,6 +9,8 @@ import {
   StudentObservation,
 } from '../../src/types';
 import { StrategyResultSchema } from '../schemas/analysisSchemas';
+import { validateInterventionRelationships } from './deterministicValidator';
+import { PipelineError } from '../errors/pipelineErrors';
 
 export interface StrategyOutput {
   instructionalGroups: InstructionalGroup[];
@@ -16,6 +18,7 @@ export interface StrategyOutput {
   interventions: DifferentiatedIntervention[];
   modelUsed: string;
   durationMs: number;
+  telemetry?: StageModelTelemetry;
 }
 
 export async function planTeachingStrategy(
@@ -23,8 +26,16 @@ export async function planTeachingStrategy(
   observations: StudentObservation[],
   misconceptions: MisconceptionCluster[]
 ): Promise<StrategyOutput> {
-  // Filter only accepted or edited clusters (ignore dismissed ones)
-  const activeMisconceptions = misconceptions.filter((m) => m.status !== 'dismissed');
+  // DOWNSTREAM PLANNING ELIGIBILITY POLICY (P1 Canonical Trust Distinction):
+  // - Pending items remain eligible for preliminary planning so the teacher has a comprehensive draft plan.
+  // - Accepted items remain eligible.
+  // - Edited items remain eligible (using the teacher-revised titles and content).
+  // - Dismissed items are strictly excluded from downstream instructional planning.
+  // CRITICAL TRUST INVARIANT: Planning eligibility must NEVER be interpreted as teacher approval.
+  // All generated strategy artifacts start with teacherDecision: 'pending' and require explicit teacher action.
+  const activeMisconceptions = misconceptions.filter(
+    (m) => m.teacherDecision !== 'dismissed' && m.status !== 'dismissed'
+  );
 
   const promptText = `You are the TEACHING STRATEGIST agent in LotusLearn AI.
 Your task is to convert diagnosed student evidence and active misconception clusters into concrete, differentiated pedagogical action plans for the teacher's next lesson.
@@ -84,7 +95,8 @@ ${JSON.stringify(
      Each phase includes: timeRange, phaseTitle, description, actionableTeacherPrompt, materials.
 
 3. interventions: 3 to 4 ready-to-use differentiated intervention cards targeting the active misconception clusters:
-   - interventionId: string
+   - interventionId: string (e.g. "intervention-1")
+   - clusterId: string (MANDATORY: Must exactly match one of the active misconception cluster IDs provided above, e.g. "cluster-1")
    - targetMisconceptionTitle: title of the cluster it addresses
    - title: concise intervention title
    - supportTier: one of "Guided Practice", "Concept Clarification", "Ready for Extension", "Error Correction"
@@ -97,7 +109,8 @@ ${JSON.stringify(
 Return a strictly valid JSON object adhering to this schema.`;
 
   const genResult = await generateContentDetailed({
-    stageName: 'Stage 3: Teaching Strategist',
+    stageName: 'Stage 5: Teaching Strategist',
+    stageKey: 'teaching_strategist',
     contents: promptText,
     config: {
       responseMimeType: 'application/json',
@@ -154,6 +167,7 @@ Return a strictly valid JSON object adhering to this schema.`;
               type: Type.OBJECT,
               properties: {
                 interventionId: { type: Type.STRING },
+                clusterId: { type: Type.STRING },
                 targetMisconceptionTitle: { type: Type.STRING },
                 title: { type: Type.STRING },
                 supportTier: { type: Type.STRING },
@@ -163,7 +177,7 @@ Return a strictly valid JSON object adhering to this schema.`;
                 exampleQuestion: { type: Type.STRING },
                 exitTicketQuestion: { type: Type.STRING },
               },
-              required: ['interventionId', 'targetMisconceptionTitle', 'title', 'supportTier', 'rationale', 'suggestedActivity', 'teacherScript', 'exampleQuestion', 'exitTicketQuestion'],
+              required: ['interventionId', 'clusterId', 'targetMisconceptionTitle', 'title', 'supportTier', 'rationale', 'suggestedActivity', 'teacherScript', 'exampleQuestion', 'exitTicketQuestion'],
             },
           },
         },
@@ -219,52 +233,57 @@ Return a strictly valid JSON object adhering to this schema.`;
     totalDuration: data.nextLessonPlan?.totalDuration || '25 minutes',
     targetObjective:
       data.nextLessonPlan?.targetObjective ||
-      'Master the distinction between completed past time markers and open/experience time markers.',
+      context.learningObjective ||
+      'Target core learning objectives and clear student misunderstandings.',
     phases: Array.isArray(data.nextLessonPlan?.phases) && data.nextLessonPlan.phases.length > 0
       ? data.nextLessonPlan.phases
       : [
           {
             timeRange: '0–5 min',
             phaseTitle: 'Diagnostic Warm-up',
-            description: 'Quick visual sorting drill with timeline markers.',
-            actionableTeacherPrompt: 'Is "last summer" an open window or a closed door in time?',
+            description: 'Quick formative check assessing understanding of key lesson concepts.',
+            actionableTeacherPrompt: 'Review the opening prompt: What evidence directly informs your answer?',
             materials: 'Mini whiteboards or digital quick-poll',
           },
           {
             timeRange: '5–12 min',
             phaseTitle: 'Target Misconception Debrief',
-            description: 'Model why finished time words reject present perfect.',
-            actionableTeacherPrompt: 'Notice that "yesterday" already has a specific clock stamp.',
-            materials: 'Timeline anchor chart',
+            description: 'Explicit model debriefing high-frequency student misunderstandings.',
+            actionableTeacherPrompt: 'Highlight the common root error and model the correct solution path.',
+            materials: 'Concept anchor chart or shared display',
           },
           {
             timeRange: '12–18 min',
             phaseTitle: 'Guided Practice',
-            description: 'Paired sentence repair on high-frequency error excerpts.',
-            actionableTeacherPrompt: 'Identify the time word first before choosing your verb form.',
-            materials: 'Sentence correction cards',
+            description: 'Paired concept verification on structured practice items.',
+            actionableTeacherPrompt: 'Check your reasoning step by step against our rubric criteria.',
+            materials: 'Guided practice task sheets',
           },
           {
             timeRange: '18–23 min',
             phaseTitle: 'Differentiated Task',
-            description: 'Targeted groups work on personalized micro-tasks.',
-            actionableTeacherPrompt: 'Apply your checklist to these 3 new scenarios.',
-            materials: 'Tiered task sheets',
+            description: 'Targeted student cohorts work on tailored reinforcement or extension tasks.',
+            actionableTeacherPrompt: 'Apply your checklist to the differentiated practice scenarios.',
+            materials: 'Tiered task cards',
           },
           {
             timeRange: '23–25 min',
             phaseTitle: 'Exit Ticket',
-            description: 'Individual 1-item validation of tense selection.',
-            actionableTeacherPrompt: 'Complete the sentence with your own true life experience.',
-            materials: 'Exit ticket slips',
+            description: 'Individual 1-item validation of concept mastery.',
+            actionableTeacherPrompt: 'Complete the independent exit check before dismissal.',
+            materials: 'Exit ticket slips or digital response',
           },
         ],
   };
 
-  const interventions: DifferentiatedIntervention[] = (data.interventions || []).map(
+  // P2G / P2.1 / P3.1: Stable domain identity linkage (Intervention -> clusterId -> MisconceptionCluster)
+  // For NEW model-generated canonical interventions, clusterId is MANDATORY and must be strictly validated.
+  // NO guessing with activeMisconceptions[0]?.clusterId or idx % length!
+  const rawInterventions: DifferentiatedIntervention[] = (data.interventions || []).map(
     (int, idx) => ({
       interventionId: int.interventionId || `intervention-${idx + 1}`,
-      targetMisconceptionTitle: int.targetMisconceptionTitle || 'Tense selection and time markers',
+      clusterId: int.clusterId,
+      targetMisconceptionTitle: int.targetMisconceptionTitle || '',
       title: int.title || `Intervention ${idx + 1}`,
       supportTier: int.supportTier || 'Guided Practice',
       rationale: int.rationale || '',
@@ -272,9 +291,31 @@ Return a strictly valid JSON object adhering to this schema.`;
       teacherScript: int.teacherScript || '',
       exampleQuestion: int.exampleQuestion || '',
       exitTicketQuestion: int.exitTicketQuestion || '',
-      status: 'accepted',
+      status: 'pending' as const,
+      teacherDecision: 'pending' as const,
     })
   );
+
+  const relationshipValidation = validateInterventionRelationships(
+    rawInterventions,
+    activeMisconceptions,
+    { isNewData: true }
+  );
+
+  if (!relationshipValidation.passed) {
+    console.error(
+      '[LotusLearn AI] Teaching Strategist intervention relationship validation failed:',
+      relationshipValidation.issues
+    );
+    throw new PipelineError({
+      code: 'STRATEGY_DOMAIN_ERROR',
+      stage: 'Stage 5: Teaching Strategist',
+      message: `Strategy intervention relationship validation failed: ${relationshipValidation.issues.join('; ')}`,
+      retryable: false,
+    });
+  }
+
+  const interventions: DifferentiatedIntervention[] = relationshipValidation.auditedInterventions;
 
   return {
     instructionalGroups: groups,
@@ -282,6 +323,7 @@ Return a strictly valid JSON object adhering to this schema.`;
     interventions,
     modelUsed: genResult.modelUsed,
     durationMs: genResult.durationMs,
+    telemetry: genResult.telemetry,
   };
 }
 
@@ -324,21 +366,21 @@ Return the modified intervention object in valid JSON format matching the schema
       return {
         ...intervention,
         title: `${intervention.title} (Scaffolded Version)`,
-        suggestedActivity: `[Simplified with Sentence Frames] ${intervention.suggestedActivity}. Add word bank and guided cloze structures.`,
-        teacherScript: `"Let's look at the first one together. Step 1: Circle the time marker. Step 2: If the time is finished, lock in Past Simple."`,
+        suggestedActivity: `[Simplified with Guided Scaffolding] ${intervention.suggestedActivity}. Add step-by-step checkpoints and structured reference cues.`,
+        teacherScript: `"Let's work through this step by step. First, identify the core principle: ${intervention.targetMisconceptionTitle || 'the target concept'}. Then check each step against our success criteria."`,
       };
     } else if (action === 'challenge') {
       return {
         ...intervention,
         title: `${intervention.title} (Extension Tier)`,
         supportTier: 'Ready for Extension',
-        suggestedActivity: `[Advanced Synthesis] ${intervention.suggestedActivity}. Students critique partner errors and craft 3 contrasting narrative sentences.`,
-        teacherScript: `"Can you explain to your peer why a native speaker would find combining 'last year' and 'have visited' contradictory?"`,
+        suggestedActivity: `[Advanced Extension & Synthesis] ${intervention.suggestedActivity}. Students critique peer reasoning and craft 2 contrasting application examples.`,
+        teacherScript: `"Can you explain the conceptual reasoning behind this solution to your peer and show why alternative methods fail?"`,
       };
     } else {
       return {
         ...intervention,
-        exitTicketQuestion: `1. "Yesterday at 3 PM, our school team (won / has won) the regional debate."\n2. "I (have read / read) three chapters of this book so far this week."`,
+        exitTicketQuestion: `1. Apply this concept to resolve: ${intervention.exampleQuestion || 'Demonstrate understanding of ' + (intervention.targetMisconceptionTitle || 'the lesson objective')}.\n2. Explain your reasoning in 1-2 sentences.`,
       };
     }
   }

@@ -23,7 +23,8 @@ import {
 } from 'lucide-react';
 import { GlowEdgeCard } from './GlowEdgeCard';
 import { ProvenanceBadge } from './ProvenanceBadge';
-import { formatStageLatency } from '../utils/verificationDisplay';
+import { useModalFocus } from '../utils/useModalFocus';
+import { formatStageLatency, getCanonicalTeacherDecision } from '../utils/verificationDisplay';
 
 interface AIContributionTraceProps {
   result: ClassAnalysisResult;
@@ -48,29 +49,52 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
   const interventionCount = result.interventions.length;
   const detChecks = result.verification.deterministicChecks;
 
-  // Teacher review counts
-  const acceptedClusters = result.misconceptionClusters.filter((c) => c.status === 'accepted').length;
-  const editedClusters = result.misconceptionClusters.filter((c) => c.status === 'edited').length;
-  const dismissedClusters = result.misconceptionClusters.filter((c) => c.status === 'dismissed').length;
+  // Teacher review counts (explicit human actions only; unreviewed AI artifacts remain pending)
+  const acceptedClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'accepted'
+  ).length;
+  const editedClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'edited'
+  ).length;
+  const dismissedClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'dismissed'
+  ).length;
+  const pendingClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'pending'
+  ).length;
 
-  const acceptedInterventions = result.interventions.filter((i) => i.status === 'accepted').length;
-  const editedInterventions = result.interventions.filter((i) => i.status === 'edited').length;
-  const dismissedInterventions = result.interventions.filter((i) => i.status === 'dismissed').length;
+  const acceptedInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'accepted'
+  ).length;
+  const editedInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'edited'
+  ).length;
+  const dismissedInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'dismissed'
+  ).length;
+  const pendingInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'pending'
+  ).length;
 
   const totalAccepted = acceptedClusters + acceptedInterventions;
   const totalEdited = editedClusters + editedInterventions;
   const totalDismissed = dismissedClusters + dismissedInterventions;
+  const totalPending = pendingClusters + pendingInterventions;
 
   const stages = [
     {
       step: '01',
-      name: 'Source Evidence',
-      badge: 'Data Layer',
-      icon: FileText,
-      color: 'text-slate-600',
-      bg: 'bg-slate-100',
-      stat: `${totalSubmissions} submissions`,
-      detail: 'Rubric & context loaded',
+      name: 'Privacy & Ingestion',
+      badge: result.privacyAudit?.status === 'passed' ? 'SDP Sanitized' : 'Privacy Gateway',
+      icon: ShieldCheck,
+      color: 'text-blue-700',
+      bg: 'bg-blue-50',
+      stat: result.privacyAudit
+        ? `${result.privacyAudit.findingCount} PII tokens removed`
+        : `${totalSubmissions} submissions`,
+      detail: result.privacyAudit?.sanitizationApplied
+        ? 'Sensitive identifiers removed'
+        : 'Checked & verified clean',
     },
     {
       step: '02',
@@ -131,12 +155,25 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
     {
       step: '07',
       name: 'Teacher Decision',
-      badge: 'Human Agency',
+      badge:
+        totalAccepted > 0 || totalEdited > 0 || totalDismissed > 0
+          ? 'Human Agency'
+          : 'Teacher Review Pending',
       icon: UserCheck,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
-      stat: `${totalAccepted} accepted · ${totalEdited} edited`,
-      detail: `${totalDismissed} dismissed`,
+      stat:
+        totalAccepted > 0 || totalEdited > 0
+          ? `${totalAccepted} accepted · ${totalEdited} edited`
+          : totalDismissed > 0
+          ? `${totalDismissed} dismissed`
+          : 'Teacher Review Pending',
+      detail:
+        totalPending > 0
+          ? `${totalPending} items pending review`
+          : totalDismissed > 0
+          ? `${totalDismissed} dismissed`
+          : 'All items reviewed',
     },
   ];
 
@@ -263,21 +300,53 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
   const interventionCount = result.interventions.length;
   const detChecks = result.verification.deterministicChecks;
 
-  const acceptedClusters = result.misconceptionClusters.filter((c) => c.status === 'accepted').length;
-  const editedClusters = result.misconceptionClusters.filter((c) => c.status === 'edited').length;
-  const dismissedClusters = result.misconceptionClusters.filter((c) => c.status === 'dismissed').length;
+  const acceptedClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'accepted'
+  ).length;
+  const editedClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'edited'
+  ).length;
+  const dismissedClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'dismissed'
+  ).length;
+  const pendingClusters = result.misconceptionClusters.filter(
+    (c) => getCanonicalTeacherDecision(c) === 'pending'
+  ).length;
 
-  const acceptedInterventions = result.interventions.filter((i) => i.status === 'accepted').length;
-  const editedInterventions = result.interventions.filter((i) => i.status === 'edited').length;
-  const dismissedInterventions = result.interventions.filter((i) => i.status === 'dismissed').length;
+  const acceptedInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'accepted'
+  ).length;
+  const editedInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'edited'
+  ).length;
+  const dismissedInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'dismissed'
+  ).length;
+  const pendingInterventions = result.interventions.filter(
+    (i) => getCanonicalTeacherDecision(i) === 'pending'
+  ).length;
 
   const totalAccepted = acceptedClusters + acceptedInterventions;
   const totalEdited = editedClusters + editedInterventions;
   const totalDismissed = dismissedClusters + dismissedInterventions;
+  const totalPending = pendingClusters + pendingInterventions;
+
+  const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  const drawerRef = useModalFocus<HTMLDivElement>({
+    isOpen,
+    onClose,
+    initialFocusRef: closeButtonRef,
+  });
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs transition-opacity">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs transition-opacity"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
+        ref={drawerRef}
         className="w-full max-w-2xl bg-white h-full shadow-2xl overflow-y-auto flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300"
         role="dialog"
         aria-modal="true"
@@ -306,8 +375,9 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
           </div>
 
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             aria-label="Close Trace Drawer"
           >
             <X size={18} />
@@ -352,22 +422,22 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
 
           {/* Detailed Sequential Trace Stages */}
           <div className="space-y-4">
-            {/* Stage 1: Input Evidence */}
+            {/* Stage 1: Input Evidence & Privacy Gateway */}
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-slate-500">STAGE 01</span>
                   <span className="text-slate-300">·</span>
-                  <h3 className="font-bold text-slate-900">Source Evidence Ingestion</h3>
+                  <h3 className="font-bold text-slate-900">Privacy Gateway &amp; Ingestion</h3>
                 </div>
-                <ProvenanceBadge type="code" label="Ground Truth" size="sm" />
+                <ProvenanceBadge type="code" label="Google Cloud SDP" size="sm" />
               </div>
               <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1 text-[11px]">
-                <li><strong>{totalSubmissions} Anonymized Student Submissions:</strong> Ingested passive linguistic data.</li>
-                <li><strong>Multimodal Ingestion:</strong> Formats mapped to normalized source layer (typed text and transcribed handwriting).</li>
-                <li><strong>Lesson Standard:</strong> &quot;{result.context.learningObjective}&quot;</li>
-                <li><strong>Rubric Anchors:</strong> 4 criteria mapped for tense choice and auxiliary agreement.</li>
-                <li><strong>Stage Latency:</strong> {formatStageLatency(metadata?.stageDurationsMs, 'Stage 1: Source Evidence', isDemo)}</li>
+                <li><strong>{totalSubmissions} Student Submissions:</strong> Ingested educator-provided student work.</li>
+                <li><strong>Pre-AI Privacy Boundary:</strong> Scanned via Google Cloud Sensitive Data Protection (PERSON_NAME, EMAIL_ADDRESS, PHONE_NUMBER).</li>
+                <li><strong>De-identification Status:</strong> {result.privacyAudit ? `${result.privacyAudit.findingCount} sensitive identifiers removed. Raw sensitive values stored in privacy audit: No.` : 'Verified clean.'}</li>
+                <li><strong>Multimodal Ingestion:</strong> Formats mapped to normalized source layer with image PII redaction.</li>
+                <li><strong>Stage Latency:</strong> {formatStageLatency(metadata?.stageDurationsMs, 'Stage 1: Privacy Gateway', isDemo)}</li>
               </ul>
             </div>
 
@@ -501,19 +571,33 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
                   <span className="text-slate-300">·</span>
                   <h3 className="font-bold text-slate-900">Teacher Decision &amp; Human-in-the-Loop Agency</h3>
                 </div>
-                <ProvenanceBadge type="human" label="Final Accountability" size="sm" />
+                <ProvenanceBadge
+                  type="human"
+                  label={
+                    totalAccepted > 0 || totalEdited > 0 || totalDismissed > 0
+                      ? 'Teacher Reviewed'
+                      : 'Teacher Review Pending'
+                  }
+                  size="sm"
+                />
               </div>
               <p className="text-[11px] text-slate-600">
-                LotusLearn provides decision support; teachers retain ultimate authority. Every AI artifact can be accepted, edited, or dismissed.
+                {totalAccepted > 0 || totalEdited > 0 || totalDismissed > 0
+                  ? 'LotusLearn provides decision support; teachers retain ultimate authority. Every AI artifact can be accepted, edited, or dismissed.'
+                  : 'Teacher Review Pending: AI-generated clusters and interventions require explicit teacher acceptance, edit, or dismissal before being considered approved.'}
               </p>
-              <div className="grid grid-cols-3 gap-2 font-mono text-[11px] text-center">
+              <div className="grid grid-cols-4 gap-2 font-mono text-[11px] text-center">
+                <div className="p-2 rounded bg-white border border-slate-200">
+                  <span className="text-slate-700 font-bold block">{totalPending}</span>
+                  <span className="text-[10px] text-slate-500 uppercase">Pending</span>
+                </div>
                 <div className="p-2 rounded bg-white border border-amber-200">
                   <span className="text-emerald-700 font-bold block">{totalAccepted}</span>
                   <span className="text-[10px] text-slate-500 uppercase">Accepted</span>
                 </div>
                 <div className="p-2 rounded bg-white border border-amber-200">
                   <span className="text-amber-700 font-bold block">{totalEdited}</span>
-                  <span className="text-[10px] text-slate-500 uppercase">Teacher Edited</span>
+                  <span className="text-[10px] text-slate-500 uppercase">Edited</span>
                 </div>
                 <div className="p-2 rounded bg-white border border-amber-200">
                   <span className="text-slate-600 font-bold block">{totalDismissed}</span>
@@ -526,7 +610,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
 
         {/* Drawer Footer */}
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500">
-          <span>Google Cloud AI Builder Cup 2026</span>
+          <span>LotusLearn AI · Technical Analysis Trace</span>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition"

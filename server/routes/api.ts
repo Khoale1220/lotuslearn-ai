@@ -3,6 +3,7 @@ import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from '../../src/data/demoClassroom';
 import { runFullAnalysisPipeline } from '../services/pipelineCoordinator';
 import { adjustIntervention } from '../services/strategyService';
 import { verifyAnalysisPipeline } from '../services/verifierService';
+import { runDeterministicValidation } from '../services/deterministicValidator';
 
 const router = Router();
 
@@ -21,6 +22,8 @@ router.post('/analyze', async (req: Request, res: Response) => {
     if (!context || !submissions || !Array.isArray(submissions) || submissions.length === 0) {
       return res.status(400).json({
         error: 'Missing learning context or student submissions.',
+        code: 'VALIDATION_ERROR',
+        retryable: false,
       });
     }
 
@@ -30,6 +33,10 @@ router.post('/analyze', async (req: Request, res: Response) => {
     console.error('[LotusLearn AI API] Error in /analyze:', err);
     return res.status(500).json({
       error: err.message || 'An error occurred during multi-stage analysis.',
+      message: err.message || 'An error occurred during multi-stage analysis.',
+      code: err.code || 'PIPELINE_ERROR',
+      stage: err.stage,
+      retryable: err.retryable ?? false,
     });
   }
 });
@@ -40,6 +47,8 @@ router.post('/analyze-stream', async (req: Request, res: Response) => {
   if (!context || !submissions || !Array.isArray(submissions) || submissions.length === 0) {
     return res.status(400).json({
       error: 'Missing learning context or student submissions.',
+      code: 'VALIDATION_ERROR',
+      retryable: false,
     });
   }
 
@@ -68,6 +77,9 @@ router.post('/analyze-stream', async (req: Request, res: Response) => {
     console.error('[LotusLearn AI API] Error in /analyze-stream:', err);
     sendEvent('error', {
       message: err.message || 'Pipeline execution failed.',
+      code: err.code || 'PIPELINE_ERROR',
+      stage: err.stage,
+      retryable: err.retryable ?? false,
     });
     res.end();
   }
@@ -101,15 +113,42 @@ router.post('/verify', async (req: Request, res: Response) => {
       groups,
       interventions,
       nextLessonPlan,
+      deterministicAudit: providedDeterministicAudit,
     } = req.body;
+
+    // P3.1: Image evidence must NEVER default to 'exact_source' without explicit teacher review.
+    // Unreviewed image transcriptions are strictly classified as 'transcription_unverified'.
     const norm =
       normalizedEvidence ||
-      (submissions || []).map((s: any) => ({
-        studentId: s.studentId,
-        sourceType: s.workType === 'handwritten_work' || s.imageBase64 ? 'image_transcription' : 'typed',
-        extractedText: s.studentText,
-        confidenceOrStatus: 'exact_source',
-      }));
+      (submissions || []).map((s: any) => {
+        const isImage = s.workType === 'handwritten_work' || Boolean(s.imageBase64);
+        return {
+          studentId: s.studentId,
+          sourceType: isImage ? 'image_transcription' : 'typed',
+          extractedText: s.studentText,
+          confidenceOrStatus: isImage
+            ? (s.confidenceOrStatus === 'transcription_reviewed' ? 'transcription_reviewed' : 'transcription_unverified')
+            : 'exact_source',
+        };
+      });
+
+    // P3.1: Deterministic audit must be provided or computed from real inputs.
+    // Never manufacture a fake PASS. If unavailable, pass undefined (verifierService will fail closed).
+    let deterministicAudit = providedDeterministicAudit;
+    if (!deterministicAudit && submissions && observations && misconceptions && groups) {
+      try {
+        deterministicAudit = runDeterministicValidation({
+          submissions,
+          normalizedEvidence: norm,
+          observations,
+          clusters: misconceptions,
+          groups,
+        });
+      } catch (detErr) {
+        console.warn('[LotusLearn AI API] /verify auto-run deterministic audit notice:', detErr);
+      }
+    }
+
     const verified = await verifyAnalysisPipeline(
       context,
       submissions,
@@ -118,7 +157,8 @@ router.post('/verify', async (req: Request, res: Response) => {
       misconceptions,
       groups,
       interventions,
-      nextLessonPlan
+      nextLessonPlan,
+      deterministicAudit
     );
     return res.json(verified);
   } catch (err: any) {

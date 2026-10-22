@@ -1,5 +1,5 @@
 import { Type } from '@google/genai';
-import { generateContentDetailed } from '../geminiClient';
+import { StageModelTelemetry, generateContentDetailed } from '../geminiClient';
 import {
   ClassSnapshot,
   LearningContext,
@@ -13,6 +13,7 @@ export interface DiagnosisOutput {
   misconceptionClusters: MisconceptionCluster[];
   modelUsed: string;
   durationMs: number;
+  telemetry?: StageModelTelemetry;
 }
 
 export async function diagnoseClassPatterns(
@@ -64,6 +65,7 @@ Return a JSON object in this exact schema.`;
 
   const genResult = await generateContentDetailed({
     stageName: 'Stage 2: Diagnosis',
+    stageKey: 'diagnosis',
     contents: promptText,
     config: {
       responseMimeType: 'application/json',
@@ -163,7 +165,8 @@ Return a JSON object in this exact schema.`;
         teachingPriority: c.teachingPriority || 'high',
         confidence: typeof c.confidence === 'number' ? c.confidence : 0.93,
         recommendedInstructionalResponse: c.recommendedInstructionalResponse || '',
-        status: 'accepted',
+        status: 'pending',
+        teacherDecision: 'pending',
       };
     }
   );
@@ -183,5 +186,6 @@ Return a JSON object in this exact schema.`;
     misconceptionClusters: clusters,
     modelUsed: genResult.modelUsed,
     durationMs: genResult.durationMs,
+    telemetry: genResult.telemetry,
   };
 }

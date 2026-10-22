@@ -40,12 +40,13 @@ ${rawSubmissions
   .join('\n')}
 
 === DETERMINISTIC AUDIT FINDINGS (PRE-COMPUTED BY SYSTEM) ===
-- Student Coverage Passed: ${deterministicAudit?.coveragePassed ?? true}
-- Cluster Prevalence Math Passed: ${deterministicAudit?.clusterMathPassed ?? true}
-- Instructional Group Partition Passed: ${deterministicAudit?.groupPartitionPassed ?? true}
+- Student Coverage Passed: ${deterministicAudit ? (deterministicAudit.coveragePassed ? 'PASS' : 'FAIL') : 'NOT CHECKED (Audit unavailable)'}
+- Cluster Prevalence Math Passed: ${deterministicAudit ? (deterministicAudit.clusterMathPassed ? 'PASS' : 'FAIL') : 'NOT CHECKED (Audit unavailable)'}
+- Instructional Group Partition Passed: ${deterministicAudit ? (deterministicAudit.groupPartitionPassed ? 'PASS' : 'FAIL') : 'NOT CHECKED (Audit unavailable)'}
+- Evidence Validation Passed: ${deterministicAudit ? (deterministicAudit.evidenceValidationPassed ? 'PASS' : 'FAIL') : 'NOT CHECKED (Audit unavailable)'}
 - Grounded Evidence Quotes Count: ${deterministicAudit?.quotesGroundedCount ?? 0}
 - Flagged/Unverified Quotes Count: ${deterministicAudit?.quotesFlaggedCount ?? 0}
-${deterministicAudit?.issues && deterministicAudit.issues.length > 0 ? `Issues Flagged by Deterministic Code:\n${deterministicAudit.issues.map((i) => `  * ${i}`).join('\n')}` : 'No code-level integrity discrepancies.'}
+${deterministicAudit?.issues && deterministicAudit.issues.length > 0 ? `Issues Flagged by Deterministic Code:\n${deterministicAudit.issues.map((i) => `  * ${i}`).join('\n')}` : deterministicAudit ? 'No code-level integrity discrepancies.' : 'WARNING: Deterministic audit was not executed; all technical checks are unverified.'}
 
 === CLAIMS & MISCONCEPTION CLUSTERS TO AUDIT ===
 ${JSON.stringify(
@@ -74,7 +75,7 @@ ${JSON.stringify(
   2
 )}
 
-=== DIFFERENTIATED INTERVENTIONS & LESSON PLAN TO AUDIT ===
+=== DIFFERENTIATED INTERVENTIONS TO AUDIT ===
 ${JSON.stringify(
   interventions.map((i) => ({
     title: i.title,
@@ -84,6 +85,9 @@ ${JSON.stringify(
   null,
   2
 )}
+
+=== 25-MINUTE LESSON PLAN TO AUDIT ===
+${nextLessonPlan ? JSON.stringify(nextLessonPlan, null, 2) : '[NOT PROVIDED: Lesson plan omitted from this verification run]'}
 
 === ADVERSARIAL AUDIT CHECKLIST ===
 1. Evidence Coverage: Does every claimed misconception and student assignment have direct, verifiable textual evidence in the raw student submission?
@@ -99,6 +103,7 @@ Return a JSON object matching this schema.`;
 
   const genResult = await generateContentDetailed({
     stageName: 'Stage 4: Adversarial Verifier Pass',
+    stageKey: 'semantic_verifier',
     contents: promptText,
     config: {
       responseMimeType: 'application/json',
@@ -213,18 +218,63 @@ Return a JSON object matching this schema.`;
   let pedagogicalPlausibility: 'sound' | 'review_suggested' =
     data?.pedagogicalPlausibility === 'sound' ? 'sound' : 'review_suggested';
 
-  // Enforce hybrid deterministic safety: if deterministic checks flagged unverified quotes or group partition issues, fail-closed!
+  // P2I: Claim-integrity invariant:
+  // The verifier may only claim to verify artifacts actually included in its input.
+  const hasSubmissions = Boolean(rawSubmissions && rawSubmissions.length > 0);
+  const hasNormalizedEvidence = Boolean(normalizedEvidence && normalizedEvidence.length > 0);
+  const hasMisconceptions = Boolean(misconceptions && misconceptions.length > 0);
+  const hasGroups = Boolean(groups && groups.length > 0);
+  const hasInterventions = Boolean(interventions && interventions.length > 0);
+  const hasLessonPlan = Boolean(nextLessonPlan && nextLessonPlan.phases && nextLessonPlan.phases.length > 0);
+
+  // If evidence or submissions missing:
+  if (!hasSubmissions || !hasNormalizedEvidence) {
+    evidenceCoverageStatus = 'insufficient';
+    overallStatus = 'needs_review';
+  }
+
+  // If lesson plan was omitted from input, verifier CANNOT verify it:
+  if (!hasLessonPlan) {
+    pedagogicalPlausibility = 'review_suggested';
+    if (overallStatus === 'verified') {
+      overallStatus = 'partially_verified';
+    }
+  }
+
+  // If groups or interventions omitted:
+  if (!hasGroups || !hasInterventions || !hasMisconceptions) {
+    if (overallStatus === 'verified') {
+      overallStatus = 'partially_verified';
+    }
+  }
+
+  // P2J / P2K / P3.1: Deterministic code checks strictly dominate semantic confidence!
   if (deterministicAudit) {
-    if (!deterministicAudit.coveragePassed || !deterministicAudit.clusterMathPassed) {
+    if (
+      !deterministicAudit.coveragePassed ||
+      !deterministicAudit.clusterMathPassed ||
+      !deterministicAudit.groupPartitionPassed ||
+      !deterministicAudit.evidenceValidationPassed
+    ) {
       overallStatus = 'needs_review';
+    }
+    if (
+      !deterministicAudit.coveragePassed ||
+      !deterministicAudit.clusterMathPassed ||
+      !deterministicAudit.evidenceValidationPassed
+    ) {
       evidenceCoverageStatus = 'insufficient';
     }
     if (deterministicAudit.quotesFlaggedCount > 0) {
       unsupportedClaimsStatus = 'minor_discrepancy';
-      if (overallStatus === 'verified') {
-        overallStatus = 'partially_verified';
-      }
     }
+  } else {
+    // P3.1: When deterministic audit is missing or not provided, FAIL CLOSED:
+    // Technical verification is incomplete, so overallStatus CANNOT become 'verified'.
+    if (overallStatus === 'verified') {
+      overallStatus = 'needs_review';
+    }
+    evidenceCoverageStatus = 'insufficient';
   }
 
   // Combine semantic audit checks with deterministic audit checks
@@ -252,12 +302,19 @@ Return a JSON object matching this schema.`;
       ? allChecks
       : misconceptions.slice(0, 3).map((m) => {
           const sample = m.evidenceExamples[0];
+          // P3.1: Only genuinely supported matches can receive 'verified' verdict.
+          // Approximate matches, unverified image transcriptions, and unsupported citations remain 'flagged'.
+          const isSupportedMatch =
+            sample &&
+            (sample.deterministicMatch === 'exact_quote_found' ||
+              sample.deterministicMatch === 'normalized_exact_match' ||
+              sample.deterministicMatch === 'image_transcription_verified');
           return {
             claim: `Evidence check for cluster: ${m.misconceptionTitle}`,
             evidenceFound: sample
-              ? `Student ${sample.studentId}: "${sample.excerpt}" (${sample.deterministicMatch || 'evaluated'})`
+              ? `Student ${sample.studentId}: "${sample.excerpt}" (${sample.deterministicMatch || 'not_checked'})`
               : 'No sample quotes provided for this cluster',
-            verdict: sample && sample.deterministicMatch !== 'unsupported_citation' ? ('verified' as const) : ('flagged' as const),
+            verdict: isSupportedMatch ? ('verified' as const) : ('flagged' as const),
             auditType: 'deterministic' as const,
           };
         });
@@ -279,9 +336,12 @@ Return a JSON object matching this schema.`;
           coveragePassed: deterministicAudit.coveragePassed,
           clusterMathPassed: deterministicAudit.clusterMathPassed,
           groupPartitionPassed: deterministicAudit.groupPartitionPassed,
+          evidenceValidationPassed: deterministicAudit.evidenceValidationPassed,
           quotesGroundedCount: deterministicAudit.quotesGroundedCount,
           quotesFlaggedCount: deterministicAudit.quotesFlaggedCount,
         }
       : undefined,
+    modelUsed: genResult.modelUsed,
+    durationMs: genResult.durationMs,
   };
 }
