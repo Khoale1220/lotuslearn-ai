@@ -169,6 +169,11 @@ export interface VerificationResult {
   durationMs?: number;
 }
 
+export type PrivacyProviderIdentity =
+  | 'google-sensitive-data-protection'
+  | 'deterministic-demo-sanitizer'
+  | 'prevalidated-demo-fixture';
+
 export interface PrivacyAudit {
   status: 'passed' | 'review_required' | 'failed' | 'not_checked';
   findingCount: number;
@@ -176,9 +181,11 @@ export interface PrivacyAudit {
     [infoType: string]: number;
   };
   sanitizationApplied: boolean;
-  provider: 'google-sensitive-data-protection';
+  provider: PrivacyProviderIdentity;
   providerVersionOrPolicyId?: string;
   durationMs?: number;
+  imagesScanned?: number;
+  imageRedactionCompleted?: boolean;
   rawValuesRetained: false;
   failClosed: true;
 }
@@ -228,7 +235,9 @@ export interface ClassAnalysisResult {
 
 export interface SavedSession {
   result: ClassAnalysisResult;
-  rawSubmissions: StudentSubmission[];
+  sanitizedSubmissions: StudentSubmission[];
+  /** @deprecated backward-compatible alias for legacy storage */
+  rawSubmissions?: StudentSubmission[];
   savedAt: string;
 }
 

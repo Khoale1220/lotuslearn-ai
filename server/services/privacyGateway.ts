@@ -11,7 +11,6 @@
  */
 
 import { PrivacyAudit, StudentSubmission } from '../../src/types';
-import { PipelineError } from '../errors/pipelineErrors';
 import { getAppConfig } from '../config';
 import {
   DEFAULT_PII_INFOTYPES,
@@ -170,17 +169,21 @@ export class PrivacyGateway {
       isGoogleMode = process.env.NODE_ENV === 'production';
     }
 
+    const imagesScanned = normalized.filter((s) => Boolean(s.imageBase64)).length;
+
     // Structured audit metadata without raw PII
     const privacyAudit: PrivacyAudit = {
       status: 'passed',
       findingCount: totalFindingCount,
       findingTypeCounts: aggregatedTypeCounts,
       sanitizationApplied: totalFindingCount > 0,
-      provider: 'google-sensitive-data-protection',
+      provider: isGoogleMode ? 'google-sensitive-data-protection' : 'deterministic-demo-sanitizer',
       providerVersionOrPolicyId: isGoogleMode
         ? 'google-sdp-edu-v2'
         : 'deterministic-edu-v1',
       durationMs,
+      imagesScanned,
+      imageRedactionCompleted: imagesScanned > 0,
       rawValuesRetained: false,
       failClosed: true,
     };
