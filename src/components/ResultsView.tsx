@@ -129,7 +129,7 @@ ${result.misconceptionClusters
     (c) => `### Citations for: ${c.misconceptionTitle}
 ${c.evidenceExamples
   .map(
-    (e) => `- Student: ${e.studentId} | Match: ${e.deterministicMatch || 'checked'} | Quote: "${e.excerpt}" (Justification: ${e.groundingReason})`
+    (e) => `- Student ${e.studentId}: "${e.excerpt}" (Match: ${e.deterministicMatch || 'checked'}) — ${e.groundingReason}`
   )
   .join('\n')}
 `

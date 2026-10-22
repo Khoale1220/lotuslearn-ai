@@ -1,94 +1,63 @@
 # LotusLearn AI
 
-> **Turn real student work into a verifiable next-lesson plan.**  
-> *Privacy before inference. Evidence behind every insight. Teacher in control.*
+An evidence-grounded educational assessment platform that processes student work into diagnostic misconception patterns and actionable next-lesson interventions.
 
----
+## What it does
 
-## 1. Why LotusLearn Exists
+LotusLearn ingests student responses (typed text or photographed handwritten worksheets), sanitizes sensitive personal information, extracts grounded evidence, groups recurring student errors into misconception clusters, and drafts differentiated lesson recommendations for educator review.
 
-Teachers already possess the evidence they need: handwritten worksheets, exit tickets, and written responses collected at the end of class.
+The teacher retains complete authority: all findings and suggestions start in a pending state and must be accepted, edited, or dismissed by the educator.
 
-However, synthesizing 30–45 individual student artifacts to identify root learning misconceptions takes 1.5 to 2 hours of manual diagnostic effort after a full day of teaching. By the time errors are manually categorized, the opportune instructional window for timely intervention has passed.
+## Architecture
 
-**The Solution:** LotusLearn bridges the gap between **assessment → interpretation → next teaching action**, transforming messy student artifacts into an evidence-verifiable, differentiated 25-minute lesson sequence.
-
----
-
-## 2. What Makes LotusLearn Different
-
-- **Artifact-First & Paper-Friendly:** Works directly from student artifacts teachers already have — typed text or photographed handwritten worksheets.
-- **Privacy Before Inference:** All student names, emails, and phone numbers are de-identified via Google Cloud Sensitive Data Protection before content ever reaches Gemini.
-- **Evidence-Verifiable Insights:** Every diagnosed misconception is directly anchored to verbatim student quotations and pedagogical grounding reasons.
-- **Hybrid Verification:** Combines Gemini generative reasoning with deterministic programmatic validation code that checks roster math, student identities, and quotation presence.
-- **Teacher Sovereignty (Human-in-the-Loop):** AI recommends; teachers decide. Educators can Accept, Edit, or Dismiss any diagnosed cluster or intervention scaffold.
-- **Non-Stigmatizing Cohorts:** Replaces permanent ability labels with temporary, action-oriented cohorts (*Ready for Extension*, *Needs Concept Clarification*, *Guided Practice*).
-
----
-
-## 3. Architecture & Analysis Pipeline
-
-LotusLearn operates as a synchronized 6-stage pipeline:
-
-```mermaid
-flowchart LR
-    A[Student Artifacts] --> B[Privacy Gateway]
-    B --> C[Sanitized Artifacts]
-    C --> D[Gemini Observer]
-    D --> E[Gemini Diagnosis]
-    E --> F[Deterministic Validator]
-    F --> G[Teaching Strategist]
-    G --> H[Gemini Verifier]
-    H --> I[Teacher Review]
-    I --> J[Next-Lesson Plan]
+```text
+Student Submissions (Text / Images)
+               │
+               ▼
+┌───────────────────────────────┐
+│     1. Privacy Gateway        │  De-identification & Identity Normalization
+└──────────────┬────────────────┘
+               │  Sanitized Submissions
+               ▼
+┌───────────────────────────────┐
+│     2. Gemini Observer        │  Multimodal Evidence Extraction & OCR
+└──────────────┬────────────────┘
+               │  Observations & Evidence
+               ▼
+┌───────────────────────────────┐
+│     3. Gemini Diagnosis       │  Misconception Cluster Synthesis
+└──────────────┬────────────────┘
+               │  Diagnostic Claims
+               ▼
+┌───────────────────────────────┐
+│  4. Deterministic Validator   │  Roster Math, Coverage & Quote Auditing
+└──────────────┬────────────────┘
+               │  Audited Clusters
+               ▼
+┌───────────────────────────────┐
+│  5. Teaching Strategist       │  Differentiated Groupings & Lesson Sequence
+└──────────────┬────────────────┘
+               │  Instructional Plan
+               ▼
+┌───────────────────────────────┐
+│  6. Semantic Verifier         │  Adversarial Grounding Audit
+└──────────────┬────────────────┘
+               │
+               ▼
+┌───────────────────────────────┐
+│     7. Teacher Review         │  Educator Decisions (Accept / Edit / Dismiss)
+└───────────────────────────────┘
 ```
 
-### The 6 Stages:
+## Stack
 
-1. **Protect (Stage 1 · Privacy Gateway):** Google Cloud Sensitive Data Protection (REST v2) strips student PII and normalizes roster keys to stable pseudonyms (`Student 01` – `Student 12`). Operates on a fail-closed basis.
-2. **Observe (Stage 2 · Gemini Observer):** Gemini 3.8 Flash extracts structured student observations, benchmarking each against the lesson rubric and anchoring verbatim quotes without premature labeling.
-3. **Diagnose (Stage 3 · Gemini Diagnosis):** Cross-reasons across the whole cohort to synthesize collective misconception patterns, affected student counts, and instructional priorities.
-4. **Validate (Stage 4 · Deterministic Code Validator):** Independent programmatic code audits roster arithmetic, group partitioning, and validates verbatim quotation presence against raw submissions to prevent hallucinated citations.
-5. **Plan (Stage 5 · Gemini Teaching Strategist):** Produces a differentiated 25-minute next-lesson sequence, non-stigmatizing cohorts, teacher prompts, and exit tickets.
-6. **Verify (Stage 6 · Gemini Semantic Verifier & Teacher Authority):** Independent semantic audit evaluates claim plausibility. Teacher retains sovereign decision authority (Accept, Edit, Dismiss).
+- **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Vite
+- **Backend**: Node.js, Express, tsx
+- **AI & Reasoning**: Google Gen AI SDK (`@google/genai`), Gemini 3.8 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash-Lite
+- **Privacy & Sanitization**: Google Cloud Sensitive Data Protection (REST v2) with deterministic local provider
+- **Validation**: Zod schema validation
 
----
-
-## 4. Google Technologies Used
-
-- **Gemini 3.8 Flash (`@google/genai` v2.4.0):** Multi-stage reasoning engine for structured observations, diagnostic pattern clustering, and instructional planning.
-- **Google Cloud Sensitive Data Protection (Cloud DLP REST v2):** Pre-AI PII de-identification (`content:deidentify` and `image:redact`) ensuring sensitive student data never reaches model boundaries.
-- **Google Cloud Run:** Serverless container execution with automated scaling and sub-second latency.
-
----
-
-## 5. Privacy & Data Governance Model
-
-- **Fail-Closed Privacy Contract:** If the privacy provider encounters a network timeout, quota exhaustion, or outage, the pipeline aborts immediately. Zero un-sanitized content reaches Gemini.
-- **Zero Raw PII Persistence:** Privacy audit metadata stores finding counts only, never raw sensitive values.
-- **Zero PII in Server Logs:** Console and operational logs record stage durations, error taxonomy, and submission counts only.
-- **Local Device Storage:** Saved session records reside in browser local storage. Data is never synchronized to unauthorized third-party trackers.
-
----
-
-## 6. One-Click Interactive Demo
-
-LotusLearn includes an interactive one-click demonstration using an authentic Grade 10 English classroom scenario (Unit: *Present Perfect vs. Past Simple* with contextual references to Hội An, Đà Nẵng, Huế, and Hạ Long):
-
-1. Click **Try Demo Class** in the top navigation or sidebar.
-2. The system executes the full 6-stage pipeline across 12 authentic student submissions.
-3. Inspect diagnosed misconception clusters, click **Why?** to examine anchored evidence quotes, and review tomorrow's 25-minute lesson plan.
-
----
-
-## 7. Local Development & Setup
-
-### Prerequisites
-- Node.js 20+
-- npm 10+
-- Google Gemini API Key
-
-### Installation
+## Local development
 
 ```bash
 # Clone the repository
@@ -98,48 +67,58 @@ cd lotuslearn-ai
 # Install dependencies
 npm install
 
-# Configure environment variables
+# Set up environment variables
 cp .env.example .env
-# Add your GEMINI_API_KEY in .env
 
-# Start development server
+# Start development server (serves frontend on port 3000 and mounts Express backend)
 npm run dev
 ```
 
-Visit `http://localhost:3000` in your browser.
+## Environment
 
----
+Create a `.env` file based on `.env.example`:
 
-## 8. Test Suite & Verification
+| Variable | Description | Required | Default |
+|---|---|---|---|
+| `NODE_ENV` | Runtime environment (`development`, `test`, `production`) | No | `development` |
+| `SDP_PROVIDER` | Privacy provider: `deterministic` or `google` | No | `deterministic` in dev/test, `google` in prod |
+| `GEMINI_API_KEY` | Google Gemini API key for server-side inference | For live AI runs | None |
+| `GOOGLE_CLOUD_PROJECT` | GCP project ID for Google Cloud SDP API calls | Required in production | None |
 
-LotusLearn maintains a comprehensive regression and validation test suite:
+### Privacy provider modes
+
+- **`deterministic`**: Fast, hermetic privacy filter for local development, AI Studio preview, automated test suites, and offline demonstrations. Does not require GCP credentials or cloud network connectivity. Strips known student identifiers (names, emails, phones) and produces safe synthetic visual redactions.
+- **`google`**: Production-grade Google Cloud Sensitive Data Protection (DLP v2 REST API). Authenticates automatically via Google Application Default Credentials (ADC) attached to the deployed cloud workload or developer workstation. Production mode strictly enforces this provider and will fail closed on startup if not configured.
+
+## Testing
 
 ```bash
-# Run TypeScript typecheck
+# Typecheck
 npm run typecheck
 
-# Run 181 automated tests (39 suites)
-npm test
-
-# Run ESLint validation
+# Lint
 npm run lint
 
-# Production build
+# Run automated tests
+npm test
+
+# Build production bundle
 npm run build
 ```
 
-**Quality Baseline:**
-- 181 / 181 Tests Pass (39 suites, 0 failures, 0 skips)
-- TypeScript strict typecheck: Pass
-- Canonical Demo SHA-256 Fingerprint: `f82100e176cd233e0b65efbf00fc7b8947e7dab66aadff9389f1f25f128bf1ce`
+## Privacy model
 
----
+- **Pre-inference boundary**: Sanitization occurs strictly before data reaches any AI model.
+- **Fail-closed contract**: If the privacy provider fails, times out, or returns an error, the pipeline aborts immediately without sending unredacted data to model endpoints.
+- **Identity minimization**: Real student names are normalized to deterministic pseudonymous identifiers (`Student 01`, `Student 02`...).
+- **Restrained persistence**: Unredacted student submissions and raw PII are never persisted to long-term storage or exposed in server logs.
 
-## 9. Current Limitations & Roadmap
+## Project status
 
-- **Current Scope:** Optimized for English Language Arts, reading comprehension, and structured concept diagnostics.
-- **Handwritten OCR:** Multi-page handwriting currently relies on high-resolution image uploads (`image/jpeg`, `image/png`).
-- **Roadmap:**
-  - Multi-class longitudinal progress tracking.
-  - Multi-rubric simultaneous evaluation.
-  - Direct LMS export integrations (Google Classroom).
+- Working 6-stage assessment and intervention pipeline with live Gemini integration and deterministic code auditing.
+- Interactive demonstration mode with pre-validated sample classroom submissions.
+- Strict error handling with stage-aware timeouts, exponential backoff, and circuit breakers.
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for current progress and planned engineering milestones.

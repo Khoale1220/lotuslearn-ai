@@ -94,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </span>
               </div>
               <p className="text-[11px] font-medium text-slate-400">
-                Evidence-Verifiable Copilot
+                Diagnostic Assessment Platform
               </p>
             </div>
           </button>

@@ -38,7 +38,7 @@ export const STAGE_ROUTING_POLICIES: Record<PipelineStageKey, StageRoutingPolicy
     displayName: 'Observer',
     primaryModel: 'gemini-3.5-flash-lite',
     fallbackModels: ['gemini-3.1-flash-lite'],
-    stageTimeoutMs: 20_000,
+    stageTimeoutMs: 25_000,
   },
   diagnosis: {
     stageKey: 'diagnosis',
@@ -46,7 +46,7 @@ export const STAGE_ROUTING_POLICIES: Record<PipelineStageKey, StageRoutingPolicy
     primaryModel: 'gemini-3.8-flash',
     fallbackModels: ['gemini-3.6-flash'],
     emergencyFallbackModel: 'gemini-3.5-flash-lite',
-    stageTimeoutMs: 35_000,
+    stageTimeoutMs: 45_000,
   },
   teaching_strategist: {
     stageKey: 'teaching_strategist',
@@ -54,7 +54,7 @@ export const STAGE_ROUTING_POLICIES: Record<PipelineStageKey, StageRoutingPolicy
     primaryModel: 'gemini-3.8-flash',
     fallbackModels: ['gemini-3.6-flash'],
     emergencyFallbackModel: 'gemini-3.5-flash-lite',
-    stageTimeoutMs: 35_000,
+    stageTimeoutMs: 45_000,
   },
   semantic_verifier: {
     stageKey: 'semantic_verifier',
@@ -62,7 +62,7 @@ export const STAGE_ROUTING_POLICIES: Record<PipelineStageKey, StageRoutingPolicy
     primaryModel: 'gemini-3.6-flash',
     fallbackModels: ['gemini-3.8-flash'],
     emergencyFallbackModel: 'gemini-3.5-flash-lite',
-    stageTimeoutMs: 25_000,
+    stageTimeoutMs: 35_000,
   },
 };
 
@@ -406,14 +406,18 @@ export async function generateContentDetailed(
           throw classified;
         }
 
-        // 3. HTTP 503 / Service Overload / Transient Network / Timeout
-        // P0 Requirement: a 503 on gemini-3.8-flash causes immediate stage fallback
+        // 3. HTTP 503 / Service Overload / Transient Network / Timeout / 504 Deadline Exceeded
+        // P0 Requirement: a 503 or 504 on gemini-3.8-flash causes immediate stage fallback
         if (classified.code === 'TRANSIENT_NETWORK_ERROR') {
-          const isTimeout = String(err?.message || '').toLowerCase().includes('time');
+          const errLower = String(err?.message || '').toLowerCase();
+          const isTimeout =
+            errLower.includes('time') ||
+            errLower.includes('deadline') ||
+            errLower.includes('504');
           const reason: CooldownReason = isTimeout ? 'timeout' : '503_service_overload';
           const cdMs = markModelCooldown(modelName, reason, undefined, err.message);
           lastCooldownApplied = { model: modelName, durationMs: cdMs, reason };
-          fallbackReason = `${isTimeout ? 'Timeout' : 'HTTP 503 Service Overload'} on ${modelName}, immediately falling back`;
+          fallbackReason = `${isTimeout ? 'Timeout / Deadline Exceeded' : 'HTTP 503 Service Overload'} on ${modelName}, immediately falling back`;
           console.log(
             `[LotusLearn AI] Stage "${stage}" on ${modelName} encountered ${reason}. Applying cooldown (${cdMs}ms) and switching immediately to next candidate...`
           );

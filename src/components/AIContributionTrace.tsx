@@ -81,11 +81,21 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
   const totalDismissed = dismissedClusters + dismissedInterventions;
   const totalPending = pendingClusters + pendingInterventions;
 
+  const isGoogleSDP = Boolean(
+    result.privacyAudit?.providerVersionOrPolicyId?.startsWith('google-sdp')
+  );
+  const privacyModeBadge = isGoogleSDP ? 'Google Cloud SDP' : 'Demo privacy mode';
+
   const stages = [
     {
       step: '01',
       name: 'Privacy & Ingestion',
-      badge: result.privacyAudit?.status === 'passed' ? 'SDP Sanitized' : 'Privacy Gateway',
+      badge:
+        result.privacyAudit?.status === 'passed'
+          ? isGoogleSDP
+            ? 'SDP Sanitized'
+            : 'Demo Sanitized'
+          : 'Privacy Gateway',
       icon: ShieldCheck,
       color: 'text-blue-700',
       bg: 'bg-blue-50',
@@ -331,6 +341,11 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
   const totalDismissed = dismissedClusters + dismissedInterventions;
   const totalPending = pendingClusters + pendingInterventions;
 
+  const isGoogleSDP = Boolean(
+    result.privacyAudit?.providerVersionOrPolicyId?.startsWith('google-sdp')
+  );
+  const privacyModeBadge = isGoogleSDP ? 'Google Cloud SDP' : 'Demo privacy mode';
+
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
   const drawerRef = useModalFocus<HTMLDivElement>({
     isOpen,
@@ -430,11 +445,11 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
                   <span className="text-slate-300">·</span>
                   <h3 className="font-bold text-slate-900">Privacy Gateway &amp; Ingestion</h3>
                 </div>
-                <ProvenanceBadge type="code" label="Google Cloud SDP" size="sm" />
+                <ProvenanceBadge type="code" label={privacyModeBadge} size="sm" />
               </div>
               <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1 text-[11px]">
                 <li><strong>{totalSubmissions} Student Submissions:</strong> Ingested educator-provided student work.</li>
-                <li><strong>Pre-AI Privacy Boundary:</strong> Scanned via Google Cloud Sensitive Data Protection (PERSON_NAME, EMAIL_ADDRESS, PHONE_NUMBER).</li>
+                <li><strong>Pre-AI Privacy Boundary:</strong> {isGoogleSDP ? 'Scanned via Google Cloud Sensitive Data Protection (PERSON_NAME, EMAIL_ADDRESS, PHONE_NUMBER).' : 'Deterministic local privacy filter (PERSON_NAME, EMAIL_ADDRESS, PHONE_NUMBER).'}</li>
                 <li><strong>De-identification Status:</strong> {result.privacyAudit ? `${result.privacyAudit.findingCount} sensitive identifiers removed. Raw sensitive values stored in privacy audit: No.` : 'Verified clean.'}</li>
                 <li><strong>Multimodal Ingestion:</strong> Formats mapped to normalized source layer with image PII redaction.</li>
                 <li><strong>Stage Latency:</strong> {formatStageLatency(metadata?.stageDurationsMs, 'Stage 1: Privacy Gateway', isDemo)}</li>

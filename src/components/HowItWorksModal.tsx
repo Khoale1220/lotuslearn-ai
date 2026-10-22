@@ -17,7 +17,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
     {
       num: '01',
       title: 'Protect · Privacy Before Inference',
-      provider: 'Google Cloud SDP',
+      provider: 'Sensitive Data Protection',
       desc: 'Sensitive identifiers (names, emails, phones) are de-identified before model ingestion. Images have sensitive rectangles redacted.',
       icon: ShieldCheck,
       color: 'text-indigo-600 bg-indigo-50 border-indigo-200',

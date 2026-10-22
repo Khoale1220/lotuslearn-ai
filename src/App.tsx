@@ -100,13 +100,24 @@ export default function App() {
     }
   }, []);
 
-  // Save analyses and raw submissions to localStorage when updated
+  // Save analysis sessions to localStorage: store only sanitized derived data, never raw image base64
   const saveAnalysis = (newResult: ClassAnalysisResult, submissionsToSave?: StudentSubmission[]) => {
     const effectiveSubmissions =
       submissionsToSave && submissionsToSave.length > 0 ? submissionsToSave : rawSubmissions;
+
+    // Cache sanitized submissions only (raw images and unsanitized artifacts are omitted from localStorage)
+    const sanitizedSubmissionsToCache: StudentSubmission[] = effectiveSubmissions.map((s) => {
+      const sanitizedEvidence = newResult.normalizedSourceEvidence?.find((n) => n.studentId === s.studentId);
+      return {
+        studentId: s.studentId,
+        studentText: sanitizedEvidence?.extractedText || s.studentText,
+        workType: s.workType,
+      };
+    });
+
     const sessionObj: SavedSession = {
       result: newResult,
-      rawSubmissions: effectiveSubmissions,
+      rawSubmissions: sanitizedSubmissionsToCache,
       savedAt: new Date().toISOString(),
     };
 

@@ -11,7 +11,9 @@
  * - Fail-closed: provider failures or network timeouts throw typed PipelineError
  */
 
+import { GoogleAuth } from 'google-auth-library';
 import { classifyPrivacyError, PipelineError } from '../errors/pipelineErrors';
+import { getAppConfig } from '../config';
 
 export interface TextDeidentifyParams {
   text: string;
@@ -244,11 +246,17 @@ export class DeterministicSensitiveDataProtectionProvider
       });
     }
 
-    // In deterministic mock mode, image bytes are safely passed through with redacted flag
+    // Deterministic safe test redaction:
+    // Generate an explicitly transformed visual placeholder.
+    // Never returns the original raw unredacted image bytes across the privacy boundary.
+    const syntheticRedactedImage = Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#000000"/><text x="20" y="105" fill="#ffffff" font-family="monospace" font-size="12">REDACTED (TEST/DEV)</text></svg>`
+    ).toString('base64');
+
     return {
-      redactedImageBase64: params.imageBytesBase64,
-      findingCount: 0,
-      findingTypeCounts: {},
+      redactedImageBase64: syntheticRedactedImage,
+      findingCount: 1,
+      findingTypeCounts: { IMAGE_PII_REDACTION: 1 },
       durationMs: Date.now() - startTime,
       provider: 'google-sensitive-data-protection',
     };
@@ -262,7 +270,8 @@ export class DeterministicSensitiveDataProtectionProvider
 export class GoogleSensitiveDataProtectionProvider
   implements SensitiveDataProtectionProvider
 {
-  private projectId: string;
+  private auth: GoogleAuth;
+  private projectId?: string;
   private locationId: string;
   private apiKey?: string;
 
@@ -271,52 +280,46 @@ export class GoogleSensitiveDataProtectionProvider
     locationId?: string;
     apiKey?: string;
   }) {
-    this.projectId =
-      options?.projectId ||
-      process.env.GOOGLE_CLOUD_PROJECT ||
-      process.env.GCP_PROJECT_ID ||
-      '';
+    let configuredProject: string | undefined;
+    let configuredApiKey: string | undefined;
+    try {
+      const config = getAppConfig();
+      configuredProject = config.googleCloudProject;
+      configuredApiKey = config.geminiApiKey;
+    } catch {
+      configuredProject = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT_ID;
+      configuredApiKey = process.env.GEMINI_API_KEY;
+    }
+
+    this.projectId = options?.projectId || configuredProject;
     this.locationId = options?.locationId || process.env.DLP_LOCATION || 'global';
-    this.apiKey = options?.apiKey || process.env.GEMINI_API_KEY;
+    this.apiKey = options?.apiKey || configuredApiKey;
+    this.auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    });
   }
 
   private async resolveAuthHeadersAndUrl(
     endpointAction: 'content:deidentify' | 'image:redact'
   ): Promise<{ url: string; headers: Record<string, string> }> {
     let projectId = this.projectId;
-    let bearerToken = process.env.GOOGLE_OAUTH_ACCESS_TOKEN;
 
-    if (!projectId || !bearerToken) {
+    if (!projectId) {
       try {
-        const tokenRes = await fetch(
-          'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
-          { headers: { 'Metadata-Flavor': 'Google' }, signal: AbortSignal.timeout(1000) }
-        );
-        if (tokenRes.ok) {
-          const tData = (await tokenRes.json()) as any;
-          if (tData.access_token) bearerToken = tData.access_token;
-        }
+        projectId = await this.auth.getProjectId();
       } catch {
-        // metadata server unreachable
+        // Fallback if metadata not available
       }
     }
 
     if (!projectId) {
-      try {
-        const projRes = await fetch(
-          'http://metadata.google.internal/computeMetadata/v1/project/project-id',
-          { headers: { 'Metadata-Flavor': 'Google' }, signal: AbortSignal.timeout(1000) }
-        );
-        if (projRes.ok) {
-          const pText = (await projRes.text()).trim();
-          if (pText) projectId = pText;
-        }
-      } catch {
-        // metadata server unreachable
-      }
+      throw new PipelineError({
+        code: 'PRIVACY_AUTH_ERROR',
+        stage: 'Privacy Gateway (Google Cloud SDP)',
+        message: 'Google Sensitive Data Protection is required in production but could not be initialized: GOOGLE_CLOUD_PROJECT is missing',
+        retryable: false,
+      });
     }
-
-    projectId = projectId || 'lotuslearn-ai';
 
     const parent =
       this.locationId === 'global'
@@ -329,10 +332,35 @@ export class GoogleSensitiveDataProtectionProvider
     };
 
     let url = `https://dlp.googleapis.com/v2/${parent}/${endpointAction}`;
-    if (bearerToken) {
-      headers['Authorization'] = `Bearer ${bearerToken}`;
-    } else if (this.apiKey) {
-      url += `?key=${this.apiKey}`;
+
+    try {
+      const client = await this.auth.getClient();
+      const authHeaders: any = await client.getRequestHeaders();
+      let authVal: string | null = null;
+      if (authHeaders) {
+        if (typeof authHeaders.get === 'function') {
+          authVal = authHeaders.get('Authorization') || authHeaders.get('authorization');
+        } else if (typeof authHeaders === 'object') {
+          authVal = authHeaders['Authorization'] || authHeaders['authorization'];
+        }
+      }
+      if (authVal) {
+        headers['Authorization'] = String(authVal);
+      } else if (this.apiKey) {
+        url += `?key=${this.apiKey}`;
+      }
+    } catch (authErr: any) {
+      if (this.apiKey) {
+        url += `?key=${this.apiKey}`;
+      } else {
+        throw new PipelineError({
+          code: 'PRIVACY_AUTH_ERROR',
+          stage: 'Privacy Gateway (Google Cloud SDP)',
+          message: 'Sensitive Data Protection authentication failed: unable to acquire Application Default Credentials',
+          retryable: false,
+          cause: authErr,
+        });
+      }
     }
 
     return { url, headers };
@@ -388,7 +416,15 @@ export class GoogleSensitiveDataProtectionProvider
       }
 
       const data = (await response.json()) as any;
-      const sanitizedText = data.item?.value || params.text;
+      const sanitizedText = data.item?.value;
+      if (typeof sanitizedText !== 'string') {
+        throw new PipelineError({
+          code: 'PRIVACY_SCAN_FAILED',
+          stage: 'Privacy Gateway (Google Cloud SDP)',
+          message: 'Sensitive Data Protection returned invalid payload: missing deidentified item value',
+          retryable: false,
+        });
+      }
       const findingTypeCounts: Record<string, number> = {};
       let findingCount = 0;
 
@@ -452,7 +488,15 @@ export class GoogleSensitiveDataProtectionProvider
       }
 
       const data = (await response.json()) as any;
-      const redactedImageBase64 = data.redactedImage || params.imageBytesBase64;
+      const redactedImageBase64 = data.redactedImage;
+      if (!redactedImageBase64 || typeof redactedImageBase64 !== 'string') {
+        throw new PipelineError({
+          code: 'PRIVACY_SCAN_FAILED',
+          stage: 'Privacy Gateway (Image Redaction)',
+          message: 'Sensitive Data Protection image redaction failed: missing redacted image in response',
+          retryable: false,
+        });
+      }
 
       return {
         redactedImageBase64,
@@ -467,15 +511,47 @@ export class GoogleSensitiveDataProtectionProvider
   }
 }
 
-let activeProvider: SensitiveDataProtectionProvider =
-  new DeterministicSensitiveDataProtectionProvider();
+/**
+ * Configure default provider based on centralized app configuration:
+ * - Production requires Google Cloud Sensitive Data Protection ('google')
+ * - Development and tests default to 'deterministic'
+ */
+export function createDefaultSensitiveDataProtectionProvider(): SensitiveDataProtectionProvider {
+  const explicitProvider = (process.env.SDP_PROVIDER || '').toLowerCase().trim();
+  if (explicitProvider === 'google' || explicitProvider === 'google-sdp') {
+    return new GoogleSensitiveDataProtectionProvider();
+  }
+  if (explicitProvider === 'deterministic') {
+    return new DeterministicSensitiveDataProtectionProvider();
+  }
+
+  let providerMode: 'deterministic' | 'google' = 'deterministic';
+  try {
+    const config = getAppConfig();
+    providerMode = config.privacyProvider;
+  } catch {
+    providerMode = process.env.NODE_ENV === 'production' ? 'google' : 'deterministic';
+  }
+
+  if (providerMode === 'google') {
+    return new GoogleSensitiveDataProtectionProvider();
+  }
+
+  return new DeterministicSensitiveDataProtectionProvider();
+}
+
+let activeProvider: SensitiveDataProtectionProvider | null = null;
 
 export function setSensitiveDataProtectionProvider(
-  provider: SensitiveDataProtectionProvider
+  provider: SensitiveDataProtectionProvider | null
 ): void {
   activeProvider = provider;
 }
 
 export function getSensitiveDataProtectionProvider(): SensitiveDataProtectionProvider {
+  if (!activeProvider) {
+    activeProvider = createDefaultSensitiveDataProtectionProvider();
+  }
   return activeProvider;
 }
+

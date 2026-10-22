@@ -246,9 +246,13 @@ export function getPipelineErrorDisplay(errorOrMessage?: unknown): PipelineError
     };
   }
 
-  // Transient network / 503 service unavailable
+  // Transient network / 503 service unavailable / 504 timeout / deadline exceeded
   if (
     lower.includes('503') ||
+    lower.includes('504') ||
+    lower.includes('deadline') ||
+    lower.includes('timeout') ||
+    lower.includes('timed out') ||
     lower.includes('service unavailable') ||
     lower.includes('network error') ||
     lower.includes('fetch failed') ||

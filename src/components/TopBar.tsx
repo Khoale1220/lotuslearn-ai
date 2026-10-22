@@ -38,9 +38,9 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="font-semibold text-slate-900 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
               {activeLessonTitle}
             </span>
-            <span className="text-slate-300 hidden sm:inline" aria-hidden="true">·</span>
+            <span className="text-slate-300 hidden sm:inline" aria-hidden="true">/</span>
             <span className="text-slate-500 hidden sm:inline">
-              Formative Assessment Copilot
+              Diagnostic Assessment
             </span>
           </div>
         </div>

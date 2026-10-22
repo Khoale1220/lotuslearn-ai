@@ -71,12 +71,16 @@ import {
 } from './privacyGateway';
 import {
   DeterministicSensitiveDataProtectionProvider,
+  GoogleSensitiveDataProtectionProvider,
+  createDefaultSensitiveDataProtectionProvider,
   setSensitiveDataProtectionProvider,
   getSensitiveDataProtectionProvider,
 } from './sensitiveDataProtectionProvider';
+import { analysisController } from '../controllers/analysisController';
 import { classifyPrivacyError } from '../errors/pipelineErrors';
 import { PrivacyAudit } from '../../src/types';
 import { runPrivacyEvaluation, PRIVACY_EVAL_FIXTURES } from './privacyEvalSet';
+import { loadAppConfig, getAppConfig, resetAppConfig } from '../config';
 
 describe('Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verification', () => {
   const sampleObservations: StudentObservation[] = DEMO_SUBMISSIONS.map((s) => ({
@@ -4039,6 +4043,294 @@ ${pendingResult.interventions
         assert.ok(result.executionMetadata.modelsUsed.includes('gemini-3.5-flash-lite'));
         assert.ok(result.executionMetadata.modelsUsed.includes('gemini-3.8-flash'));
         assert.ok(result.executionMetadata.modelsUsed.includes('gemini-3.6-flash'));
+      });
+    });
+
+    describe('Section 33: Production Portfolio Transformation & Privacy Architecture Audit', () => {
+      it('PT-01: Identity normalization converts real student names to stable pseudonyms without leaking PII', () => {
+        const gateway = new PrivacyGateway();
+        const rawSubmissions: StudentSubmission[] = [
+          { studentId: 'Nguyen Van An', studentText: 'I visited Da Nang yesterday', workType: 'typed' },
+          { studentId: 'Johnathan Smith', studentText: 'I have seen the bridge', workType: 'typed' },
+          { studentId: 'Student 03', studentText: 'I went to Hue', workType: 'typed' },
+          { studentId: 'Custom 04', studentText: 'I have arrived', workType: 'typed' },
+        ];
+
+        const normalized = gateway.normalizeStudentIdentities(rawSubmissions);
+        assert.strictEqual(normalized[0].studentId, 'Student 01', 'Full name Nguyen Van An must be pseudonymized to Student 01');
+        assert.strictEqual(normalized[1].studentId, 'Student 02', 'Full name Johnathan Smith must be pseudonymized to Student 02');
+        assert.strictEqual(normalized[2].studentId, 'Student 03', 'Pre-existing pseudonym Student 03 must be preserved');
+        assert.strictEqual(normalized[3].studentId, 'Custom 04', 'Pre-existing pseudonym Custom 04 must be preserved');
+      });
+
+      it('PT-02: SDP provider configuration honors environment variables and production mode', () => {
+        const originalEnv = process.env.SDP_PROVIDER;
+        try {
+          process.env.SDP_PROVIDER = 'google-sdp';
+          const cloudProvider = createDefaultSensitiveDataProtectionProvider();
+          assert.ok(
+            cloudProvider instanceof GoogleSensitiveDataProtectionProvider,
+            'Explicit SDP_PROVIDER=google-sdp must instantiate GoogleSensitiveDataProtectionProvider'
+          );
+
+          process.env.SDP_PROVIDER = 'deterministic';
+          const localProvider = createDefaultSensitiveDataProtectionProvider();
+          assert.ok(
+            localProvider instanceof DeterministicSensitiveDataProtectionProvider,
+            'Explicit SDP_PROVIDER=deterministic must instantiate DeterministicSensitiveDataProtectionProvider'
+          );
+        } finally {
+          process.env.SDP_PROVIDER = originalEnv;
+        }
+      });
+
+      it('PT-03: Google SDP text de-identification strictly fails closed if response lacks item.value', async () => {
+        const originalFetch = global.fetch;
+        try {
+          // Mock fetch to simulate an unexpected 200 response lacking item.value
+          global.fetch = async () =>
+            ({
+              ok: true,
+              json: async () => ({ unexpectedField: true }), // Missing item.value!
+            } as any);
+
+          const provider = new GoogleSensitiveDataProtectionProvider({ projectId: 'test-project', apiKey: 'test-key' });
+
+          await assert.rejects(
+            async () => {
+              await provider.deidentifyText({
+                text: 'Sensitive student raw name: Nguyen Van An',
+                infoTypes: ['PERSON_NAME'],
+              });
+            },
+            (err: any) => {
+              assert.strictEqual(err.code, 'PRIVACY_SCAN_FAILED');
+              assert.ok(
+                err.message.includes('missing deidentified item value'),
+                'Must reject missing item value rather than falling back to original sensitive text'
+              );
+              return true;
+            }
+          );
+        } finally {
+          global.fetch = originalFetch;
+        }
+      });
+
+      it('PT-04: Google SDP image redaction strictly fails closed if response lacks redactedImage', async () => {
+        const originalFetch = global.fetch;
+        try {
+          // Mock fetch to simulate 200 response without redactedImage
+          global.fetch = async () =>
+            ({
+              ok: true,
+              json: async () => ({ overview: {} }), // Missing redactedImage!
+            } as any);
+
+          const provider = new GoogleSensitiveDataProtectionProvider({ projectId: 'test-project', apiKey: 'test-key' });
+
+          await assert.rejects(
+            async () => {
+              await provider.redactImage({
+                imageBytesBase64: 'raw-image-bytes-containing-handwritten-pii',
+                mimeType: 'image/png',
+                infoTypes: ['PERSON_NAME'],
+              });
+            },
+            (err: any) => {
+              assert.strictEqual(err.code, 'PRIVACY_SCAN_FAILED');
+              assert.ok(
+                err.message.includes('missing redacted image in response'),
+                'Must reject missing redactedImage rather than falling back to original raw image'
+              );
+              return true;
+            }
+          );
+        } finally {
+          global.fetch = originalFetch;
+        }
+      });
+
+      it('PT-05: AnalysisController HTTP boundary rejects invalid requests with HTTP 400 and structured error', async () => {
+        let capturedStatus = 0;
+        let capturedJson: any = null;
+
+        const mockRes: any = {
+          status: (code: number) => {
+            capturedStatus = code;
+            return mockRes;
+          },
+          json: (data: any) => {
+            capturedJson = data;
+            return mockRes;
+          },
+        };
+
+        // Missing context and empty submissions
+        const mockReq: any = {
+          body: {
+            context: null,
+            submissions: [],
+          },
+        };
+
+        await analysisController.analyze(mockReq, mockRes);
+
+        assert.strictEqual(capturedStatus, 400, 'Invalid request must return HTTP 400');
+        assert.ok(capturedJson?.error, 'Response must contain structured error object');
+        assert.strictEqual(capturedJson.error.code, 'INVALID_REQUEST');
+        assert.ok(capturedJson.error.message, 'Response error must contain actionable message');
+      });
+    });
+
+    // =======================================================================
+    // PHASE P5: Privacy Provider and Startup Configuration Hardening
+    // =======================================================================
+    describe('Phase P5: Privacy Provider and Startup Configuration Hardening', () => {
+      it('P5.1: development + deterministic starts without Google credentials', () => {
+        const config = loadAppConfig({
+          NODE_ENV: 'development',
+          SDP_PROVIDER: 'deterministic',
+        });
+        assert.strictEqual(config.nodeEnv, 'development');
+        assert.strictEqual(config.privacyProvider, 'deterministic');
+        assert.strictEqual(config.googleCloudProject, undefined);
+      });
+
+      it('P5.2: test + deterministic starts without Google credentials', () => {
+        const config = loadAppConfig({
+          NODE_ENV: 'test',
+          SDP_PROVIDER: 'deterministic',
+        });
+        assert.strictEqual(config.nodeEnv, 'test');
+        assert.strictEqual(config.privacyProvider, 'deterministic');
+        assert.strictEqual(config.googleCloudProject, undefined);
+      });
+
+      it('P5.3: production + deterministic fails startup validation', () => {
+        assert.throws(
+          () => {
+            loadAppConfig({
+              NODE_ENV: 'production',
+              SDP_PROVIDER: 'deterministic',
+            });
+          },
+          (err: any) => {
+            return (
+              err instanceof Error &&
+              err.message.includes('Production environment strictly forbids SDP_PROVIDER="deterministic"')
+            );
+          }
+        );
+      });
+
+      it('P5.4: production + google without required configuration fails', () => {
+        assert.throws(
+          () => {
+            loadAppConfig({
+              NODE_ENV: 'production',
+              SDP_PROVIDER: 'google',
+              GOOGLE_CLOUD_PROJECT: '',
+            });
+          },
+          (err: any) => {
+            return (
+              err instanceof Error &&
+              err.message.includes('GOOGLE_CLOUD_PROJECT configuration is missing')
+            );
+          }
+        );
+      });
+
+      it('P5.5: Google sanitization failure does not return original text (fails closed)', async () => {
+        const googleProvider = new GoogleSensitiveDataProtectionProvider({
+          projectId: 'mock-proj',
+        });
+
+        // Mock fetch to simulate Google Cloud SDP HTTP 500 failure
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = (async () => {
+          return new Response(JSON.stringify({ error: { message: 'SDP internal error' } }), {
+            status: 500,
+            statusText: 'Internal Server Error',
+          });
+        }) as any;
+
+        const rawStudentText = 'My name is John Doe and my email is john@example.com';
+        try {
+          await assert.rejects(
+            async () => {
+              await googleProvider.deidentifyText({
+                text: rawStudentText,
+                infoTypes: ['PERSON_NAME', 'EMAIL_ADDRESS'],
+              });
+            },
+            (err: any) => {
+              assert.ok(err instanceof PipelineError, 'Must throw PipelineError');
+              assert.strictEqual(err.code, 'PRIVACY_SCAN_FAILED');
+              // Original text must NEVER be in error message or returned
+              assert.ok(!err.message.includes('john@example.com'));
+              assert.ok(!err.message.includes('John Doe'));
+              return true;
+            }
+          );
+        } finally {
+          globalThis.fetch = originalFetch;
+        }
+      });
+
+      it('P5.6: Google sanitization failure does not return original image (fails closed)', async () => {
+        const googleProvider = new GoogleSensitiveDataProtectionProvider({
+          projectId: 'mock-proj',
+        });
+
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = (async () => {
+          return new Response(JSON.stringify({ error: { message: 'Image redact service error' } }), {
+            status: 503,
+            statusText: 'Service Unavailable',
+          });
+        }) as any;
+
+        const rawImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+        try {
+          await assert.rejects(
+            async () => {
+              await googleProvider.redactImage({
+                imageBytesBase64: rawImageBase64,
+                mimeType: 'image/png',
+                infoTypes: ['PERSON_NAME'],
+              });
+            },
+            (err: any) => {
+              assert.ok(err instanceof PipelineError, 'Must throw PipelineError');
+              assert.strictEqual(err.code, 'PRIVACY_SCAN_FAILED');
+              return true;
+            }
+          );
+        } finally {
+          globalThis.fetch = originalFetch;
+        }
+      });
+
+      it('P5.7: deterministic image mode never pretends an unchanged image was sanitized', async () => {
+        const deterministicProvider = new DeterministicSensitiveDataProtectionProvider();
+        const rawImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+        const result = await deterministicProvider.redactImage({
+          imageBytesBase64: rawImageBase64,
+          mimeType: 'image/png',
+          infoTypes: ['PERSON_NAME'],
+        });
+
+        // The returned image MUST NOT equal the unredacted input image
+        assert.notStrictEqual(
+          result.redactedImageBase64,
+          rawImageBase64,
+          'Deterministic provider must never return the original raw image bytes unchanged'
+        );
+        assert.ok(result.redactedImageBase64.length > 0, 'Redacted image must be non-empty');
+        assert.strictEqual(result.findingCount, 1, 'Finding count must indicate redaction applied');
       });
     });
 

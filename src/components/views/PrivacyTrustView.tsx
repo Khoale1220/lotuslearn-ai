@@ -49,7 +49,7 @@ export const PrivacyTrustView: React.FC<PrivacyTrustViewProps> = ({ onOpenCharte
               PII Gateway
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Google Cloud SDP scans for names, emails, and phone numbers.
+              Sensitive Data Protection scans for names, emails, and phone numbers.
             </p>
           </div>
 

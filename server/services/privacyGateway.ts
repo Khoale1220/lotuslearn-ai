@@ -12,6 +12,7 @@
 
 import { PrivacyAudit, StudentSubmission } from '../../src/types';
 import { PipelineError } from '../errors/pipelineErrors';
+import { getAppConfig } from '../config';
 import {
   DEFAULT_PII_INFOTYPES,
   getSensitiveDataProtectionProvider,
@@ -45,11 +46,18 @@ export class PrivacyGateway {
     submissions: StudentSubmission[]
   ): StudentSubmission[] {
     return (submissions || []).map((s, index) => {
-      let cleanId = (s.studentId || '').trim();
+      const rawId = (s.studentId || '').trim();
 
-      // If ID is empty or looks like a full legal name with spaces, assign a clean pseudonymous ID
-      if (!cleanId) {
+      // Check if ID is already a pseudonymous identifier like "Student 01", "Custom 01", "Pupil 1", "S1"
+      const isPseudonym = /^(student|custom|pupil|learner|id|sub)[\s_-]*\d+$/i.test(rawId);
+
+      // If ID is empty, unformatted, or represents a real name (e.g., "Nguyen Van An", "Jane Doe"),
+      // replace with a stable deterministic pseudonym so full names never leak to model boundaries.
+      let cleanId: string;
+      if (!rawId || !isPseudonym) {
         cleanId = `Student ${String(index + 1).padStart(2, '0')}`;
+      } else {
+        cleanId = rawId;
       }
 
       return {
@@ -154,6 +162,13 @@ export class PrivacyGateway {
     }
 
     const durationMs = Date.now() - startTime;
+    let isGoogleMode = false;
+    try {
+      const config = getAppConfig();
+      isGoogleMode = config.privacyProvider === 'google';
+    } catch {
+      isGoogleMode = process.env.NODE_ENV === 'production';
+    }
 
     // Structured audit metadata without raw PII
     const privacyAudit: PrivacyAudit = {
@@ -162,7 +177,9 @@ export class PrivacyGateway {
       findingTypeCounts: aggregatedTypeCounts,
       sanitizationApplied: totalFindingCount > 0,
       provider: 'google-sensitive-data-protection',
-      providerVersionOrPolicyId: 'google-sdp-edu-v2',
+      providerVersionOrPolicyId: isGoogleMode
+        ? 'google-sdp-edu-v2'
+        : 'deterministic-edu-v1',
       durationMs,
       rawValuesRetained: false,
       failClosed: true,
@@ -185,12 +202,15 @@ export class PrivacyGateway {
 /**
  * Singleton gateway instance
  */
-let defaultGateway: PrivacyGateway = new PrivacyGateway();
+let defaultGateway: PrivacyGateway | null = null;
 
 export function getPrivacyGateway(): PrivacyGateway {
+  if (!defaultGateway) {
+    defaultGateway = new PrivacyGateway();
+  }
   return defaultGateway;
 }
 
-export function setPrivacyGateway(gateway: PrivacyGateway): void {
+export function setPrivacyGateway(gateway: PrivacyGateway | null): void {
   defaultGateway = gateway;
 }

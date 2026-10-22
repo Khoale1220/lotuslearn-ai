@@ -61,7 +61,40 @@ export function classifyGeminiError(err: unknown, stage: string): PipelineError 
 
   const msg = String((err as any)?.message || err || '');
   const lower = msg.toLowerCase();
-  const status = (err as any)?.status || (err as any)?.statusCode || (err as any)?.httpStatus;
+
+  // Parse JSON embedded in error messages (common in Google Gen AI / gRPC REST responses)
+  let parsedErrorObj: any = null;
+  try {
+    const trimmed = msg.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      parsedErrorObj = JSON.parse(trimmed);
+    }
+  } catch {
+    // not JSON
+  }
+
+  const rawStatus =
+    parsedErrorObj?.error?.status ||
+    parsedErrorObj?.status ||
+    (err as any)?.status ||
+    (err as any)?.statusCode ||
+    (err as any)?.httpStatus ||
+    (err as any)?.error?.status;
+
+  const rawCode =
+    parsedErrorObj?.error?.code ||
+    parsedErrorObj?.code ||
+    (err as any)?.code ||
+    (err as any)?.error?.code ||
+    (err as any)?.statusCode ||
+    (err as any)?.httpStatus;
+
+  const statusStr = String(rawStatus || '').toLowerCase();
+  const codeNum = typeof rawCode === 'number' ? rawCode : parseInt(String(rawCode), 10);
+  const detailedMessage =
+    parsedErrorObj?.error?.message ||
+    parsedErrorObj?.message ||
+    msg;
 
   // 1. Quota Exhaustion / Daily Limit (HTTP 429 - Non-retryable on this model)
   if (
@@ -77,7 +110,7 @@ export function classifyGeminiError(err: unknown, stage: string): PipelineError 
     return new PipelineError({
       code: 'QUOTA_EXHAUSTED',
       stage,
-      message: `Gemini API quota exhausted${limitDetail}. Non-retryable on this model until quota reset. Details: ${msg}`,
+      message: `Gemini API quota exhausted${limitDetail}. Non-retryable on this model until quota reset. Details: ${detailedMessage}`,
       retryable: false,
       httpStatus: 429,
       cause: err,
@@ -86,27 +119,42 @@ export function classifyGeminiError(err: unknown, stage: string): PipelineError 
 
   // 2. Transient Rate Limit (HTTP 429 Too Many Requests / Resource Exhausted transient without quota)
   if (
-    status === 429 ||
+    codeNum === 429 ||
+    statusStr === 'resource_exhausted' ||
     lower.includes('too_many_requests') ||
     lower.includes('rate_limit_exceeded') ||
     lower.includes('rate limit') ||
-    lower.includes('429') ||
-    lower.includes('resource_exhausted')
+    lower.includes('resource_exhausted') ||
+    (lower.includes('429') && !lower.includes('quota'))
   ) {
     return new PipelineError({
       code: 'RATE_LIMIT_ERROR',
       stage,
-      message: `Gemini API transient rate limit exceeded (HTTP 429): ${msg}`,
+      message: `Gemini API transient rate limit exceeded (HTTP 429): ${detailedMessage}`,
       retryable: true,
       httpStatus: 429,
       cause: err,
     });
   }
 
-  // 3. Service Overload (HTTP 503) & Transient Network Errors
-  if (
-    status === 503 ||
+  // 3. Service Overload (HTTP 503), Deadline Exceeded / Timeout (HTTP 504), & Transient Network Errors
+  const isTransientCode =
+    codeNum === 504 ||
+    codeNum === 503 ||
+    codeNum === 502 ||
+    codeNum === 500 ||
+    statusStr === 'deadline_exceeded' ||
+    statusStr === 'unavailable' ||
+    statusStr === 'internal';
+
+  const isTransientText =
+    lower.includes('deadline expired') ||
+    lower.includes('deadline_exceeded') ||
+    lower.includes('deadline') ||
+    lower.includes('504') ||
     lower.includes('503') ||
+    lower.includes('502') ||
+    lower.includes('gateway timeout') ||
     lower.includes('service unavailable') ||
     lower.includes('unavailable') ||
     lower.includes('high demand') ||
@@ -116,24 +164,42 @@ export function classifyGeminiError(err: unknown, stage: string): PipelineError 
     lower.includes('timed out') ||
     lower.includes('timeout') ||
     lower.includes('abort') ||
-    lower.includes('network')
-  ) {
+    lower.includes('network') ||
+    lower.includes('socket hang up') ||
+    lower.includes('fetch failed') ||
+    lower.includes('connection reset');
+
+  if (isTransientCode || isTransientText) {
     const isServiceOverload =
-      status === 503 ||
+      codeNum === 503 ||
+      statusStr === 'unavailable' ||
       lower.includes('503') ||
       lower.includes('high demand') ||
       lower.includes('overloaded') ||
-      lower.includes('service unavailable') ||
-      lower.includes('unavailable');
+      lower.includes('service unavailable');
+
+    const isTimeout =
+      codeNum === 504 ||
+      statusStr === 'deadline_exceeded' ||
+      lower.includes('deadline') ||
+      lower.includes('504') ||
+      lower.includes('timed out') ||
+      lower.includes('timeout') ||
+      lower.includes('etimedout');
+
+    let errorLabel = 'Transient network or request timeout error';
+    if (isServiceOverload) {
+      errorLabel = 'Gemini API service overload (HTTP 503 / high demand)';
+    } else if (isTimeout) {
+      errorLabel = 'Gemini API deadline exceeded / request timeout (HTTP 504)';
+    }
 
     return new PipelineError({
       code: 'TRANSIENT_NETWORK_ERROR',
       stage,
-      message: isServiceOverload
-        ? `Gemini API service overload (HTTP 503 / high demand): ${msg}`
-        : `Transient network or request timeout error: ${msg}`,
+      message: `${errorLabel}: ${detailedMessage}`,
       retryable: true,
-      httpStatus: isServiceOverload ? 503 : (status || 504),
+      httpStatus: isServiceOverload ? 503 : (isTimeout ? 504 : (codeNum || 504)),
       cause: err,
     });
   }
@@ -142,7 +208,7 @@ export function classifyGeminiError(err: unknown, stage: string): PipelineError 
   return new PipelineError({
     code: 'INVARIANT_FAILURE',
     stage,
-    message: `Domain invariant or model pipeline failure: ${msg}`,
+    message: `Domain invariant or model pipeline failure: ${detailedMessage}`,
     retryable: false,
     cause: err,
   });
