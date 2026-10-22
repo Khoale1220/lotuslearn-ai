@@ -26,6 +26,7 @@ export default function App() {
 
   const [activeAnalysis, setActiveAnalysis] = useState<ClassAnalysisResult | null>(null);
   const [rawSubmissions, setRawSubmissions] = useState<StudentSubmission[]>([]);
+  const [cachedSubmissions, setCachedSubmissions] = useState<StudentSubmission[]>([]);
   const [activeContext, setActiveContext] = useState<LearningContext | null>(null);
   const [savedAnalyses, setSavedAnalyses] = useState<ClassAnalysisResult[]>([]);
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
@@ -75,24 +76,20 @@ export default function App() {
               interventions: normalizedInterventions,
             };
 
-            if (item.result && Array.isArray(item.rawSubmissions)) {
-              return {
-                result: normalizedResult,
-                rawSubmissions: item.rawSubmissions,
-                savedAt: item.savedAt || new Date().toISOString(),
-              };
-            }
+            const sanitizedEvidenceList: StudentSubmission[] =
+              item.sanitizedSubmissions || item.rawSubmissions || [];
+
             return {
               result: normalizedResult,
-              rawSubmissions: [],
-              savedAt: item.timestamp || new Date().toISOString(),
+              sanitizedSubmissions: sanitizedEvidenceList,
+              savedAt: item.savedAt || item.timestamp || new Date().toISOString(),
             };
           });
           setSavedSessions(sessions);
           const analyses = sessions.map((s) => s.result);
           setSavedAnalyses(analyses);
           setActiveAnalysis(analyses[0]);
-          setRawSubmissions(sessions[0].rawSubmissions || []);
+          setCachedSubmissions(sessions[0].sanitizedSubmissions || []);
         }
       }
     } catch (err) {
@@ -100,24 +97,27 @@ export default function App() {
     }
   }, []);
 
-  // Save analysis sessions to localStorage: store only sanitized derived data, never raw image base64
-  const saveAnalysis = (newResult: ClassAnalysisResult, submissionsToSave?: StudentSubmission[]) => {
-    const effectiveSubmissions =
-      submissionsToSave && submissionsToSave.length > 0 ? submissionsToSave : rawSubmissions;
-
-    // Cache sanitized submissions only (raw images and unsanitized artifacts are omitted from localStorage)
-    const sanitizedSubmissionsToCache: StudentSubmission[] = effectiveSubmissions.map((s) => {
-      const sanitizedEvidence = newResult.normalizedSourceEvidence?.find((n) => n.studentId === s.studentId);
-      return {
-        studentId: s.studentId,
-        studentText: sanitizedEvidence?.extractedText || s.studentText,
-        workType: s.workType,
-      };
-    });
+  // Save analysis sessions to localStorage: store ONLY sanitized derived data, never raw text or images
+  const saveAnalysis = (newResult: ClassAnalysisResult) => {
+    // Zero raw PII in persistent storage: browser persistence is constructed
+    // strictly from trusted sanitized server output (normalizedSourceEvidence).
+    // Raw user inputs, unredacted names, and raw uploaded images are never stored in localStorage.
+    const sanitizedSubmissionsToCache: StudentSubmission[] =
+      newResult.normalizedSourceEvidence && newResult.normalizedSourceEvidence.length > 0
+        ? newResult.normalizedSourceEvidence.map((evidence) => ({
+            studentId: evidence.studentId,
+            studentText: evidence.extractedText,
+            workType: evidence.sourceType === 'image_transcription' ? 'handwritten_work' : 'typed',
+          }))
+        : (newResult.studentObservations || []).map((obs) => ({
+            studentId: obs.studentId,
+            studentText: obs.supportingEvidence?.[0]?.quoteOrDetail || '',
+            workType: 'typed',
+          }));
 
     const sessionObj: SavedSession = {
       result: newResult,
-      rawSubmissions: sanitizedSubmissionsToCache,
+      sanitizedSubmissions: sanitizedSubmissionsToCache,
       savedAt: new Date().toISOString(),
     };
 
@@ -132,6 +132,7 @@ export default function App() {
     });
 
     setSavedAnalyses((prev) => [newResult, ...prev.filter((p) => p.id !== newResult.id)]);
+    setCachedSubmissions(sanitizedSubmissionsToCache);
   };
 
   // Run full multi-stage pipeline via SSE stream with fallback
@@ -172,7 +173,7 @@ export default function App() {
 
         const data: ClassAnalysisResult = await fallbackRes.json();
         setActiveAnalysis(data);
-        saveAnalysis(data, submissions);
+        saveAnalysis(data);
         setCurrentView('results');
         return;
       }
@@ -218,7 +219,7 @@ export default function App() {
               setPipelineDetail(parsedData.detail || parsedData.stageName || '');
             } else if (eventType === 'complete') {
               setActiveAnalysis(parsedData);
-              saveAnalysis(parsedData, submissions);
+              saveAnalysis(parsedData);
               setPipelineStage(7);
               setTimeout(() => {
                 setCurrentView('results');
@@ -409,7 +410,7 @@ export default function App() {
               onSelectSavedAnalysis={(analysis) => {
                 const matched = savedSessions.find((s) => s.result.id === analysis.id);
                 setActiveAnalysis(analysis);
-                setRawSubmissions(matched?.rawSubmissions || []);
+                setCachedSubmissions(matched?.sanitizedSubmissions || []);
                 setCurrentView('results');
               }}
               savedAnalyses={savedAnalyses}
@@ -427,7 +428,7 @@ export default function App() {
               onSelectSavedAnalysis={(analysis) => {
                 const matched = savedSessions.find((s) => s.result.id === analysis.id);
                 setActiveAnalysis(analysis);
-                setRawSubmissions(matched?.rawSubmissions || []);
+                setCachedSubmissions(matched?.sanitizedSubmissions || []);
                 setCurrentView('results');
               }}
               savedAnalyses={savedAnalyses}
@@ -479,7 +480,8 @@ export default function App() {
           {currentView === 'results' && activeAnalysis && (
             <ResultsView
               result={activeAnalysis}
-              rawSubmissions={rawSubmissions}
+              sanitizedSubmissions={cachedSubmissions}
+              rawSubmissions={cachedSubmissions}
               onBackToDashboard={() => setCurrentView('overview')}
               onNewAnalysis={() => {
                 setInitialDemoLoad(false);

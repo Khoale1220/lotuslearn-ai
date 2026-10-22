@@ -573,7 +573,7 @@ describe('Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verificatio
       // 1. Save session with custom submissions
       const sessionToPersist: SavedSession = {
         result: customAnalysisResult,
-        rawSubmissions: customSubmissions,
+        sanitizedSubmissions: customSubmissions,
         savedAt: new Date().toISOString(),
       };
 
@@ -586,23 +586,23 @@ describe('Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verificatio
 
       // 4. Verify exact custom submissions are restored
       assert.strictEqual(
-        restoredSession.rawSubmissions.length,
+        restoredSession.sanitizedSubmissions.length,
         2,
         'Must restore exactly 2 custom submissions'
       );
       assert.strictEqual(
-        restoredSession.rawSubmissions[0].studentId,
+        restoredSession.sanitizedSubmissions[0].studentId,
         'Bio Student 01',
         'Must restore Bio Student 01'
       );
       assert.strictEqual(
-        restoredSession.rawSubmissions[0].studentText,
+        restoredSession.sanitizedSubmissions[0].studentText,
         'Glycolysis yields a net of 2 ATP and produces pyruvate in cytoplasm.',
         'Must restore exact custom student text'
       );
 
       // Verify ZERO demo data leakage
-      const hasDemoSubmissions = restoredSession.rawSubmissions.some((s) =>
+      const hasDemoSubmissions = restoredSession.sanitizedSubmissions.some((s) =>
         DEMO_SUBMISSIONS.some((d) => d.studentId === s.studentId)
       );
       assert.strictEqual(
@@ -628,17 +628,17 @@ describe('Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verificatio
       // Simulate App.tsx deserializer logic for legacy items:
       const restored: SavedSession = {
         result: legacyItem as any,
-        rawSubmissions: (legacyItem as any).rawSubmissions || [], // Must be empty, never DEMO_SUBMISSIONS!
+        sanitizedSubmissions: (legacyItem as any).sanitizedSubmissions || (legacyItem as any).rawSubmissions || [], // Must be empty, never DEMO_SUBMISSIONS!
         savedAt: legacyItem.timestamp,
       };
 
       assert.strictEqual(
-        restored.rawSubmissions.length,
+        restored.sanitizedSubmissions.length,
         0,
         'Legacy sessions with missing submissions must restore as empty array'
       );
       assert.notDeepStrictEqual(
-        restored.rawSubmissions,
+        restored.sanitizedSubmissions,
         DEMO_SUBMISSIONS,
         'Legacy session must NEVER be substituted with DEMO_SUBMISSIONS'
       );
@@ -1033,7 +1033,7 @@ describe('Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verificatio
               groundedCheckDetails: [],
             },
           },
-          rawSubmissions: DEMO_SUBMISSIONS,
+          sanitizedSubmissions: DEMO_SUBMISSIONS,
           savedAt: '2026-09-29T00:00:00.000Z',
         };
 
@@ -1400,7 +1400,7 @@ describe('Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verificatio
                 groundedCheckDetails: [],
               },
             },
-            rawSubmissions: [],
+            sanitizedSubmissions: [],
             savedAt: new Date().toISOString(),
           };
 
@@ -3547,7 +3547,7 @@ ${pendingResult.interventions
         const { privacyAudit } = await gateway.sanitizeBatch(submissions);
 
         assert.strictEqual(privacyAudit.status, 'passed');
-        assert.strictEqual(privacyAudit.provider, 'google-sensitive-data-protection');
+        assert.strictEqual(privacyAudit.provider, 'deterministic-demo-sanitizer');
         assert.strictEqual(privacyAudit.rawValuesRetained, false);
         assert.strictEqual(privacyAudit.failClosed, true);
         assert.strictEqual(privacyAudit.sanitizationApplied, true);
@@ -4332,7 +4332,257 @@ ${pendingResult.interventions
           'Deterministic provider must never return the original raw image bytes unchanged'
         );
         assert.ok(result.redactedImageBase64.length > 0, 'Redacted image must be non-empty');
-        assert.strictEqual(result.findingCount, 1, 'Finding count must indicate redaction applied');
+        assert.strictEqual(result.provider, 'deterministic-demo-sanitizer');
+        assert.strictEqual(result.findingCount, 0, 'Does not fabricate image finding count');
+      });
+    });
+
+    describe('Phase P6: Pre-Deployment Hardening Verification', () => {
+      it('P6.1: Raw PII (names, emails, phones, raw text) cannot enter persistent browser storage', () => {
+        // Raw student submission containing PII
+        const rawPiiSubmission: StudentSubmission = {
+          studentId: 'Nguyen Van An',
+          studentText: 'My name is Nguyen Van An and my email is an.nguyen@example.com and phone is 0901234567. Yesterday I have visited Hanoi.',
+          imageBase64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          workType: 'typed',
+        };
+        assert.ok(rawPiiSubmission.studentText.includes('Nguyen Van An'));
+
+        // Server-sanitized result simulating pipeline output
+        const mockResult: ClassAnalysisResult = {
+          id: 'analysis_hardening_01',
+          timestamp: new Date().toISOString(),
+          context: DEMO_CONTEXT,
+          classSnapshot: {
+            totalSubmissions: 1,
+            misconceptionCount: 1,
+            strongestConcept: 'Vocabulary',
+            highestPriorityNeed: 'Tense consistency',
+            overallRecommendation: 'Targeted drill',
+          },
+          studentObservations: [
+            {
+              studentId: 'Student 01',
+              demonstratedUnderstanding: ['Past narrative structure'],
+              misconceptions: ['Present perfect with finished time'],
+              supportingEvidence: [
+                {
+                  quoteOrDetail: 'Yesterday I have visited Hanoi',
+                  interpretation: 'Finished time adverbial violation',
+                },
+              ],
+              rubricAlignment: 'Developing',
+              confidence: 0.95,
+              recommendedSupportLevel: 'concept_clarification',
+            },
+          ],
+          misconceptionClusters: [],
+          instructionalGroups: [],
+          nextLessonPlan: { phases: [], totalDuration: '25m', targetObjective: 'Tense contrast' },
+          interventions: [],
+          verification: {
+            overallStatus: 'verified',
+            evidenceCoverageStatus: 'verified',
+            objectiveAlignmentStatus: 'verified',
+            unsupportedClaimsStatus: 'none_detected',
+            pedagogicalPlausibility: 'sound',
+            explanation: 'Verified',
+            groundedCheckDetails: [],
+          },
+          normalizedSourceEvidence: [
+            {
+              studentId: 'Student 01',
+              extractedText: 'My name is [PERSON_NAME] and my email is [EMAIL_ADDRESS] and phone is [PHONE_NUMBER]. Yesterday I have visited Hanoi.',
+              sourceType: 'typed',
+              confidenceOrStatus: 'exact_source',
+            },
+          ],
+        };
+
+        // Simulate saveAnalysis persistence construction:
+        const sanitizedSubmissionsToCache: StudentSubmission[] =
+          mockResult.normalizedSourceEvidence && mockResult.normalizedSourceEvidence.length > 0
+            ? mockResult.normalizedSourceEvidence.map((evidence) => ({
+                studentId: evidence.studentId,
+                studentText: evidence.extractedText,
+                workType: evidence.sourceType === 'image_transcription' ? 'handwritten_work' : 'typed',
+              }))
+            : (mockResult.studentObservations || []).map((obs) => ({
+                studentId: obs.studentId,
+                studentText: obs.supportingEvidence?.[0]?.quoteOrDetail || '',
+                workType: 'typed',
+              }));
+
+        const persistedSession: SavedSession = {
+          result: mockResult,
+          sanitizedSubmissions: sanitizedSubmissionsToCache,
+          savedAt: new Date().toISOString(),
+        };
+
+        const serialized = JSON.stringify(persistedSession);
+
+        // REGRESSION PROOF:
+        // 1. Raw name must NOT exist anywhere in persisted string
+        assert.strictEqual(
+          serialized.includes('Nguyen Van An'),
+          false,
+          'Raw student name must NEVER be stored in persisted browser session'
+        );
+        // 2. Raw email must NOT exist anywhere in persisted string
+        assert.strictEqual(
+          serialized.includes('an.nguyen@example.com'),
+          false,
+          'Raw student email must NEVER be stored in persisted browser session'
+        );
+        // 3. Raw phone must NOT exist anywhere in persisted string
+        assert.strictEqual(
+          serialized.includes('0901234567'),
+          false,
+          'Raw student phone number must NEVER be stored in persisted browser session'
+        );
+        // 4. Raw base64 image payload must NOT exist in persisted session
+        assert.strictEqual(
+          serialized.includes('iVBORw0KGgoAAAANSUhEUg'),
+          false,
+          'Raw image payload must NEVER be stored in persisted browser session'
+        );
+        // 5. Stored studentId must be pseudonymous
+        assert.strictEqual(
+          persistedSession.sanitizedSubmissions[0].studentId,
+          'Student 01',
+          'Stored ID must be normalized pseudonym'
+        );
+      });
+
+      it('P6.2: Browser persistence strictly omits raw images', () => {
+        const mockResult: ClassAnalysisResult = {
+          id: 'analysis_hardening_02',
+          timestamp: new Date().toISOString(),
+          context: DEMO_CONTEXT,
+          classSnapshot: {
+            totalSubmissions: 1,
+            misconceptionCount: 0,
+            strongestConcept: 'All',
+            highestPriorityNeed: 'None',
+            overallRecommendation: 'None',
+          },
+          studentObservations: [],
+          misconceptionClusters: [],
+          instructionalGroups: [],
+          nextLessonPlan: { phases: [], totalDuration: '25m', targetObjective: 'None' },
+          interventions: [],
+          verification: {
+            overallStatus: 'verified',
+            evidenceCoverageStatus: 'verified',
+            objectiveAlignmentStatus: 'verified',
+            unsupportedClaimsStatus: 'none_detected',
+            pedagogicalPlausibility: 'sound',
+            explanation: 'Verified',
+            groundedCheckDetails: [],
+          },
+          normalizedSourceEvidence: [
+            {
+              studentId: 'Student 01',
+              extractedText: 'Transcribed handwritten work',
+              sourceType: 'image_transcription',
+              confidenceOrStatus: 'transcription_reviewed',
+            },
+          ],
+        };
+
+        const cached: StudentSubmission[] = (mockResult.normalizedSourceEvidence || []).map((e) => ({
+          studentId: e.studentId,
+          studentText: e.extractedText,
+          workType: 'handwritten_work',
+        }));
+
+        const session: SavedSession = {
+          result: mockResult,
+          sanitizedSubmissions: cached,
+          savedAt: new Date().toISOString(),
+        };
+
+        assert.strictEqual(session.sanitizedSubmissions[0].imageBase64, undefined);
+        const serialized = JSON.stringify(session);
+        assert.strictEqual(serialized.includes('imageBase64'), false);
+      });
+
+      it('P6.3: Provider identity truthfully models runtime states', async () => {
+        // Deterministic provider
+        const detProvider = new DeterministicSensitiveDataProtectionProvider();
+        const detResult = await detProvider.deidentifyText({
+          text: 'Hello My name is John Doe',
+          infoTypes: ['PERSON_NAME'],
+        });
+        assert.strictEqual(
+          detResult.provider,
+          'deterministic-demo-sanitizer',
+          'Deterministic provider must identify as deterministic-demo-sanitizer'
+        );
+
+        // Demo fixture
+        const demoAnalysis = generateGroundedDemoAnalysis(DEMO_CONTEXT, DEMO_SUBMISSIONS);
+        assert.strictEqual(
+          demoAnalysis.privacyAudit?.provider,
+          'prevalidated-demo-fixture',
+          'Demo analysis must identify as prevalidated-demo-fixture'
+        );
+
+        // Verification display truthfulness
+        const demoDisplay = getPrivacyStatusDisplay(demoAnalysis.privacyAudit);
+        assert.strictEqual(demoDisplay.label, 'Prevalidated Demo Dataset');
+
+        const detAudit: PrivacyAudit = {
+          status: 'passed',
+          findingCount: 1,
+          findingTypeCounts: { PERSON_NAME: 1 },
+          sanitizationApplied: true,
+          provider: 'deterministic-demo-sanitizer',
+          providerVersionOrPolicyId: 'deterministic-edu-v1',
+          durationMs: 12,
+          imagesScanned: 0,
+          imageRedactionCompleted: false,
+          rawValuesRetained: false,
+          failClosed: true,
+        };
+        const detDisplay = getPrivacyStatusDisplay(detAudit);
+        assert.strictEqual(detDisplay.label, 'Demo Privacy: 1 Removed');
+        assert.ok(detDisplay.description.includes('development/demo mode'));
+      });
+
+      it('P6.4: Verification trust badge derives truthfully from analysis state', () => {
+        // Fully verified analysis
+        const fullyVerified = isAnalysisFullyVerified({
+          deterministicAuditPassed: true,
+          overallStatus: 'verified',
+          coveragePassed: true,
+          clusterMathPassed: true,
+          groupPartitionPassed: true,
+          evidenceValidationPassed: true,
+        });
+        assert.strictEqual(fullyVerified, true);
+
+        // Unverified / review needed
+        const needsReview = isAnalysisFullyVerified({
+          deterministicAuditPassed: false,
+          overallStatus: 'needs_review',
+          coveragePassed: false,
+          clusterMathPassed: true,
+          groupPartitionPassed: true,
+          evidenceValidationPassed: true,
+        });
+        assert.strictEqual(needsReview, false);
+
+        // Missing atomic check fails closed
+        const missingAtomic = isAnalysisFullyVerified({
+          deterministicAuditPassed: true,
+          overallStatus: 'verified',
+          coveragePassed: undefined,
+          clusterMathPassed: true,
+          groupPartitionPassed: true,
+          evidenceValidationPassed: true,
+        });
+        assert.strictEqual(missingAtomic, false);
       });
     });
 

@@ -544,7 +544,7 @@ export function getPrivacyStatusDisplay(
   }
 
   // P4.0 Semantic Correction #2: Canonical demo fixture must honestly disclose prevalidation
-  if (audit.providerVersionOrPolicyId === 'prevalidated-demo-fixture') {
+  if (audit.provider === 'prevalidated-demo-fixture' || audit.providerVersionOrPolicyId === 'prevalidated-demo-fixture') {
     return {
       label: 'Prevalidated Demo Dataset',
       badgeClass: 'text-slate-800 bg-slate-100 border-slate-300',
@@ -566,11 +566,23 @@ export function getPrivacyStatusDisplay(
     };
   }
 
+  // Deterministic local provider (development/demo/test only)
+  if (audit.provider === 'deterministic-demo-sanitizer') {
+    return {
+      label: audit.findingCount > 0 ? `Demo Privacy: ${audit.findingCount} Removed` : 'Demo Privacy Check',
+      badgeClass: 'text-indigo-800 bg-indigo-50 border-indigo-300',
+      description: 'Local deterministic de-identification applied (development/demo mode). Do not submit real student data.',
+      findingsCount: audit.findingCount,
+      status: 'passed',
+      sanitizationApplied: audit.findingCount > 0,
+    };
+  }
+
   if (audit.findingCount > 0) {
     return {
       label: `Privacy Check: ${audit.findingCount} Removed`,
       badgeClass: 'text-blue-800 bg-blue-50 border-blue-300',
-      description: 'Sensitive student identifiers were removed before AI analysis.',
+      description: 'Sensitive student identifiers were removed before AI analysis via Google Cloud SDP.',
       findingsCount: audit.findingCount,
       status: 'passed',
       sanitizationApplied: true,

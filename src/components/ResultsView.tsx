@@ -29,11 +29,12 @@ import {
   AlertTriangle,
   ChevronDown,
 } from 'lucide-react';
-import { getCanonicalTeacherDecision } from '../utils/verificationDisplay';
+import { getCanonicalTeacherDecision, isAnalysisFullyVerified } from '../utils/verificationDisplay';
 
 interface ResultsViewProps {
   result: ClassAnalysisResult;
-  rawSubmissions: StudentSubmission[];
+  sanitizedSubmissions?: StudentSubmission[];
+  rawSubmissions?: StudentSubmission[];
   onBackToDashboard: () => void;
   onNewAnalysis: () => void;
   onAdjustIntervention: (
@@ -53,6 +54,7 @@ interface ResultsViewProps {
 
 export const ResultsView: React.FC<ResultsViewProps> = ({
   result,
+  sanitizedSubmissions,
   rawSubmissions,
   onBackToDashboard,
   onNewAnalysis,
@@ -193,13 +195,54 @@ ${result.instructionalGroups
   const inspectedObservation = result.studentObservations.find(
     (o) => o.studentId === inspectedStudentId
   );
-  const inspectedSubmission = rawSubmissions.find(
+  const effectiveSubmissions = sanitizedSubmissions || rawSubmissions || [];
+  const inspectedSubmission = effectiveSubmissions.find(
     (s) => s.studentId === inspectedStudentId
   );
 
   const metadata = result.executionMetadata;
   const isDemo = metadata?.executionMode === 'demo_resilience';
   const isFallback = metadata?.fallbackUsed === true;
+
+  const isFullyVerified = isAnalysisFullyVerified({
+    deterministicAuditPassed: result.executionMetadata?.deterministicAuditPassed,
+    overallStatus: result.verification?.overallStatus,
+    coveragePassed: result.verification?.deterministicChecks?.coveragePassed,
+    clusterMathPassed: result.verification?.deterministicChecks?.clusterMathPassed,
+    groupPartitionPassed: result.verification?.deterministicChecks?.groupPartitionPassed,
+    evidenceValidationPassed: result.verification?.deterministicChecks?.evidenceValidationPassed ?? true,
+  });
+
+  const isReviewRequired =
+    result.verification?.overallStatus === 'needs_review' ||
+    result.verification?.overallStatus === 'partially_verified' ||
+    result.verification?.deterministicChecks?.coveragePassed === false ||
+    result.verification?.deterministicChecks?.clusterMathPassed === false ||
+    result.verification?.deterministicChecks?.groupPartitionPassed === false;
+
+  const verificationBadgeConfig = isFullyVerified
+    ? {
+        label: 'Verified',
+        ariaLabel: 'Analysis verified: all technical and semantic checks passed',
+        bgClass: 'bg-emerald-50 text-emerald-800 border-emerald-200/80 hover:bg-emerald-100/70 focus-visible:ring-emerald-600',
+        icon: <CheckCircle2 size={13} className="text-emerald-600" />,
+        tooltip: 'Evidence references, group consistency and recommendation structure passed LotusLearn\'s validation pipeline.',
+      }
+    : isReviewRequired
+    ? {
+        label: 'Needs review',
+        ariaLabel: 'Analysis needs review: some evidence citations or model claims require attention',
+        bgClass: 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100/70 focus-visible:ring-amber-600',
+        icon: <AlertTriangle size={13} className="text-amber-600" />,
+        tooltip: 'Some evidence citations or model claims require educator review before acting on recommendations.',
+      }
+    : {
+        label: 'Analysis complete',
+        ariaLabel: 'Analysis complete',
+        bgClass: 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200/70 focus-visible:ring-slate-500',
+        icon: <Info size={13} className="text-slate-600" />,
+        tooltip: 'Multi-stage assessment finished. Technical verification checks are recorded in the verification panel.',
+      };
 
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">
@@ -233,12 +276,12 @@ ${result.instructionalGroups
                 onMouseLeave={() => setShowVerifiedTooltip(false)}
                 onFocus={() => setShowVerifiedTooltip(true)}
                 onBlur={() => setShowVerifiedTooltip(false)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs hover:bg-emerald-100/70 transition cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                aria-label="Analysis verified details"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shadow-2xs transition cursor-help focus-visible:outline-none focus-visible:ring-2 ${verificationBadgeConfig.bgClass}`}
+                aria-label={verificationBadgeConfig.ariaLabel}
                 aria-expanded={showVerifiedTooltip}
               >
-                <CheckCircle2 size={13} className="text-emerald-600" />
-                <span>Analysis verified</span>
+                {verificationBadgeConfig.icon}
+                <span>{verificationBadgeConfig.label}</span>
               </button>
 
               {showVerifiedTooltip && (
@@ -247,10 +290,8 @@ ${result.instructionalGroups
                   className="absolute left-0 sm:left-auto top-full mt-1.5 z-40 w-72 p-3 text-xs text-slate-700 bg-white rounded-xl shadow-lg border border-slate-200 leading-relaxed font-normal"
                 >
                   <div className="flex items-start gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <p>
-                      Evidence references, group consistency and recommendation structure passed LotusLearn&apos;s validation pipeline.
-                    </p>
+                    {verificationBadgeConfig.icon}
+                    <p>{verificationBadgeConfig.tooltip}</p>
                   </div>
                 </div>
               )}

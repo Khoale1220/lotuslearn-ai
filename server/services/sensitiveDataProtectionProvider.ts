@@ -14,6 +14,7 @@
 import { GoogleAuth } from 'google-auth-library';
 import { classifyPrivacyError, PipelineError } from '../errors/pipelineErrors';
 import { getAppConfig } from '../config';
+import { PrivacyProviderIdentity } from '../../src/types';
 
 export interface TextDeidentifyParams {
   text: string;
@@ -28,7 +29,7 @@ export interface TextDeidentifyResult {
   findingCount: number;
   findingTypeCounts: Record<string, number>;
   durationMs: number;
-  provider: 'google-sensitive-data-protection';
+  provider: PrivacyProviderIdentity;
   policyId?: string;
 }
 
@@ -43,7 +44,7 @@ export interface ImageRedactResult {
   findingCount: number;
   findingTypeCounts: Record<string, number>;
   durationMs: number;
-  provider: 'google-sensitive-data-protection';
+  provider: PrivacyProviderIdentity;
 }
 
 export interface SensitiveDataProtectionProvider {
@@ -213,12 +214,12 @@ export class DeterministicSensitiveDataProtectionProvider
       findingCount,
       findingTypeCounts,
       durationMs,
-      provider: 'google-sensitive-data-protection',
+      provider: 'deterministic-demo-sanitizer',
       policyId: params.inspectTemplateName || 'standard-education-privacy-v1',
     };
   }
 
-  public async redactImage(params: ImageRedactParams): Promise<ImageRedactResult> {
+  public async redactImage(_params: ImageRedactParams): Promise<ImageRedactResult> {
     const startTime = Date.now();
 
     if (this.simulateFailure === 'timeout') {
@@ -255,10 +256,10 @@ export class DeterministicSensitiveDataProtectionProvider
 
     return {
       redactedImageBase64: syntheticRedactedImage,
-      findingCount: 1,
-      findingTypeCounts: { IMAGE_PII_REDACTION: 1 },
+      findingCount: 0,
+      findingTypeCounts: {},
       durationMs: Date.now() - startTime,
-      provider: 'google-sensitive-data-protection',
+      provider: 'deterministic-demo-sanitizer',
     };
   }
 }
