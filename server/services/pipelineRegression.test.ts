@@ -4245,6 +4245,7 @@ ${pendingResult.interventions
       it('P5.5: Google sanitization failure does not return original text (fails closed)', async () => {
         const googleProvider = new GoogleSensitiveDataProtectionProvider({
           projectId: 'mock-proj',
+          apiKey: 'mock-key',
         });
 
         // Mock fetch to simulate Google Cloud SDP HTTP 500 failure
@@ -4282,6 +4283,7 @@ ${pendingResult.interventions
       it('P5.6: Google sanitization failure does not return original image (fails closed)', async () => {
         const googleProvider = new GoogleSensitiveDataProtectionProvider({
           projectId: 'mock-proj',
+          apiKey: 'mock-key',
         });
 
         const originalFetch = globalThis.fetch;
