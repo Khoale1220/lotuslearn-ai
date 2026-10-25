@@ -9,6 +9,8 @@ import { adjustIntervention } from '../services/strategyService';
 import { verifyAnalysisPipeline } from '../services/verifierService';
 import { runDeterministicValidation } from '../services/deterministicValidator';
 import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from '../../src/data/demoClassroom';
+import { getPrivacyGateway } from '../services/privacyGateway';
+import { NormalizedSourceEvidence } from '../../src/types';
 
 export class AnalysisController {
   /**
@@ -185,9 +187,39 @@ export class AnalysisController {
         deterministicAudit: providedAudit,
       } = parsed.data;
 
-      const norm =
-        normalizedEvidence ||
-        submissions.map((s: any) => {
+      // Enforce Architectural Privacy Boundary:
+      // Never allow unsanitized student submissions or raw PII (student names, emails, phone numbers,
+      // unredacted text) to reach the downstream verifier model.
+      // Any submission data accepted by this endpoint must pass through the canonical Privacy Gateway.
+      const privacyGateway = getPrivacyGateway();
+      const sanitizationResult = await privacyGateway.sanitizeBatch(submissions as any);
+      const sanitizedSubmissions = sanitizationResult.sanitizedSubmissions;
+
+      // Map raw student IDs to sanitized pseudonyms
+      const rawToSanitizedIdMap = new Map<string, string>();
+      submissions.forEach((rawSub: any, idx: number) => {
+        if (sanitizedSubmissions[idx]) {
+          rawToSanitizedIdMap.set(rawSub.studentId, sanitizedSubmissions[idx].studentId);
+        }
+      });
+
+      // Construct normalized evidence strictly from sanitized submissions
+      // If client supplied normalizedEvidence, sanitize its text and normalize its student IDs
+      let norm: NormalizedSourceEvidence[];
+      if (normalizedEvidence && normalizedEvidence.length > 0) {
+        norm = await Promise.all(
+          normalizedEvidence.map(async (n: any) => {
+            const mappedId = rawToSanitizedIdMap.get(n.studentId) || n.studentId;
+            const textRes = await privacyGateway.sanitizeText(n.extractedText);
+            return {
+              ...n,
+              studentId: mappedId,
+              extractedText: textRes.sanitizedText,
+            };
+          })
+        );
+      } else {
+        norm = sanitizedSubmissions.map((s: any) => {
           const isImage = s.workType === 'handwritten_work' || Boolean(s.imageBase64);
           return {
             studentId: s.studentId,
@@ -200,12 +232,13 @@ export class AnalysisController {
               : 'exact_source',
           };
         });
+      }
 
       let deterministicAudit = providedAudit;
-      if (!deterministicAudit && submissions && observations && misconceptions && groups) {
+      if (!deterministicAudit && sanitizedSubmissions && observations && misconceptions && groups) {
         try {
           deterministicAudit = runDeterministicValidation({
-            submissions: submissions as any,
+            submissions: sanitizedSubmissions as any,
             normalizedEvidence: norm,
             observations: observations as any,
             clusters: misconceptions as any,
@@ -218,7 +251,7 @@ export class AnalysisController {
 
       const verified = await verifyAnalysisPipeline(
         context,
-        submissions as any,
+        sanitizedSubmissions as any,
         norm,
         observations as any,
         misconceptions as any,

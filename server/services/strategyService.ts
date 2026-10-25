@@ -185,7 +185,6 @@ Return a strictly valid JSON object adhering to this schema.`;
       },
       systemInstruction:
         'You are an expert instructional designer and master pedagogical coach. You design practical, highly engaging, differentiated lesson sequences that directly resolve student misconceptions without stigma.',
-      temperature: 0.2,
     },
   });
 
@@ -350,7 +349,6 @@ Return the modified intervention object in valid JSON format matching the schema
       contents: promptText,
       config: {
         responseMimeType: 'application/json',
-        temperature: 0.2,
       },
     });
 

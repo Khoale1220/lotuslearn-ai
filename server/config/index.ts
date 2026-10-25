@@ -32,6 +32,13 @@ export const ConfigValidationSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.nodeEnv === 'production') {
+      if (!data.geminiApiKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'GEMINI_API_KEY is required in production for Gemini live analysis.',
+          path: ['geminiApiKey'],
+        });
+      }
       if (data.privacyProvider === 'deterministic') {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

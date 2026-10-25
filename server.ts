@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import apiRoutes from './server/routes/api';
-import { PRIMARY_GEMINI_MODEL } from './server/geminiClient';
 import { structuredRequestLogger } from './server/middleware/logger';
 import { getAppConfig } from './server/config';
 
@@ -18,6 +17,9 @@ async function startServer() {
   const app = express();
   const PORT = config.port;
 
+  // Trust first proxy hop (Cloud Run, Google Cloud Load Balancer, Nginx) for req.ip resolution
+  app.set('trust proxy', 1);
+
   // Structured HTTP operational logging (zero PII)
   app.use(structuredRequestLogger);
 
@@ -28,19 +30,19 @@ async function startServer() {
   // Mount server-side Gemini endpoints
   app.use('/api', apiRoutes);
 
-  // Health check with active privacy provider disclosure
+  // Minimal standard liveness/readiness endpoint
+  app.get('/healthz', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
+  // Health check with active privacy provider disclosure (strictly operational, no marketing labels)
   app.get('/health', (_req, res) => {
     const currentConfig = getAppConfig();
     res.json({
       status: 'ok',
       service: 'LotusLearn AI',
+      environment: currentConfig.nodeEnv,
       privacyProvider: currentConfig.privacyProvider,
-      privacyModeLabel:
-        currentConfig.privacyProvider === 'google'
-          ? 'Google Cloud SDP'
-          : 'Demo privacy mode',
-      runtime: 'Google Cloud Node.js',
-      primaryModel: PRIMARY_GEMINI_MODEL,
     });
   });
 
@@ -54,7 +56,8 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    // Resolve dist path reliably whether running from source or compiled dist/server.js
+    const distPath = path.resolve(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(distPath, 'index.html'));

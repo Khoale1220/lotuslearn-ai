@@ -28,6 +28,7 @@ import {
   ClassAnalysisResult,
   TeacherDecision,
   DifferentiatedIntervention,
+  PrivacyAudit,
 } from '../../src/types';
 import {
   MisconceptionClusterSchema,
@@ -78,9 +79,19 @@ import {
 } from './sensitiveDataProtectionProvider';
 import { analysisController } from '../controllers/analysisController';
 import { classifyPrivacyError } from '../errors/pipelineErrors';
-import { PrivacyAudit } from '../../src/types';
 import { runPrivacyEvaluation, PRIVACY_EVAL_FIXTURES } from './privacyEvalSet';
 import { loadAppConfig, getAppConfig, resetAppConfig } from '../config';
+import {
+  AnalyzeRequestSchema,
+  StudentSubmissionInputSchema,
+  LearningContextSchema,
+} from '../schemas/apiSchemas';
+import {
+  createRateLimiter,
+  resetRateLimiterStore,
+  cleanupExpiredEntries,
+  getRateLimiterStoreSize,
+} from '../middleware/rateLimiter';
 
 describe('Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verification', () => {
   const sampleObservations: StudentObservation[] = DEMO_SUBMISSIONS.map((s) => ({
@@ -4094,7 +4105,13 @@ ${pendingResult.interventions
               json: async () => ({ unexpectedField: true }), // Missing item.value!
             } as any);
 
-          const provider = new GoogleSensitiveDataProtectionProvider({ projectId: 'test-project', apiKey: 'test-key' });
+          const provider = new GoogleSensitiveDataProtectionProvider({ projectId: 'test-project' });
+          (provider as any).auth = {
+            getClient: async () => ({
+              getRequestHeaders: async () => ({ Authorization: 'Bearer mock-adc-token' }),
+            }),
+            getProjectId: async () => 'test-project',
+          };
 
           await assert.rejects(
             async () => {
@@ -4127,7 +4144,13 @@ ${pendingResult.interventions
               json: async () => ({ overview: {} }), // Missing redactedImage!
             } as any);
 
-          const provider = new GoogleSensitiveDataProtectionProvider({ projectId: 'test-project', apiKey: 'test-key' });
+          const provider = new GoogleSensitiveDataProtectionProvider({ projectId: 'test-project' });
+          (provider as any).auth = {
+            getClient: async () => ({
+              getRequestHeaders: async () => ({ Authorization: 'Bearer mock-adc-token' }),
+            }),
+            getProjectId: async () => 'test-project',
+          };
 
           await assert.rejects(
             async () => {
@@ -4245,8 +4268,13 @@ ${pendingResult.interventions
       it('P5.5: Google sanitization failure does not return original text (fails closed)', async () => {
         const googleProvider = new GoogleSensitiveDataProtectionProvider({
           projectId: 'mock-proj',
-          apiKey: 'mock-key',
         });
+        (googleProvider as any).auth = {
+          getClient: async () => ({
+            getRequestHeaders: async () => ({ Authorization: 'Bearer mock-adc-token' }),
+          }),
+          getProjectId: async () => 'mock-proj',
+        };
 
         // Mock fetch to simulate Google Cloud SDP HTTP 500 failure
         const originalFetch = globalThis.fetch;
@@ -4283,8 +4311,13 @@ ${pendingResult.interventions
       it('P5.6: Google sanitization failure does not return original image (fails closed)', async () => {
         const googleProvider = new GoogleSensitiveDataProtectionProvider({
           projectId: 'mock-proj',
-          apiKey: 'mock-key',
         });
+        (googleProvider as any).auth = {
+          getClient: async () => ({
+            getRequestHeaders: async () => ({ Authorization: 'Bearer mock-adc-token' }),
+          }),
+          getProjectId: async () => 'mock-proj',
+        };
 
         const originalFetch = globalThis.fetch;
         globalThis.fetch = (async () => {
@@ -4583,6 +4616,514 @@ ${pendingResult.interventions
           evidenceValidationPassed: true,
         });
         assert.strictEqual(missingAtomic, false);
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // Phase P7: Deployment Hardening & Contract Verification
+    // -----------------------------------------------------------------------
+    describe('Phase P7: Deployment Hardening & Contract Verification', () => {
+      beforeEach(() => {
+        resetRateLimiterStore();
+        resetAppConfig();
+      });
+
+      afterEach(() => {
+        resetRateLimiterStore();
+        resetAppConfig();
+      });
+
+      it('P7.1: Inference rate limiter throttles burst requests with HTTP 429 and structured error', () => {
+        const limiter = createRateLimiter({
+          windowMs: 60_000,
+          maxRequests: 2,
+          message: 'Rate limit exceeded for testing.',
+        });
+
+        const responses: Array<{ status: number; body: any }> = [];
+        let nextCount = 0;
+
+        const makeReq = () => {
+          const req: any = {
+            ip: '192.168.1.100',
+            headers: {},
+            socket: {},
+          };
+          const res: any = {
+            statusCode: 200,
+            headers: {} as Record<string, any>,
+            setHeader(k: string, v: any) {
+              this.headers[k] = v;
+            },
+            status(code: number) {
+              this.statusCode = code;
+              return this;
+            },
+            json(body: any) {
+              responses.push({ status: this.statusCode, body });
+              return this;
+            },
+          };
+          const next = () => {
+            nextCount++;
+          };
+          limiter(req, res, next);
+        };
+
+        makeReq(); // Call 1 -> allowed
+        makeReq(); // Call 2 -> allowed
+        makeReq(); // Call 3 -> throttled (429)
+
+        assert.strictEqual(nextCount, 2, 'Only 2 requests should reach next()');
+        assert.strictEqual(responses.length, 1, 'Exactly 1 request should be rejected with json response');
+        assert.strictEqual(responses[0].status, 429, 'Rejected request must return HTTP 429');
+        assert.strictEqual(responses[0].body?.error?.code, 'RATE_LIMIT_EXCEEDED');
+        assert.strictEqual(responses[0].body?.retryable, false);
+      });
+
+      it('P7.2: AnalyzeRequestSchema rejects empty work items', () => {
+        const invalidPayload = {
+          context: {
+            subject: 'English',
+            gradeLevel: 'Grade 10',
+            lessonTitle: 'Present Perfect',
+            learningObjective: 'Understand tense contrast',
+          },
+          submissions: [
+            {
+              studentId: 'Student 01',
+              studentText: '   ', // whitespace only
+              workType: 'typed',
+            },
+          ],
+        };
+
+        const result = AnalyzeRequestSchema.safeParse(invalidPayload);
+        assert.strictEqual(result.success, false, 'Empty student work must fail schema validation');
+        const issue = result.error?.issues.find((i) => i.path.includes('studentText'));
+        assert.ok(issue, 'Must report validation issue on studentText for empty work');
+      });
+
+      it('P7.3: AnalyzeRequestSchema strictly rejects unsupported image MIME types', () => {
+        const invalidMimePayload = {
+          context: {
+            subject: 'English',
+            gradeLevel: 'Grade 10',
+            lessonTitle: 'Present Perfect',
+            learningObjective: 'Understand tense contrast',
+          },
+          submissions: [
+            {
+              studentId: 'Student 01',
+              studentText: 'Valid text',
+              imageBase64: 'dGVzdA==',
+              mimeType: 'image/gif', // unsupported MIME type
+            },
+          ],
+        };
+
+        const result = AnalyzeRequestSchema.safeParse(invalidMimePayload);
+        assert.strictEqual(result.success, false, 'Unsupported MIME type image/gif must be rejected');
+
+        const validMimePayload = {
+          ...invalidMimePayload,
+          submissions: [
+            {
+              studentId: 'Student 01',
+              studentText: 'Valid text',
+              imageBase64: 'dGVzdA==',
+              mimeType: 'image/jpeg',
+            },
+          ],
+        };
+        const validResult = AnalyzeRequestSchema.safeParse(validMimePayload);
+        assert.strictEqual(validResult.success, true, 'Supported MIME type image/jpeg must pass');
+      });
+
+      it('P7.4: AnalyzeRequestSchema rejects unbounded oversized inputs', () => {
+        // Exceed learning objective (max 1000)
+        const oversizedObjective = {
+          context: {
+            subject: 'English',
+            gradeLevel: 'Grade 10',
+            lessonTitle: 'Present Perfect',
+            learningObjective: 'A'.repeat(1005),
+          },
+          submissions: [
+            {
+              studentId: 'Student 01',
+              studentText: 'Sample text',
+            },
+          ],
+        };
+        const objResult = AnalyzeRequestSchema.safeParse(oversizedObjective);
+        assert.strictEqual(objResult.success, false, 'Oversized learning objective must be rejected');
+
+        // Exceed student text (max 10000)
+        const oversizedText = {
+          context: {
+            subject: 'English',
+            gradeLevel: 'Grade 10',
+            lessonTitle: 'Present Perfect',
+            learningObjective: 'Valid objective',
+          },
+          submissions: [
+            {
+              studentId: 'Student 01',
+              studentText: 'X'.repeat(10005),
+            },
+          ],
+        };
+        const textResult = AnalyzeRequestSchema.safeParse(oversizedText);
+        assert.strictEqual(textResult.success, false, 'Oversized student text must be rejected');
+      });
+
+      it('P7.5: AnalyzeRequestSchema validates and preserves teacherNotes in LearningContext', () => {
+        const payloadWithNotes = {
+          context: {
+            subject: 'English Language Arts',
+            gradeLevel: 'Grade 10',
+            lessonTitle: 'Diagnostic Assessment',
+            learningObjective: 'Understand tense contrast with finished time markers',
+            expectedAnswerRubric: 'Standard rubric criteria',
+            teacherNotes: 'Vietnamese L1 speakers often omit tense conjugation due to aspect particles.',
+          },
+          submissions: [
+            {
+              studentId: 'Student 01',
+              studentText: 'I have finished my work yesterday.',
+            },
+          ],
+        };
+
+        const result = AnalyzeRequestSchema.safeParse(payloadWithNotes);
+        assert.strictEqual(result.success, true, 'Payload with valid teacherNotes must parse cleanly');
+        assert.strictEqual(
+          result.data?.context?.teacherNotes,
+          'Vietnamese L1 speakers often omit tense conjugation due to aspect particles.'
+        );
+      });
+
+      it('P7.6: ResultsView fail-closed verification: undefined evidenceValidationPassed strictly fails', () => {
+        const withoutEvidenceValidation = isAnalysisFullyVerified({
+          deterministicAuditPassed: true,
+          overallStatus: 'verified',
+          coveragePassed: true,
+          clusterMathPassed: true,
+          groupPartitionPassed: true,
+          evidenceValidationPassed: undefined, // missing or omitted check
+        });
+        assert.strictEqual(
+          withoutEvidenceValidation,
+          false,
+          'Missing evidenceValidationPassed must fail verification closed'
+        );
+
+        const withEvidenceValidation = isAnalysisFullyVerified({
+          deterministicAuditPassed: true,
+          overallStatus: 'verified',
+          coveragePassed: true,
+          clusterMathPassed: true,
+          groupPartitionPassed: true,
+          evidenceValidationPassed: true,
+        });
+        assert.strictEqual(withEvidenceValidation, true);
+      });
+
+      it('P7.7: Production configuration requires non-empty GEMINI_API_KEY', () => {
+        // Missing GEMINI_API_KEY in production must fail
+        assert.throws(
+          () => {
+            loadAppConfig({
+              NODE_ENV: 'production',
+              SDP_PROVIDER: 'google',
+              GOOGLE_CLOUD_PROJECT: 'lotuslearn-prod-project',
+              GEMINI_API_KEY: '', // Missing
+            });
+          },
+          (err: Error) => {
+            return (
+              err.message.includes('GEMINI_API_KEY is required in production') ||
+              err.message.includes('geminiApiKey')
+            );
+          },
+          'Missing GEMINI_API_KEY in production must throw clear configuration error'
+        );
+
+        // Valid production configuration passes
+        const validConfig = loadAppConfig({
+          NODE_ENV: 'production',
+          SDP_PROVIDER: 'google',
+          GOOGLE_CLOUD_PROJECT: 'lotuslearn-prod-project',
+          GEMINI_API_KEY: 'test-gemini-key-prod',
+        });
+        assert.strictEqual(validConfig.nodeEnv, 'production');
+        assert.strictEqual(validConfig.privacyProvider, 'google');
+        assert.strictEqual(validConfig.geminiApiKey, 'test-gemini-key-prod');
+        resetAppConfig();
+      });
+
+      it('P7.8: Rate limiter sets standard X-RateLimit headers and Retry-After on limit hit', () => {
+        const limiter = createRateLimiter({
+          windowMs: 30_000,
+          maxRequests: 1,
+        });
+
+        const headers: Record<string, any> = {};
+        const req: any = { ip: '10.0.0.1', headers: {}, socket: {} };
+        const res: any = {
+          setHeader(k: string, v: any) {
+            headers[k] = v;
+          },
+          status() {
+            return this;
+          },
+          json() {
+            return this;
+          },
+        };
+
+        limiter(req, res, () => {});
+        assert.strictEqual(headers['X-RateLimit-Limit'], 1);
+        assert.strictEqual(headers['X-RateLimit-Remaining'], 0);
+
+        // Second call triggers 429 and Retry-After
+        limiter(req, res, () => {});
+        assert.ok(headers['Retry-After'] !== undefined, 'Retry-After header must be set');
+      });
+    });
+
+    // =========================================================================
+    // PHASE P8: FINAL SECURITY, PRIVACY & REPRODUCIBILITY GATE
+    // =========================================================================
+    describe('Phase P8: Final Security, Privacy & Reproducibility Gate', () => {
+      beforeEach(() => {
+        resetAppConfig();
+        setPrivacyGateway(null);
+        setSensitiveDataProtectionProvider(null);
+        resetRateLimiterStore();
+        resetGeminiClient();
+        clearModelCooldowns();
+      });
+
+      afterEach(() => {
+        resetAppConfig();
+        setPrivacyGateway(null);
+        setSensitiveDataProtectionProvider(null);
+        resetRateLimiterStore();
+        resetGeminiClient();
+        clearModelCooldowns();
+      });
+
+      it('P8.1: POST /api/verify enforces privacy gateway: raw PII never reaches verifier model prompt', async () => {
+        let capturedPrompt = '';
+        const mockAi: any = {
+          models: {
+            generateContent: async (args: any) => {
+              capturedPrompt = typeof args.contents === 'string' ? args.contents : JSON.stringify(args.contents);
+              return {
+                text: JSON.stringify({
+                  overallStatus: 'partially_verified',
+                  evidenceCoverageStatus: 'partially_verified',
+                  objectiveAlignmentStatus: 'verified',
+                  unsupportedClaimsStatus: 'none_detected',
+                  pedagogicalPlausibility: 'sound',
+                  explanation: 'Verification audit passed safely',
+                  groundedCheckDetails: [],
+                }),
+              };
+            },
+          },
+        };
+        setGeminiClient(mockAi);
+
+        // Inject obvious PII into verification request
+        const piiName = 'Jonathan Doe';
+        const piiEmail = 'johndoe@district42.edu';
+        const piiPhone = '(555) 789-1234';
+
+        const req: any = {
+          body: {
+            context: DEMO_CONTEXT,
+            submissions: [
+              {
+                studentId: piiName,
+                studentText: `Hello my name is ${piiName}, reach me at ${piiEmail} or call ${piiPhone}. I have finished my task yesterday.`,
+                workType: 'typed',
+              },
+            ],
+            observations: [],
+            misconceptions: [],
+            groups: [],
+            interventions: [],
+          },
+        };
+
+        let responseJson: any = null;
+        let statusCode = 200;
+        const res: any = {
+          status(code: number) {
+            statusCode = code;
+            return this;
+          },
+          json(data: any) {
+            responseJson = data;
+            return this;
+          },
+        };
+
+        await analysisController.verify(req, res);
+
+        assert.strictEqual(statusCode, 200);
+        assert.ok(responseJson);
+
+        // Architectural Invariant Check: zero raw PII in prompt
+        assert.strictEqual(
+          capturedPrompt.includes(piiName),
+          false,
+          'Raw student name must NEVER reach verifier model prompt'
+        );
+        assert.strictEqual(
+          capturedPrompt.includes(piiEmail),
+          false,
+          'Raw student email must NEVER reach verifier model prompt'
+        );
+        assert.strictEqual(
+          capturedPrompt.includes(piiPhone),
+          false,
+          'Raw student phone number must NEVER reach verifier model prompt'
+        );
+
+        // Must be normalized to stable pseudonym
+        assert.ok(
+          capturedPrompt.includes('Student 01'),
+          'Model prompt must use normalized pseudonym Student 01'
+        );
+      });
+
+      it('P8.2: Rate limiter ignores spoofed X-Forwarded-For headers and relies on Express req.ip', () => {
+        const limiter = createRateLimiter({
+          windowMs: 60_000,
+          maxRequests: 2,
+        });
+
+        const headers: Record<string, any> = {};
+        const res: any = {
+          setHeader(k: string, v: any) {
+            headers[k] = v;
+          },
+          status(code: number) {
+            this.statusCode = code;
+            return this;
+          },
+          json(data: any) {
+            this.body = data;
+            return this;
+          },
+        };
+
+        // Same physical client IP (192.168.1.50) attempts to bypass limit by spoofing different X-Forwarded-For headers
+        const req1: any = {
+          ip: '192.168.1.50',
+          headers: { 'x-forwarded-for': '1.1.1.1' },
+          socket: { remoteAddress: '192.168.1.50' },
+        };
+        const req2: any = {
+          ip: '192.168.1.50',
+          headers: { 'x-forwarded-for': '2.2.2.2' },
+          socket: { remoteAddress: '192.168.1.50' },
+        };
+        const req3: any = {
+          ip: '192.168.1.50',
+          headers: { 'x-forwarded-for': '3.3.3.3' },
+          socket: { remoteAddress: '192.168.1.50' },
+        };
+
+        let nextCalledCount = 0;
+        limiter(req1, res, () => { nextCalledCount++; });
+        limiter(req2, res, () => { nextCalledCount++; });
+        limiter(req3, res, () => { nextCalledCount++; });
+
+        assert.strictEqual(nextCalledCount, 2, 'Only 2 requests should be permitted per IP');
+        assert.strictEqual(res.statusCode, 429, 'Spoofed header request 3 must be blocked with 429');
+        assert.strictEqual(res.body?.code, 'RATE_LIMIT_EXCEEDED');
+      });
+
+      it('P8.3: Rate limiter bounded cleanup purges expired records and limits store size', () => {
+        const limiter = createRateLimiter({
+          windowMs: 100, // 100ms window
+          maxRequests: 10,
+          maxStoreEntries: 3,
+        });
+
+        const res: any = {
+          setHeader() {},
+          status() { return this; },
+          json() { return this; },
+        };
+
+        // Add 3 entries
+        limiter({ ip: '10.0.0.1', headers: {}, socket: {} } as any, res, () => {});
+        limiter({ ip: '10.0.0.2', headers: {}, socket: {} } as any, res, () => {});
+        limiter({ ip: '10.0.0.3', headers: {}, socket: {} } as any, res, () => {});
+
+        assert.strictEqual(getRateLimiterStoreSize(), 3);
+
+        // Add 4th entry: should trigger capacity eviction
+        limiter({ ip: '10.0.0.4', headers: {}, socket: {} } as any, res, () => {});
+        assert.ok(getRateLimiterStoreSize() <= 3, 'Store size must stay bounded at or below maxStoreEntries');
+
+        // Test explicit time purge
+        const futureTime = Date.now() + 500;
+        const purged = cleanupExpiredEntries(futureTime);
+        assert.ok(purged > 0, 'Expired entries must be purged');
+        assert.strictEqual(getRateLimiterStoreSize(), 0, 'All expired entries purged');
+      });
+
+      it('P8.4: GoogleSensitiveDataProtectionProvider strictly requires ADC and does not accept or fallback to GEMINI_API_KEY', () => {
+        const provider = new GoogleSensitiveDataProtectionProvider({
+          projectId: 'test-gcp-project',
+          locationId: 'global',
+        });
+
+        // Ensure there is no apiKey property on the provider instance
+        assert.strictEqual(
+          (provider as any).apiKey,
+          undefined,
+          'GoogleSensitiveDataProtectionProvider must not retain or accept apiKey'
+        );
+      });
+
+      it('P8.5: GoogleSensitiveDataProtectionProvider fails closed if ADC cannot be obtained', async () => {
+        const provider = new GoogleSensitiveDataProtectionProvider({
+          projectId: 'test-gcp-project',
+          locationId: 'global',
+        });
+
+        // Mock auth to throw credential error
+        (provider as any).auth = {
+          getClient: async () => {
+            throw new Error('Could not load the default credentials');
+          },
+          getProjectId: async () => 'test-gcp-project',
+        };
+
+        await assert.rejects(
+          async () => {
+            await provider.deidentifyText({
+              text: 'Student text sample',
+              infoTypes: ['PERSON_NAME'],
+            });
+          },
+          (err: any) => {
+            return (
+              err instanceof PipelineError &&
+              err.code === 'PRIVACY_AUTH_ERROR' &&
+              err.message.includes('Application Default Credentials')
+            );
+          },
+          'Provider must fail closed with PRIVACY_AUTH_ERROR when ADC is unavailable'
+        );
       });
     });
 

@@ -77,7 +77,7 @@ export default function App() {
             };
 
             const sanitizedEvidenceList: StudentSubmission[] =
-              item.sanitizedSubmissions || item.rawSubmissions || [];
+              item.sanitizedSubmissions || [];
 
             return {
               result: normalizedResult,
@@ -155,8 +155,43 @@ export default function App() {
         body: JSON.stringify({ context, submissions }),
       });
 
-      if (!response.ok || !response.body) {
-        // Fallback to standard POST
+      if (!response.ok) {
+        // Enforce Load Protection & Rate Limiting Contract:
+        // Never fall back to synchronous /api/analyze on HTTP 429, 400, or any 4xx client errors.
+        // Doing so duplicates load on an already-rejected request.
+        const errJson = await response.json().catch(() => ({}));
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          const rateLimitMsg = retryAfter
+            ? `Inference rate limit exceeded. Please wait ${retryAfter} seconds before submitting again.`
+            : (errJson.message || errJson.error?.message || 'Rate limit exceeded. Please wait a moment before trying again.');
+          setPipelineError(rateLimitMsg);
+          return;
+        }
+
+        if (response.status >= 400 && response.status < 500) {
+          const clientErrMsg =
+            errJson.message ||
+            errJson.error?.message ||
+            (response.status === 413
+              ? 'Submission payload too large. Please reduce the number or size of submitted files.'
+              : `Request failed (HTTP ${response.status})`);
+          setPipelineError(clientErrMsg);
+          return;
+        }
+
+        // On HTTP 5xx errors from the server, do not hammer the server with duplicate requests
+        const serverErrMsg =
+          errJson.message ||
+          errJson.error?.message ||
+          `Server error encountered during analysis (HTTP ${response.status})`;
+        setPipelineError(serverErrMsg);
+        return;
+      }
+
+      if (!response.body) {
+        // Only if connection succeeded with 200 OK but ReadableStream is unsupported in legacy client environment,
+        // fall back to standard synchronous POST
         const fallbackRes = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

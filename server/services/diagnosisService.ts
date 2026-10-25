@@ -119,7 +119,6 @@ Return a JSON object in this exact schema.`;
       },
       systemInstruction:
         'You are an educational diagnostic strategist. You excel at synthesizing pattern recognition across whole-class student cohorts, anchoring every pattern in grounded student evidence.',
-      temperature: 0.15,
     },
   });
 

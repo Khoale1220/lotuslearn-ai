@@ -274,27 +274,21 @@ export class GoogleSensitiveDataProtectionProvider
   private auth: GoogleAuth;
   private projectId?: string;
   private locationId: string;
-  private apiKey?: string;
 
   constructor(options?: {
     projectId?: string;
     locationId?: string;
-    apiKey?: string;
   }) {
     let configuredProject: string | undefined;
-    let configuredApiKey: string | undefined;
     try {
       const config = getAppConfig();
       configuredProject = config.googleCloudProject;
-      configuredApiKey = config.geminiApiKey;
     } catch {
       configuredProject = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT_ID;
-      configuredApiKey = process.env.GEMINI_API_KEY;
     }
 
     this.projectId = options?.projectId || configuredProject;
     this.locationId = options?.locationId || process.env.DLP_LOCATION || 'global';
-    this.apiKey = options?.apiKey || configuredApiKey;
     this.auth = new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
@@ -332,7 +326,7 @@ export class GoogleSensitiveDataProtectionProvider
       'User-Agent': 'LotusLearn-PrivacyGateway/1.0',
     };
 
-    let url = `https://dlp.googleapis.com/v2/${parent}/${endpointAction}`;
+    const url = `https://dlp.googleapis.com/v2/${parent}/${endpointAction}`;
 
     try {
       const client = await this.auth.getClient();
@@ -347,21 +341,17 @@ export class GoogleSensitiveDataProtectionProvider
       }
       if (authVal) {
         headers['Authorization'] = String(authVal);
-      } else if (this.apiKey) {
-        url += `?key=${this.apiKey}`;
+      } else {
+        throw new Error('No Authorization token acquired from Application Default Credentials');
       }
     } catch (authErr: any) {
-      if (this.apiKey) {
-        url += `?key=${this.apiKey}`;
-      } else {
-        throw new PipelineError({
-          code: 'PRIVACY_AUTH_ERROR',
-          stage: 'Privacy Gateway (Google Cloud SDP)',
-          message: 'Sensitive Data Protection authentication failed: unable to acquire Application Default Credentials',
-          retryable: false,
-          cause: authErr,
-        });
-      }
+      throw new PipelineError({
+        code: 'PRIVACY_AUTH_ERROR',
+        stage: 'Privacy Gateway (Google Cloud SDP)',
+        message: 'Sensitive Data Protection authentication failed: unable to acquire Application Default Credentials. Valid Google Cloud credentials are required.',
+        retryable: false,
+        cause: authErr,
+      });
     }
 
     return { url, headers };

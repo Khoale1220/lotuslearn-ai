@@ -190,7 +190,6 @@ Return a strictly valid JSON array of objects matching this schema.`;
       },
       systemInstruction:
         'You are an expert pedagogical assessment observer. You analyze student work with precision, grounding every finding in exact student excerpts.',
-      temperature: 0.1,
     },
   });
 

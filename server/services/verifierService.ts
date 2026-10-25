@@ -16,7 +16,7 @@ import { DeterministicValidationResult } from './deterministicValidator';
 
 export async function verifyAnalysisPipeline(
   context: LearningContext,
-  rawSubmissions: StudentSubmission[],
+  sanitizedSubmissions: StudentSubmission[],
   normalizedEvidence: NormalizedSourceEvidence[],
   observations: StudentObservation[],
   misconceptions: MisconceptionCluster[],
@@ -31,8 +31,8 @@ Your job is to rigorously audit the outputs produced by earlier pipeline stages 
 === LEARNING OBJECTIVE ===
 ${context.learningObjective}
 
-=== RAW STUDENT SUBMISSIONS & NORMALIZED EVIDENCE (GROUND TRUTH) ===
-${rawSubmissions
+=== SANITIZED STUDENT EVIDENCE (GROUND TRUTH) ===
+${sanitizedSubmissions
   .map((s) => {
     const norm = normalizedEvidence.find((n) => n.studentId === s.studentId);
     return `[${s.studentId}] (${norm?.sourceType === 'image_transcription' ? 'Image-Transcribed' : 'Typed'}): "${norm?.extractedText || s.studentText}"`;
@@ -159,7 +159,6 @@ Return a JSON object matching this schema.`;
       },
       systemInstruction:
         'You are an adversarial quality assurance verifier for educational AI systems. You never approve claims without verifiable textual proof from the provided ground truth text. When in doubt, you fail-closed and request teacher review.',
-      temperature: 0.1,
     },
   });
 
@@ -220,7 +219,7 @@ Return a JSON object matching this schema.`;
 
   // P2I: Claim-integrity invariant:
   // The verifier may only claim to verify artifacts actually included in its input.
-  const hasSubmissions = Boolean(rawSubmissions && rawSubmissions.length > 0);
+  const hasSubmissions = Boolean(sanitizedSubmissions && sanitizedSubmissions.length > 0);
   const hasNormalizedEvidence = Boolean(normalizedEvidence && normalizedEvidence.length > 0);
   const hasMisconceptions = Boolean(misconceptions && misconceptions.length > 0);
   const hasGroups = Boolean(groups && groups.length > 0);

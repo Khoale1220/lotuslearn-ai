@@ -196,11 +196,6 @@ export function getGeminiClient(): GoogleGenAI {
 
     clientInstance = new GoogleGenAI({
       apiKey: apiKey || '',
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
     });
   }
   return clientInstance;
@@ -332,10 +327,6 @@ export async function generateContentDetailed(
         const mergedConfig = {
           ...params.config,
           httpOptions: {
-            headers: {
-              'User-Agent': 'aistudio-build',
-              ...(params.config?.httpOptions?.headers || {}),
-            },
             timeout: stageTimeoutMs,
             ...(params.config?.httpOptions || {}),
           },

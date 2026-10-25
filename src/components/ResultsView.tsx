@@ -210,7 +210,9 @@ ${result.instructionalGroups
     coveragePassed: result.verification?.deterministicChecks?.coveragePassed,
     clusterMathPassed: result.verification?.deterministicChecks?.clusterMathPassed,
     groupPartitionPassed: result.verification?.deterministicChecks?.groupPartitionPassed,
-    evidenceValidationPassed: result.verification?.deterministicChecks?.evidenceValidationPassed ?? true,
+    evidenceValidationPassed: Boolean(
+      result.verification?.deterministicChecks?.evidenceValidationPassed
+    ),
   });
 
   const isReviewRequired =

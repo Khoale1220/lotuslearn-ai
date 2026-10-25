@@ -1,23 +1,27 @@
-# Roadmap
+# LotusLearn AI — Roadmap
 
-## Current
+## Now (Current Hardened Baseline)
 
-- **Privacy Gateway**: Pre-AI sanitization boundary using Google Cloud Sensitive Data Protection (REST v2) with fail-closed error handling.
-- **Identity Normalization**: Roster keys mapped to deterministic pseudonymous identifiers (`Student 01`, `Student 02`...).
-- **Multi-Stage Pipeline**: Modular execution for evidence observation, misconception diagnosis, instructional strategy, and semantic verification.
-- **Deterministic Validation**: Code-level verification for student roster coverage, cluster arithmetic, and quotation provenance.
-- **Teacher Review Authority**: Human-in-the-loop state machine (`pending`, `accepted`, `edited`, `dismissed`) for all diagnosed clusters and suggested interventions.
-- **Stage-Aware Reliability**: Per-stage model routing, HTTP request timeouts, and error classification distinguishing HTTP 503 overload from HTTP 429 quota exhaustion.
+- **Pre-AI Privacy Boundary**: Dual-mode privacy gateway utilizing Google Cloud Sensitive Data Protection (REST API v2 via Application Default Credentials) in production and a deterministic regex sanitizer in development/test.
+- **Fail-Closed Verification**: Conservative verification model requiring all atomic checks (coverage, cluster arithmetic, group partition, and evidence validation) to pass before certifying analysis.
+- **Inference Protection & Rate Limiting**: In-memory fixed-window rate limiter middleware enforcing 20 req/min limits on expensive inference endpoints (`/api/analyze`, `/api/analyze-stream`, `/api/verify`, `/api/intervention/adjust`) with HTTP 429 and standard headers.
+- **Hardened API Data Contracts**: Bounded Zod schemas enforcing strict string limits (learning objective: 1,000 chars; rubric: 4,000 chars; student text: 10,000 chars; cohort: 100 submissions), rejecting empty work, and strictly restricting image MIME types to `image/jpeg` and `image/png`.
+- **Restored Teacher Notes**: Full schema preservation of contextual teacher notes (`teacherNotes`, max 2,000 chars) through the API boundary into observation and diagnosis prompts.
+- **Zero-PII Client Persistence**: Browser `localStorage` caches only derived, de-identified evidence; raw student text, unredacted identities, and uploaded images are permanently discarded.
+- **Stage-Aware Reliability**: Tiered model routing (Gemini 3.8 Flash $\to$ 3.6 Flash $\to$ 3.5 Flash-Lite) with timeout abort controllers and model cooldown registry to survive transient provider issues.
+- **Production Server & Hygiene**: Compiled production server running Node 22 with ESM static asset delivery, `/healthz` liveness check, and strictly npm package management (zero `bun.lock`).
 
-## Next
+## Next (Data Engineering & Pipeline Scaling)
 
-- **Relational Persistence**: PostgreSQL schema with migrations (via Drizzle ORM) for classes, assignments, submissions, and analysis runs.
-- **Structured Observability**: Request-level distributed tracing, latency histograms, and stage-by-stage token metrics.
-- **LMS Ingestion Adapters**: Standard import formats (CSV, JSON) and direct LMS sync (Google Classroom).
-- **Asynchronous Processing**: Background job queue for processing cohorts larger than 30 submissions without HTTP connection timeouts.
+- **Relational Data Persistence**: Formal PostgreSQL/Cloud SQL schema migrations (via Drizzle ORM) for persistent storage of classes, units, learning objectives, student roster mappings, and analysis runs.
+- **Structured Analytics Event Stream**: Schema-validated audit events emitted at each pipeline stage (ingestion, sanitization, observation, diagnosis, strategy, verification, educator review) for data engineering pipelines.
+- **Asynchronous Batch Processing**: Background queue architecture (e.g. BullMQ / Cloud Tasks) to support cohorts larger than 35 submissions without encountering HTTP client timeouts.
+- **Standardized Ingestion Adapters**: Batch import modules for standard educational export formats (CSV roster imports, Google Classroom assignment submissions).
+- **Offline Evaluation Suite**: Automated CI evaluation harness running weekly against frozen student test cohorts to measure precision, recall, and false-positive rates of misconception clustering.
 
-## Later
+## Later (Data Science & Longitudinal Learning Analytics)
 
-- **Data Warehouse Modeling**: Analytics schema tracking longitudinal student concept mastery across units and terms.
-- **Curriculum Standard Mapping**: Configurable taxonomy alignment (e.g. Common Core, CEFR, state standards).
-- **Multi-Teacher Workspaces**: Role-based access control and department-level aggregated misconception reporting.
+- **Longitudinal Mastery Tracking**: Analytical data warehouse models tracking student cognitive progression and recurring misconception resolution across instructional quarters and semesters.
+- **Curriculum Taxonomy Alignment**: Configurable mapping engines aligning diagnosed misconceptions to state and national standards (Common Core, NGSS, CEFR language competencies).
+- **Educator Modification Rate Modeling**: Quantitative tracking of teacher edit frequency and dismissal patterns ($R_{\text{modification}}$) to continuously refine prompt grounding instructions and model routing policies.
+- **District Multi-Tenant Governance**: Role-based access control (RBAC), district data retention policy enforcement, and aggregated departmental learning gap analytics.
