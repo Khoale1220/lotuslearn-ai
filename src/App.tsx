@@ -361,39 +361,6 @@ export default function App() {
 
   // Flexible Navigation Dispatcher
   const handleNavigate = (target: NavigationTarget) => {
-    if (target === 'misconceptions') {
-      if (activeAnalysis) {
-        setCurrentView('results');
-        setTimeout(() => {
-          document.getElementById('section-what-happened')?.scrollIntoView({ behavior: 'smooth' });
-        }, 120);
-      } else {
-        handleQuickDemo();
-      }
-      return;
-    }
-    if (target === 'interventions' || target === 'lesson-plans') {
-      if (activeAnalysis) {
-        setCurrentView('results');
-        setTimeout(() => {
-          document.getElementById('section-what-next')?.scrollIntoView({ behavior: 'smooth' });
-        }, 120);
-      } else {
-        handleQuickDemo();
-      }
-      return;
-    }
-    if (target === 'evidence') {
-      if (activeAnalysis) {
-        setCurrentView('results');
-        setTimeout(() => {
-          document.getElementById('section-why-evidence')?.scrollIntoView({ behavior: 'smooth' });
-        }, 120);
-      } else {
-        handleQuickDemo();
-      }
-      return;
-    }
     if (target === 'results' && !activeAnalysis) {
       handleQuickDemo();
       return;
@@ -533,8 +500,8 @@ export default function App() {
         <footer className="border-t border-slate-200 bg-white py-6 text-xs text-slate-500">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-800">LotusLearn AI</span>
-              <span>·</span>
+              <span className="font-semibold text-slate-800">LotusLearn</span>
+              <span className="text-slate-300">/</span>
               <span>Evidence-grounded formative assessment</span>
             </div>
 

@@ -1,4 +1,4 @@
-# LotusLearn AI
+# LotusLearn
 
 An evidence-grounded educational assessment platform that processes student work into diagnostic misconception patterns and actionable next-lesson interventions.
 
@@ -46,16 +46,39 @@ Student Submissions (Text / Images)
                ▼
 ┌───────────────────────────────┐
 │     7. Teacher Review         │  Educator Decisions (Accept / Edit / Dismiss)
+└──────────────┬────────────────┘
+               │
+               ▼
+┌───────────────────────────────┐
+│ 8. Analytical Producer (DE-01)│  Draft 2020-12 Events -> Python SQLite Pipeline
 └───────────────────────────────┘
 ```
 
 ## Stack
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Vite
-- **Backend**: Node.js, Express, tsx
-- **AI & Reasoning**: Google Gen AI SDK (`@google/genai`), Gemini 3.8 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash-Lite
-- **Privacy & Sanitization**: Google Cloud Sensitive Data Protection (REST v2) with deterministic local provider
-- **Validation**: Zod schema validation
+- Frontend: React 19, TypeScript, Tailwind CSS, Lucide Icons, Vite
+- Backend: Node.js, Express, tsx
+- AI & Reasoning: Google Gen AI SDK (`@google/genai`), Gemini 3.8 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash-Lite
+- Privacy & Sanitization: Google Cloud Sensitive Data Protection (REST v2) with deterministic local provider
+- Validation: Zod and JSON Schema Draft 2020-12
+- Data Engineering (DE-01): Python 3.10+, SQLite 3 with enforced foreign keys, pytest, ruff, jsonschema
+
+## Data Engineering Foundation (DE-01)
+
+The DE-01 milestone establishes a verifiable analytical event contract and cross-language data quality gate between the TypeScript application and Python analytics runtime:
+
+1. Canonical Analytical Contract (`contracts/analytical_event.schema.json`): Authored in JSON Schema Draft 2020-12. Specifies strictly typed event envelopes for `ANALYSIS_INGESTED`, `FINDING_IDENTIFIED`, `GROUP_FORMED`, `VERIFICATION_AUDITED`, and `DECISION_RECORDED`. Zero student text, raw names, emails, phone numbers, or credentials can enter the schema.
+2. TypeScript Analytical Producer (`server/services/analyticalEventProducer.ts`): Transforms domain analysis results into deterministic, idempotent events using SHA-256 event IDs and domain timestamps.
+3. Python Ingestion Gate (`pipelines/ingestion.py`): Validates incoming event payloads against Draft 2020-12 schemas and enforces fail-closed zero-PII checks. Categorizes records into accepted, duplicate, and rejected with safe diagnostic error codes that never echo sensitive payload text.
+4. SQLite Relational Storage & Metrics (`pipelines/db.py`, `pipelines/sql/`): Enforces `PRAGMA foreign_keys = ON;` on every database connection. Loads accepted events into relational tables (`analysis_runs`, `misconception_clusters`, `student_findings`, `instructional_groups`, `teacher_decisions`) and calculates learning metrics via analytical views.
+
+## Data Science Readiness & Research Questions
+
+LotusLearn collects structured, de-identified diagnostic telemetry designed for empirical educational evaluation. The DE-01 relational schema supports three initial research questions:
+
+1. Research Question 1: What is the empirical correlation between cluster prevalence ($P_c$) and student support tier allocation in formative diagnostic assessments?
+2. Research Question 2: How accurately does the grounded citation integrity ratio ($R_{\text{grounding}}$) predict teacher acceptance versus modification ($R_{\text{mod}}$) of AI-generated instructional recommendations?
+3. Research Question 3: What is the longitudinal decay rate of grammatical misconceptions (such as finished-time markers with present perfect) when targeted with code-verified differentiated interventions?
 
 ## Local development
 
@@ -64,14 +87,39 @@ Student Submissions (Text / Images)
 git clone <repo-url>
 cd lotuslearn-ai
 
-# Install dependencies
-npm install
+# Install Node dependencies
+npm ci
 
 # Set up environment variables
 cp .env.example .env
 
-# Start development server (serves frontend on port 3000 and mounts Express backend)
+# Start development server (port 3000)
 npm run dev
+```
+
+## Quality Gates and Verification
+
+```bash
+# Node typecheck
+npm run typecheck
+
+# Node linting
+npm run lint
+
+# Automated Node regression tests (220 tests across 46 suites)
+npm test
+
+# Production bundle build
+npm run build
+
+# Python pipeline linting (ruff)
+npm run lint:python
+
+# Python pipeline unit & integration tests (pytest)
+npm run test:python
+
+# End-to-end cross-language analytical pipeline execution
+npm run pipeline:run
 ```
 
 ## Environment
@@ -87,38 +135,5 @@ Create a `.env` file based on `.env.example`:
 
 ### Privacy provider modes
 
-- **`deterministic`**: Fast, hermetic privacy filter for local development, AI Studio preview, automated test suites, and offline demonstrations. Does not require GCP credentials or cloud network connectivity. Strips known student identifiers (names, emails, phones) and produces safe synthetic visual redactions.
-- **`google`**: Production-grade Google Cloud Sensitive Data Protection (DLP v2 REST API). Authenticates automatically via Google Application Default Credentials (ADC) attached to the deployed cloud workload or developer workstation. Production mode strictly enforces this provider and will fail closed on startup if not configured.
-
-## Testing
-
-```bash
-# Typecheck
-npm run typecheck
-
-# Lint
-npm run lint
-
-# Run automated tests
-npm test
-
-# Build production bundle
-npm run build
-```
-
-## Privacy model
-
-- **Pre-inference boundary**: Sanitization occurs strictly before data reaches any AI model.
-- **Fail-closed contract**: If the privacy provider fails, times out, or returns an error, the pipeline aborts immediately without sending unredacted data to model endpoints.
-- **Identity minimization**: Real student names are normalized to deterministic pseudonymous identifiers (`Student 01`, `Student 02`...).
-- **Restrained persistence**: Unredacted student submissions and raw PII are never persisted to long-term storage or exposed in server logs.
-
-## Project status
-
-- Working 6-stage assessment and intervention pipeline with live Gemini integration and deterministic code auditing.
-- Interactive demonstration mode with pre-validated sample classroom submissions.
-- Strict error handling with stage-aware timeouts, exponential backoff, and circuit breakers.
-
-## Roadmap
-
-See [ROADMAP.md](ROADMAP.md) for current progress and planned engineering milestones.
+- `deterministic`: Fast, hermetic privacy filter for local development, automated test suites, and offline demonstrations. Does not require GCP credentials or cloud network connectivity. Strips student identifiers (names, emails, phones) and produces safe synthetic visual redactions.
+- `google`: Production Google Cloud Sensitive Data Protection (DLP v2 REST API). Authenticates automatically via Google Application Default Credentials (ADC) attached to the deployed cloud workload or developer workstation. Production mode strictly enforces this provider and fails closed on startup if not configured.

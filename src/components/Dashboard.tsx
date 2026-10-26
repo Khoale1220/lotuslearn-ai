@@ -173,16 +173,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                       <span className="font-semibold text-slate-900">{analysis.context.subject}</span>
-                      <span aria-hidden="true">·</span>
+                      <span className="text-slate-300">/</span>
                       <span>{analysis.context.gradeLevel}</span>
-                      <span aria-hidden="true">·</span>
+                      <span className="text-slate-300">/</span>
                       <span className="flex items-center gap-1">
                         <Clock size={12} />
                         {new Date(analysis.timestamp).toLocaleDateString()}
                       </span>
                       {acceptedCount > 0 && (
                         <>
-                          <span aria-hidden="true">·</span>
+                          <span className="text-slate-300">/</span>
                           <span className="text-emerald-700 font-medium">
                             {acceptedCount} accepted
                           </span>
@@ -190,7 +190,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       )}
                       {pendingCount > 0 && (
                         <>
-                          <span aria-hidden="true">·</span>
+                          <span className="text-slate-300">/</span>
                           <span className="text-amber-700 font-medium">
                             {pendingCount} review pending
                           </span>

@@ -596,7 +596,7 @@ export const NewAnalysisWizard: React.FC<NewAnalysisWizardProps> = ({
               <div>
                 <span className="text-slate-500 block">Class Cohort</span>
                 <span className="font-semibold text-slate-900 text-sm">
-                  {context.subject} · {context.gradeLevel}
+                  {context.subject} / {context.gradeLevel}
                 </span>
               </div>
               <div>

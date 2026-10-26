@@ -16,7 +16,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
   const stages = [
     {
       num: '01',
-      title: 'Protect · Privacy Before Inference',
+      title: 'Protect - Privacy Before Inference',
       provider: 'Sensitive Data Protection',
       desc: 'Sensitive identifiers (names, emails, phones) are de-identified before model ingestion. Images have sensitive rectangles redacted.',
       icon: ShieldCheck,
@@ -24,7 +24,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
     },
     {
       num: '02',
-      title: 'Observe · Structured Student Profiles',
+      title: 'Observe - Structured Student Profiles',
       provider: 'Gemini 3.8 Flash',
       desc: 'Extracts factual observations and anchors exact student quotes. Dissects each student submission against the learning rubric without premature labels.',
       icon: Eye,
@@ -32,7 +32,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
     },
     {
       num: '03',
-      title: 'Diagnose · Shared Pattern Clustering',
+      title: 'Diagnose - Shared Pattern Clustering',
       provider: 'Gemini 3.8 Flash',
       desc: 'Synthesizes observations into systemic class-wide misconceptions, affected student counts, and instructional urgency ratings.',
       icon: Brain,
@@ -40,7 +40,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
     },
     {
       num: '04',
-      title: 'Validate · Deterministic Code Auditing',
+      title: 'Validate - Deterministic Code Auditing',
       provider: 'Independent Software Code',
       desc: 'Validates roster math, student identity contracts, and verifies verbatim quotation presence in student work to prevent hallucinated citations.',
       icon: CheckCheck,
@@ -48,7 +48,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
     },
     {
       num: '05',
-      title: 'Plan · Targeted Next-Lesson Scaffolds',
+      title: 'Plan - Targeted Next-Lesson Scaffolds',
       provider: 'Gemini 3.8 Flash',
       desc: 'Builds a 25-minute lesson sequence, dynamic instructional cohorts (Ready to Extend, Reinforce, Targeted Support), and exit tickets.',
       icon: BookOpen,
@@ -56,7 +56,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
     },
     {
       num: '06',
-      title: 'Verify · Educator Decision Sovereignty',
+      title: 'Verify - Educator Decision Sovereignty',
       provider: 'Gemini Verifier + Teacher Authority',
       desc: 'Independent semantic auditing checks recommendation plausibility. The teacher retains final authority: Accept, Edit, or Dismiss each recommendation.',
       icon: UserCheck,

@@ -131,7 +131,7 @@ ${result.misconceptionClusters
     (c) => `### Citations for: ${c.misconceptionTitle}
 ${c.evidenceExamples
   .map(
-    (e) => `- Student ${e.studentId}: "${e.excerpt}" (Match: ${e.deterministicMatch || 'checked'}) — ${e.groundingReason}`
+    (e) => `- Student ${e.studentId}: "${e.excerpt}" (Match: ${e.deterministicMatch || 'checked'}) - ${e.groundingReason}`
   )
   .join('\n')}
 `
@@ -260,7 +260,7 @@ ${result.instructionalGroups
             </button>
             <span aria-hidden="true">/</span>
             <span className="text-slate-900 font-medium">Diagnostic Results</span>
-            <span aria-hidden="true">·</span>
+            <span aria-hidden="true">/</span>
             <span>{new Date(result.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
@@ -269,7 +269,7 @@ ${result.instructionalGroups
               {result.context.lessonTitle}
             </h1>
 
-            {/* Subtle Verification Trust Badge (Section 78) */}
+            {/* Subtle Verification Trust Badge */}
             <div className="relative inline-block">
               <button
                 type="button"
@@ -300,7 +300,7 @@ ${result.instructionalGroups
             </div>
           </div>
           <p className="mt-0.5 text-xs text-slate-600">
-            {result.context.subject} · {result.context.gradeLevel} · {result.studentObservations.length} student submissions
+            {result.context.subject} / {result.context.gradeLevel} / {result.studentObservations.length} student submissions
           </p>
         </div>
 
@@ -354,7 +354,7 @@ ${result.instructionalGroups
               DEMO CLASSROOM
             </span>
             <span>Grade 10 English Benchmark</span>
-            <span className="text-slate-300">·</span>
+            <span className="text-slate-300">/</span>
             <span>12 Submissions Analyzed</span>
           </div>
           <span className="text-slate-500 text-[11px]">
@@ -370,7 +370,7 @@ ${result.instructionalGroups
             <span>{result.studentObservations.length} Submissions Processed</span>
             {metadata?.totalDurationMs ? (
               <>
-                <span className="text-slate-300">·</span>
+                <span className="text-slate-300">/</span>
                 <span>{(metadata.totalDurationMs / 1000).toFixed(1)}s elapsed</span>
               </>
             ) : null}
@@ -381,72 +381,66 @@ ${result.instructionalGroups
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* 0. TOMORROW'S INTERVENTION HERO CARD (Section 24: Actionable Intervention)  */}
-      {/* ========================================================================= */}
-      <NextLessonHeroCard
-        plan={result.nextLessonPlan}
-        misconceptions={result.misconceptionClusters}
-        groups={result.instructionalGroups}
-        gradeLevel={`${result.context.gradeLevel} ${result.context.subject}`}
-        onReviewPlan={() => scrollToSection('section-what-next')}
-        onEditPlan={() => {
-          scrollToSection('section-what-next');
-          setTimeout(() => {
-            document.getElementById('lesson-plan-container')?.scrollIntoView({ behavior: 'smooth' });
-          }, 200);
-        }}
-      />
-
       {/* Local Section Jump Navigation Bar */}
-      <nav aria-label="Results sections" className="sticky top-16 z-30 flex items-center gap-1.5 p-1.5 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-2xs overflow-x-auto text-xs font-medium">
+      <nav aria-label="Results sections" className="sticky top-14 z-20 flex items-center gap-1.5 p-1.5 bg-white rounded-lg border border-slate-200 overflow-x-auto text-xs font-medium">
         <button
-          onClick={() => scrollToSection('section-what-happened')}
-          className={`px-3 py-1.5 rounded-lg transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
-            activeSection === 'section-what-happened'
-              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-              : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+          onClick={() => scrollToSection('section-summary')}
+          className={`px-3 py-1.5 rounded-md transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+            activeSection === 'section-summary'
+              ? 'bg-slate-900 text-white font-semibold'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          1. What Happened?
+          Summary
         </button>
 
         <button
-          onClick={() => scrollToSection('section-why-evidence')}
-          className={`px-3 py-1.5 rounded-lg transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
-            activeSection === 'section-why-evidence'
-              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-              : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+          onClick={() => scrollToSection('section-evidence')}
+          className={`px-3 py-1.5 rounded-md transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+            activeSection === 'section-evidence'
+              ? 'bg-slate-900 text-white font-semibold'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          2. Why? (Evidence)
+          Evidence
         </button>
 
         <button
-          onClick={() => scrollToSection('section-what-next')}
-          className={`px-3 py-1.5 rounded-lg transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
-            activeSection === 'section-what-next'
-              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-              : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+          onClick={() => scrollToSection('section-groups')}
+          className={`px-3 py-1.5 rounded-md transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+            activeSection === 'section-groups'
+              ? 'bg-slate-900 text-white font-semibold'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          3. What Next? (Teaching Plan)
+          Groups
         </button>
 
         <button
-          onClick={() => scrollToSection('section-review-trust')}
-          className={`px-3 py-1.5 rounded-lg transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
-            activeSection === 'section-review-trust'
-              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-              : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+          onClick={() => scrollToSection('section-plan')}
+          className={`px-3 py-1.5 rounded-md transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+            activeSection === 'section-plan'
+              ? 'bg-slate-900 text-white font-semibold'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           }`}
         >
-          4. What Needs Review?
+          Plan
+        </button>
+
+        <button
+          onClick={() => scrollToSection('section-review')}
+          className={`px-3 py-1.5 rounded-md transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+            activeSection === 'section-review'
+              ? 'bg-slate-900 text-white font-semibold'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          Review
         </button>
 
         <button
           onClick={() => setIsTraceDrawerOpen(true)}
-          className="ml-auto px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shrink-0 flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+          className="ml-auto px-2.5 py-1.5 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition shrink-0 flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
         >
           <Cpu size={13} className="text-slate-400" />
           <span>Technical Trace</span>
@@ -454,9 +448,9 @@ ${result.instructionalGroups
       </nav>
 
       {/* ========================================================================= */}
-      {/* 1. WHAT HAPPENED? (Snapshot, Readiness Donut & Misconception Clusters)      */}
+      {/* 1. SUMMARY (Class Snapshot, Readiness Distribution & Misconceptions)       */}
       {/* ========================================================================= */}
-      <section id="section-what-happened" className="scroll-mt-32 space-y-6">
+      <section id="section-summary" className="scroll-mt-28 space-y-6">
         <ClassSnapshotCard
           context={result.context}
           snapshot={result.classSnapshot}
@@ -477,7 +471,7 @@ ${result.instructionalGroups
           totalStudents={result.classSnapshot.totalSubmissions || result.studentObservations.length}
           onSelectCluster={(id) => {
             setSelectedClusterId(id);
-            scrollToSection('section-why-evidence');
+            scrollToSection('section-evidence');
           }}
           onUpdateStatus={onUpdateMisconceptionStatus}
           onInspectStudent={(studentId) => setInspectedStudentId(studentId)}
@@ -486,9 +480,9 @@ ${result.instructionalGroups
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. WHY? (Grounded Evidence Excerpts & Student Provenance)                  */}
+      {/* 2. EVIDENCE (Grounded Evidence Excerpts & Verbatim Student Provenance)     */}
       {/* ========================================================================= */}
-      <section id="section-why-evidence" className="scroll-mt-32">
+      <section id="section-evidence" className="scroll-mt-28">
         <EvidencePanel
           clusters={result.misconceptionClusters}
           selectedClusterId={selectedClusterId}
@@ -498,10 +492,13 @@ ${result.instructionalGroups
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. WHAT SHOULD I DO NEXT? (Lesson Plan, Scaffolds & Instructional Groups) */}
+      {/* 3. GROUPS (Instructional Groups & Differentiated Interventions)           */}
       {/* ========================================================================= */}
-      <section id="section-what-next" className="scroll-mt-32 space-y-6">
-        <NextLessonTimeline plan={result.nextLessonPlan} />
+      <section id="section-groups" className="scroll-mt-28 space-y-6">
+        <InstructionalGroups
+          groups={result.instructionalGroups}
+          onInspectStudent={(studentId) => setInspectedStudentId(studentId)}
+        />
 
         <DifferentiatedInterventions
           interventions={result.interventions}
@@ -511,10 +508,37 @@ ${result.instructionalGroups
           onAdjustIntervention={onAdjustIntervention}
           onUpdateStatus={onUpdateInterventionStatus}
         />
+      </section>
 
-        <InstructionalGroups
+      {/* ========================================================================= */}
+      {/* 4. PLAN (Tomorrow's Lesson Plan Document & Timeline)                      */}
+      {/* ========================================================================= */}
+      <section id="section-plan" className="scroll-mt-28 space-y-6">
+        <NextLessonHeroCard
+          plan={result.nextLessonPlan}
+          misconceptions={result.misconceptionClusters}
           groups={result.instructionalGroups}
-          onInspectStudent={(studentId) => setInspectedStudentId(studentId)}
+          gradeLevel={`${result.context.gradeLevel} ${result.context.subject}`}
+          onReviewPlan={() => scrollToSection('section-plan')}
+          onEditPlan={() => {
+            scrollToSection('section-plan');
+            setTimeout(() => {
+              document.getElementById('lesson-plan-container')?.scrollIntoView({ behavior: 'smooth' });
+            }, 200);
+          }}
+        />
+
+        <NextLessonTimeline plan={result.nextLessonPlan} />
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 5. REVIEW (Verification Checks, Grounding Audit & Teacher Sovereign Notes) */}
+      {/* ========================================================================= */}
+      <section id="section-review" className="scroll-mt-28 space-y-6">
+        <VerificationPanel
+          verification={result.verification}
+          misconceptions={result.misconceptionClusters}
+          interventions={result.interventions}
         />
 
         {/* Teacher Feedback Loop (Section 76) */}

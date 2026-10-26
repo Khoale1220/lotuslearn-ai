@@ -113,7 +113,7 @@ export const WhyThisInsightModal: React.FC<WhyThisInsightModalProps> = ({
           <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-900 block text-[11px] uppercase tracking-wider text-blue-700">
-                Affected Students ({cluster.studentCount} of {totalStudents} students · {cluster.percentageAffected}%):
+                Affected Students ({cluster.studentCount} of {totalStudents} students, {cluster.percentageAffected}%):
               </span>
               <span className="font-mono text-[11px] text-slate-500">
                 Priority: {cluster.teachingPriority.toUpperCase()}

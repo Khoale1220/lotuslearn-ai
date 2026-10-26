@@ -47,7 +47,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                 <h3 id="student-detail-title" className="text-lg font-bold text-slate-900 font-mono">
                   {studentId}
                 </h3>
-                <span className="text-slate-400">·</span>
+                <span className="text-slate-400">/</span>
                 <span className="text-xs text-slate-600 capitalize font-medium">
                   {observation?.recommendedSupportLevel ? observation.recommendedSupportLevel.replace('_', ' ') : 'Formative Evaluation'}
                 </span>

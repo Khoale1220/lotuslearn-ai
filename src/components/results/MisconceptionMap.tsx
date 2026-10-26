@@ -136,7 +136,7 @@ export const MisconceptionMap: React.FC<MisconceptionMapProps> = ({
                   <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${priorityBadge}`}>
                     {cluster.teachingPriority.toUpperCase()} PRIORITY
                   </span>
-                  <span className="text-slate-300" aria-hidden="true">·</span>
+                  <span className="text-slate-300" aria-hidden="true">/</span>
                   <span className="font-semibold text-slate-900 text-xs font-mono">
                     {cluster.studentCount} / {totalStudents} students ({cluster.percentageAffected}%)
                   </span>
@@ -271,7 +271,7 @@ export const MisconceptionMap: React.FC<MisconceptionMapProps> = ({
                       <span>Why this insight?</span>
                     </button>
                   )}
-                  <span className="text-slate-300" aria-hidden="true">·</span>
+                  <span className="text-slate-300" aria-hidden="true">/</span>
                   <span className="text-[11px] text-slate-500 font-mono">
                     {getTeacherStatusLabel(canonicalDecision)}
                   </span>

@@ -5,42 +5,44 @@ interface LotusIconProps {
   size?: number;
 }
 
-export const LotusIcon: React.FC<LotusIconProps> = ({ className = 'text-rose-600', size = 28 }) => {
+/**
+ * Geometric single-color mark suggesting a lotus petal geometry and an open book.
+ * Operates crisply at 16px to 32px, on light and dark surfaces.
+ */
+export const LotusIcon: React.FC<LotusIconProps> = ({ className = 'text-current', size = 20 }) => {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-hidden="true"
     >
-      {/* Central upright petal */}
+      {/* Central ascending petal */}
       <path
-        d="M16 3C16 3 12 11 12 18C12 21.5 13.8 24.5 16 26C18.2 24.5 20 21.5 20 18C20 11 16 3 16 3Z"
+        d="M12 3C12 3 9.5 8.5 9.5 13C9.5 15.5 10.6 17.5 12 18.5C13.4 17.5 14.5 15.5 14.5 13C14.5 8.5 12 3 12 3Z"
         fill="currentColor"
-        fillOpacity="0.9"
       />
-      {/* Left curved petal */}
+      {/* Left wing petal */}
       <path
-        d="M16 26C13.5 24 7 19.5 7 13.5C7 9.5 9 6.5 9 6.5C9 6.5 12 12.5 13.5 17C14.5 20 15.5 23.5 16 26Z"
+        d="M12 18.5C10.2 17 5 14 5 9.5C5 6.5 6.8 4.8 6.8 4.8C6.8 4.8 8.8 9.5 10 13C10.8 15.2 11.5 17.3 12 18.5Z"
         fill="currentColor"
-        fillOpacity="0.65"
+        opacity="0.8"
       />
-      {/* Right curved petal */}
+      {/* Right wing petal */}
       <path
-        d="M16 26C18.5 24 25 19.5 25 13.5C25 9.5 23 6.5 23 6.5C23 6.5 20 12.5 18.5 17C17.5 20 16.5 23.5 16 26Z"
+        d="M12 18.5C13.8 17 19 14 19 9.5C19 6.5 17.2 4.8 17.2 4.8C17.2 4.8 15.2 9.5 14 13C13.2 15.2 12.5 17.3 12 18.5Z"
         fill="currentColor"
-        fillOpacity="0.65"
+        opacity="0.8"
       />
-      {/* Base water line / geometric foundation */}
+      {/* Foundation arc */}
       <path
-        d="M4 27C10 29.5 22 29.5 28 27"
+        d="M4 19.5C8.5 21 15.5 21 20 19.5"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.75"
         strokeLinecap="round"
-        fillOpacity="0.4"
       />
     </svg>
   );

@@ -144,7 +144,7 @@ export const PipelineVisualizer: React.FC<PipelineVisualizerProps> = ({
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-semibold border border-blue-200">
           <Loader2 size={13} className="animate-spin text-blue-600" />
           <span>Analyzing Student Work</span>
-          <span className="text-slate-300" aria-hidden="true">·</span>
+          <span className="text-slate-300" aria-hidden="true">/</span>
           <span>Step {currentStage} of 7</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">

@@ -1,16 +1,16 @@
-# LotusLearn AI — Technical Delivery Plan
+# LotusLearn - Technical Delivery Plan
 
 ## 1. Domain Problem & Product Context
 
 ### The Educational Problem
-In standard classroom workflows, teachers collect formative learning data through multiple fragmented modalities: exit tickets, written classwork, short diagnostic responses, and handwritten worksheets. While these artifacts contain immediate indicators of student reasoning and cognitive breakdowns, synthesizing patterns across 20–35 students per class period requires manual collation that exceeds available planning time (often 15–30 minutes between periods).
+In standard classroom workflows, teachers collect formative learning data through multiple fragmented modalities: exit tickets, written classwork, short diagnostic responses, and handwritten worksheets. While these artifacts contain immediate indicators of student reasoning and cognitive breakdowns, synthesizing patterns across 20 to 35 students per class period requires manual collation that exceeds available planning time (often 15 to 30 minutes between periods).
 
 Consequently:
 - Individual student misconceptions frequently go unaddressed until summative testing.
 - Differentiated small-group instruction is delayed or organized intuitively without granular evidence.
 - Raw student work containing personally identifiable information (PII) is at risk if submitted into unstructured consumer AI tools.
 
-### LotusLearn AI Value Hypothesis
+### LotusLearn Value Hypothesis
 LotusLearn provides a verifiable, privacy-first software system that transforms raw student work into structured, evidence-grounded next-lesson plans. It enforces:
 1. **Privacy Before Inference**: Zero student identifiers cross the AI inference boundary.
 2. **Deterministic Code Over Generative Arithmetic**: Calculations (roster coverage, prevalence math, group partitions) are computed by deterministic code, not language model completion.
@@ -22,7 +22,7 @@ LotusLearn provides a verifiable, privacy-first software system that transforms 
 
 ### Workstream 1: Reliability & System Hardening (Completed / Baseline)
 - **1.1 Deployment Rate Limiting**: In-memory fixed-window rate limiter middleware (`server/middleware/rateLimiter.ts`) enforcing 20 req/min limits on expensive inference endpoints (`/api/analyze`, `/api/analyze-stream`, `/api/verify`, `/api/intervention/adjust`) with HTTP 429 and structured errors.
-- **1.2 Strict Schema Bounding**: Input contract hardening on `AnalyzeRequestSchema` with explicit string bounds (objective: 3–1,000 chars; rubric: 4,000 chars; student text: 10,000 chars; student ID: 1–64 chars; cohort: 1–100 submissions) and rejection of empty submissions.
+- **1.2 Strict Schema Bounding**: Input contract hardening on `AnalyzeRequestSchema` with explicit string bounds (objective: 3 to 1,000 chars; rubric: 4,000 chars; student text: 10,000 chars; student ID: 1 to 64 chars; cohort: 1 to 100 submissions) and rejection of empty submissions.
 - **1.3 Multimodal Input Contract**: Strict MIME validation permitting only supported formats (`image/jpeg`, `image/png`) and bounded base64 payload sizes (7.5 MB).
 - **1.4 Fail-Closed Verification UI**: Remediation of optimistic default fallbacks (`evidenceValidationPassed` strictly requires boolean `true`).
 - **1.5 Zero-PII Persistent Storage**: Discarding legacy raw submissions in browser caching; persistent storage contains strictly derived, de-identified evidence.
@@ -33,19 +33,26 @@ LotusLearn provides a verifiable, privacy-first software system that transforms 
 - **2.3 Structured Telemetry & Audit Logs**: Request-level operational logging capturing latency, stage durations, model fallbacks, and de-identification counts without recording student text or PII.
 - **2.4 Streaming Reliability & Cohort Fingerprinting**: Resilient Server-Sent Events (SSE) streaming with per-stage progress events and reproducible dataset fingerprinting (SHA-256).
 
-### Workstream 3: Data Science Readiness & Learning Analytics
-- **3.1 Educational Metric Specifications**: Formalizing quantitative metrics for learning analytics:
+### Workstream 3: Data Engineering Implementation (DE-01 Completed Milestone)
+- **3.1 Shared Canonical Event Contract**: Defined `contracts/analytical_event.schema.json` in JSON Schema Draft 2020-12 specifying strict envelope definitions for 5 core domain events: `ANALYSIS_INGESTED`, `FINDING_IDENTIFIED`, `GROUP_FORMED`, `VERIFICATION_AUDITED`, and `DECISION_RECORDED`. Zero student text or PII is permitted in schema schemas.
+- **3.2 TypeScript Analytical Producer**: Implemented `server/services/analyticalEventProducer.ts` emitting deterministic, idempotent analytical events with SHA-256 digest IDs and domain analysis timestamps.
+- **3.3 Python Ingestion Quality Gates**: Built `pipelines/ingestion.py` package with Draft 2020-12 schema validator and fail-closed privacy checks. Emits standard outcomes (`accepted`, `duplicate`, `rejected`) with safe diagnostic error codes that never echo sensitive payload text.
+- **3.4 SQLite Relational Pipeline & Metrics**: Implemented `pipelines/db.py` and `pipelines/sql/` executing with enforced `PRAGMA foreign_keys = ON;`. Creates relational tables (`analysis_runs`, `misconception_clusters`, `student_findings`, `instructional_groups`, `teacher_decisions`) and computes prevalence rates ($P_c$) and educator modification rates ($R_{\text{mod}}$).
+- **3.5 Cross-Language CI**: Added Python testing (`pytest`), linting (`ruff`), and end-to-end cross-language regression tests to GitHub Actions CI workflow.
+
+### Workstream 4: Data Science Readiness & Learning Analytics
+- **4.1 Educational Metric Specifications**: Formalizing quantitative metrics for learning analytics:
   - *Cluster Prevalence Ratio*: $\frac{|S_{\text{affected}}|}{|S_{\text{total}}|}$
   - *Grounded Citation Coverage*: Ratio of verified verbatim/normalized quotes to total extracted claims.
   - *Instructional Support Tier Distribution*: Proportions across extension, concept clarification, guided practice, and error correction.
   - *Educator Modification Rate*: Human edit frequency and dismissal patterns ($R_{\text{modification}}$) as ground-truth feedback signals.
-- **3.2 Offline Evaluation Harness**: Automated regression suite verifying grammar preservation and zero false-positive PII redaction across standardized test sets.
-- **3.3 Gold-Standard Benchmark Datasets**: Reproducible fixture sets (e.g., Vietnam Grade 10 Present Perfect diagnostic cohort) for deterministic regression testing.
+- **4.2 Offline Evaluation Harness**: Automated regression suite verifying grammar preservation and zero false-positive PII redaction across standardized test sets.
+- **4.3 Gold-Standard Benchmark Datasets**: Reproducible fixture sets (e.g., Grade 10 Present Perfect diagnostic cohort) for deterministic regression testing.
 
-### Workstream 4: Educational Usability & Feedback Loop
-- **4.1 Teacher Review Workflow**: Authoritative human-in-the-loop state machine (`pending`, `accepted`, `edited`, `dismissed`) preserving pedagogical ownership.
-- **4.2 Actionable Intervention Generation**: Scaffolding adjustment interface enabling teachers to dynamically simplify, challenge, or create exit tickets from validated intervention cards.
-- **4.3 Transparent AI Contribution Audit**: Detailed provenance drawers exposing which stages were processed by generative models versus deterministic validation routines.
+### Workstream 5: Educational Usability & Feedback Loop
+- **5.1 Teacher Review Workflow**: Authoritative human-in-the-loop state machine (`pending`, `accepted`, `edited`, `dismissed`) preserving pedagogical ownership.
+- **5.2 Actionable Intervention Generation**: Scaffolding adjustment interface enabling teachers to dynamically simplify, challenge, or create exit tickets from validated intervention cards.
+- **5.3 Transparent AI Contribution Audit**: Detailed provenance drawers exposing which stages were processed by generative models versus deterministic validation routines.
 
 ---
 
@@ -55,8 +62,8 @@ LotusLearn provides a verifiable, privacy-first software system that transforms 
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **RSK-01** | Student PII leakage to model inference endpoints | Critical | Low | Severe regulatory & privacy breach | Pre-AI privacy gateway enforcing identity normalization (`Student 01`...) and Google Cloud SDP / deterministic regex scrubbing. Fail-closed on provider timeout or error. |
 | **RSK-02** | Hallucinated evidence citations in diagnosis stage | High | Medium | Erodes teacher trust in AI analysis | Two-tier verification: deterministic string matching (`checkQuoteInSource`) checks quote existence against source before secondary Gemini adversarial verifier pass. |
-| **RSK-03** | Generative model service interruption (503 / 504 / 429) | High | Medium | Pipeline stall during teacher prep period | Stage-aware model routing with automatic fallback chains (e.g. Gemini 3.8 Flash $\to$ 3.6 Flash $\to$ 3.5 Flash-Lite), exponential backoff with jitter, and model cooldown registry. |
-| **RSK-04** | API denial-of-service or burst abuse on public demo | Medium | High | Cloud quota exhaustion and service outage | In-memory rate limiting (20 req/min per IP) returning HTTP 429, payload size restrictions (25 MB max body, 7.5 MB per image), and bounded submission arrays (1–100 items). |
+| **RSK-03** | Generative model service interruption (503 / 504 / 429) | High | Medium | Pipeline stall during teacher prep period | Stage-aware model routing with automatic fallback chains (e.g. Gemini 3.8 Flash -> 3.6 Flash -> 3.5 Flash-Lite), exponential backoff with jitter, and model cooldown registry. |
+| **RSK-04** | API denial-of-service or burst abuse on public demo | Medium | High | Cloud quota exhaustion and service outage | In-memory rate limiting (20 req/min per IP) returning HTTP 429, payload size restrictions (25 MB max body, 7.5 MB per image), and bounded submission arrays (1 to 100 items). |
 | **RSK-05** | Educational false positives during PII redaction | Medium | Medium | Destroys grammatical evidence (e.g., redacting "Past Simple") | 35-case educational privacy evaluation benchmark validating 100% grammar preservation; infoTypes restricted strictly to `PERSON_NAME`, `EMAIL_ADDRESS`, `PHONE_NUMBER`. |
 | **RSK-06** | Browser local storage PII retention | High | Low | Local device inspection reveals student work | Client persistence exclusively saves derived `sanitizedSubmissions`; raw text and uploaded image base64 strings are permanently excluded from `localStorage`. |
 
@@ -67,7 +74,7 @@ LotusLearn provides a verifiable, privacy-first software system that transforms 
 Every milestone must satisfy the following explicit quality gates before promotion:
 
 1. **Zero-PII Gateway Certification**:
-   - Automated unit tests must verify that unredacted student names, emails, and phone numbers never appear in model payload representations.
+   - Automated unit tests must verify that unredacted student names, emails, and phone numbers never appear in model payload representations or analytical events.
    - Deterministic provider must identify as `deterministic-demo-sanitizer` and static fallback as `prevalidated-demo-fixture`.
 2. **Deterministic Verification Invariance**:
    - 100% of student IDs in submission array must be validated by code in observer results.
@@ -76,10 +83,16 @@ Every milestone must satisfy the following explicit quality gates before promoti
 3. **Fail-Closed Contract Enforcement**:
    - If verification data is missing or incomplete, aggregate trust badges must indicate review required (`isAnalysisFullyVerified === false`).
    - Image uploads missing valid MIME types (`image/jpeg`, `image/png`) must fail validation with HTTP 400.
-4. **Continuous Integration & Clean Build**:
+4. **Data Engineering Reliability (DE-01)**:
+   - JSON Schema Draft 2020-12 validation on 100% of candidate analytical events.
+   - Idempotent ingestion: Replaying identical event IDs yields duplicate classification without modifying data or metrics.
+   - SQLite connections strictly enforce foreign keys (`PRAGMA foreign_keys = ON;`).
+5. **Continuous Integration & Clean Build**:
    - `npm run lint` executes with zero errors.
    - `npm run typecheck` passes with zero TypeScript diagnostic errors.
-   - `npm test` passes 100% of regression test cases (211+ tests).
+   - `npm test` passes 100% of regression test cases (220 tests across 46 test suites).
+   - `npm run lint:python` executes cleanly with zero ruff warnings.
+   - `npm run test:python` passes 100% of Python unit and cross-language tests.
    - Production compiled bundle (`npm run build`) builds cleanly with zero warnings.
 
 ---
@@ -87,12 +100,12 @@ Every milestone must satisfy the following explicit quality gates before promoti
 ## 5. Milestone Delivery Roadmap
 
 ```text
-[ M1: Hardened Baseline ] ──────> [ M2: Data Engineering Foundation ] ──────> [ M3: Learning Analytics ]
-  - Rate limiting & input bounds     - Relational entity schemas & lineage       - Prevalence & mastery metrics
-  - Fail-closed verification         - Structured non-PII audit logging          - Offline evaluation harness
-  - Strict multimodal contracts      - Idempotent analysis event streaming       - Feature store specifications
+[ M1: Hardened Baseline ] ──────> [ M2: Data Engineering (DE-01) ] ──────> [ M3: Learning Analytics ]
+  - Rate limiting & input bounds     - Draft 2020-12 analytical contract       - Longitudinal misconception tracking
+  - Fail-closed verification         - TS Producer -> Python SQLite pipeline    - Research questions evaluation
+  - Strict multimodal contracts      - Idempotent events & foreign keys         - Offline model evaluation harness
 ```
 
-- **M1 (Current)**: Reliable, hardened baseline. Strict schemas, in-memory rate limiting, dual-mode privacy gateway (Google SDP + ADC / deterministic local), fail-closed verification, and regression suite (211 tests).
-- **M2 (Next)**: Formalized data layer. Migration-ready entity schemas for PostgreSQL/Cloud SQL, structured analytics event streams, and batch analysis job queuing for large cohorts.
-- **M3 (Later)**: Advanced learning analytics. Longitudinal misconception tracking across instruction units, curriculum standard alignment, and educator modification rate tracking for model fine-tuning.
+- **M1 (Completed)**: Reliable, hardened baseline. Strict schemas, in-memory rate limiting, dual-mode privacy gateway (Google SDP + ADC / deterministic local), fail-closed verification, and regression suite (211 tests).
+- **M2 / DE-01 (Completed)**: Data Engineering Foundation. Shared JSON Schema Draft 2020-12 analytical event contract, TypeScript event producer, Python ingestion package with safe diagnostic errors, SQLite relational database with strict foreign keys, and automated cross-language integration tests.
+- **M3 (Next)**: Advanced learning analytics. Longitudinal misconception tracking across instruction units, curriculum standard alignment, and offline evaluations answering core Data Science research questions.

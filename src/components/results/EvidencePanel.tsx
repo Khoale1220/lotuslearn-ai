@@ -28,7 +28,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
               Student Evidence &amp; Citations
             </span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
+            <span className="text-slate-300" aria-hidden="true">/</span>
             {(() => {
               if (!activeCluster?.evidenceExamples || activeCluster.evidenceExamples.length === 0) {
                 return (

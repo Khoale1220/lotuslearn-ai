@@ -140,7 +140,7 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
           ? 'Coverage Confirmed'
           : 'Discrepancy Flagged'
         : 'Not recorded',
-      detail: detChecks ? `${detChecks.quotesGroundedCount} grounded quotes` : '—',
+      detail: detChecks ? `${detChecks.quotesGroundedCount} grounded quotes` : '-',
     },
     {
       step: '05',
@@ -149,7 +149,7 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
       icon: Compass,
       color: 'text-indigo-600',
       bg: 'bg-indigo-50',
-      stat: `${groupCount} cohorts · ${interventionCount} scaffolds`,
+      stat: `${groupCount} cohorts, ${interventionCount} scaffolds`,
       detail: '25-min lesson timeline',
     },
     {
@@ -174,7 +174,7 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
       bg: 'bg-amber-50',
       stat:
         totalAccepted > 0 || totalEdited > 0
-          ? `${totalAccepted} accepted · ${totalEdited} edited`
+          ? `${totalAccepted} accepted, ${totalEdited} edited`
           : totalDismissed > 0
           ? `${totalDismissed} dismissed`
           : 'Teacher Review Pending',
@@ -202,7 +202,7 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
                   <span className="text-sm font-bold text-slate-900">
                     AI Contribution Trace
                   </span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <span className="text-[11px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 font-semibold">
                     7-Stage Provenance Flow
                   </span>
@@ -378,7 +378,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
                 <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">
                   Technical Transparency Log
                 </span>
-                <span className="text-slate-300">·</span>
+                <span className="text-slate-300">/</span>
                 <span className="text-[11px] font-mono text-slate-500">
                   Visible Intelligence
                 </span>
@@ -442,7 +442,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-slate-500">STAGE 01</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <h3 className="font-bold text-slate-900">Privacy Gateway &amp; Ingestion</h3>
                 </div>
                 <ProvenanceBadge type="code" label={privacyModeBadge} size="sm" />
@@ -461,7 +461,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-indigo-700">STAGE 02</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <h3 className="font-bold text-slate-900">Gemini Observer (Individual Analysis)</h3>
                 </div>
                 <ProvenanceBadge type="gemini" label="Gemini 3.8 Flash" size="sm" />
@@ -479,7 +479,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-blue-700">STAGE 03</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <h3 className="font-bold text-slate-900">Gemini Diagnosis (Whole-Class Synthesis)</h3>
                 </div>
                 <ProvenanceBadge type="gemini" label="Cohort Pattern Synthesis" size="sm" />
@@ -497,7 +497,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-teal-700">STAGE 04</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <h3 className="font-bold text-slate-900">Deterministic Software Validation</h3>
                 </div>
                 <ProvenanceBadge
@@ -542,7 +542,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-indigo-700">STAGE 05</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <h3 className="font-bold text-slate-900">Teaching Strategist (Instructional Design)</h3>
                 </div>
                 <ProvenanceBadge type="gemini" label="Pedagogical Design" size="sm" />
@@ -560,7 +560,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-emerald-700">STAGE 06</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <h3 className="font-bold text-slate-900">Adversarial Gemini Verification Pass</h3>
                 </div>
                 <ProvenanceBadge
@@ -583,7 +583,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-bold text-amber-700">STAGE 07</span>
-                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-300">/</span>
                   <h3 className="font-bold text-slate-900">Teacher Decision &amp; Human-in-the-Loop Agency</h3>
                 </div>
                 <ProvenanceBadge
@@ -625,7 +625,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
 
         {/* Drawer Footer */}
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500">
-          <span>LotusLearn AI · Technical Analysis Trace</span>
+          <span>LotusLearn - Technical Analysis Trace</span>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition"

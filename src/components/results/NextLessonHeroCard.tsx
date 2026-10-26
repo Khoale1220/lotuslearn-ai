@@ -1,5 +1,4 @@
-import React from 'react';
-import { Sparkles, ArrowRight, Edit3, Clock, CheckCircle2, Layers } from 'lucide-react';
+import { Calendar, ArrowRight, Edit3, Clock, CheckCircle2, Layers } from 'lucide-react';
 import { NextLessonPlan, MisconceptionCluster, InstructionalGroup } from '../../types';
 
 interface NextLessonHeroCardProps {
@@ -34,10 +33,10 @@ export const NextLessonHeroCard: React.FC<NextLessonHeroCardProps> = ({
         <div className="lg:col-span-7 space-y-4">
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-indigo-200">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-md text-white border border-white/20">
-              <Sparkles size={13} className="text-amber-300" />
-              <span>Tomorrow&apos;s intervention is ready</span>
+              <Calendar size={13} className="text-white" />
+              <span>Tomorrow&apos;s intervention sequence</span>
             </span>
-            <span aria-hidden="true">·</span>
+            <span className="text-indigo-300">/</span>
             <span>25-minute targeted sequence</span>
           </div>
 
@@ -55,9 +54,9 @@ export const NextLessonHeroCard: React.FC<NextLessonHeroCardProps> = ({
               <Layers size={13} className="text-indigo-300" />
               <span>{groupCount} instructional groups</span>
             </span>
-            <span aria-hidden="true">·</span>
+            <span className="text-indigo-300">/</span>
             <span>{patternCount} diagnosed patterns</span>
-            <span aria-hidden="true">·</span>
+            <span className="text-indigo-300">/</span>
             <span>{gradeLevel}</span>
           </div>
 

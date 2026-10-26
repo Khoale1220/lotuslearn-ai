@@ -54,7 +54,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
             <ShieldCheck size={15} className="text-emerald-600 shrink-0" />
-            <span>Pseudonymized roster keys (S-01 – S-12)</span>
+            <span>Pseudonymized roster keys (S-01 to S-12)</span>
           </div>
 
           {observations.length > 0 && (
@@ -242,7 +242,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                   <div className="space-y-1">
                     {obs.demonstratedUnderstanding.slice(0, 2).map((u, idx) => (
                       <p key={idx} className="text-xs text-slate-700 leading-snug">
-                        • {u}
+                        - {u}
                       </p>
                     ))}
                     {obs.demonstratedUnderstanding.length === 0 && (

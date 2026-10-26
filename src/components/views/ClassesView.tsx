@@ -54,10 +54,10 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
               <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 font-mono text-[11px] font-bold">
                 CLASS 10A1
               </span>
-              <span className="text-xs text-slate-500">English Language Arts · Academic Year 2026</span>
+              <span className="text-xs text-slate-500">English Language Arts / Academic Year 2026</span>
             </div>
             <h2 className="text-xl font-bold text-slate-900 font-heading">
-              Grade 10 — High School English
+              Grade 10 - High School English
             </h2>
           </div>
 
@@ -76,7 +76,7 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
               Enrolled Students
             </span>
             <div className="text-2xl font-bold text-slate-900 font-mono">12</div>
-            <p className="text-[11px] text-slate-500">Pseudonymized roster keys (Student 01 – 12)</p>
+            <p className="text-[11px] text-slate-500">Pseudonymized roster keys (Student 01 to 12)</p>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-1">
@@ -103,7 +103,7 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
         {/* Action Row */}
         <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100">
           <span className="text-xs text-slate-500">
-            Teacher: <strong>Ms. Nguyen Lan Anh</strong> · Room 304
+            Teacher: <strong>Ms. Nguyen Lan Anh</strong>, Room 304
           </span>
           <div className="flex items-center gap-2">
             <button

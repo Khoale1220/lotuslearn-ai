@@ -7,8 +7,8 @@ on:
     branches: [main, master]
 
 jobs:
-  validate:
-    name: Lint, Typecheck, Test, and Build
+  node_validate:
+    name: Node Quality Gates (Lint, Typecheck, Test, Build)
     runs-on: ubuntu-latest
 
     steps:
@@ -30,8 +30,45 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run automated tests
+      - name: Run automated Node regression tests
         run: npm test
 
       - name: Build production bundle
         run: npm run build
+
+  python_pipeline:
+    name: Data Engineering Pipeline (Python, Schema, SQLite, Metrics)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (for cross-language producer tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest jsonschema
+
+      - name: Python Lint (ruff)
+        run: ruff check pipelines
+
+      - name: Python Automated Pipeline Tests (pytest)
+        run: PYTHONPATH=. pytest pipelines/tests
+
+      - name: Run DE-01 End-to-End Pipeline Smoke Test
+        run: npm run pipeline:run

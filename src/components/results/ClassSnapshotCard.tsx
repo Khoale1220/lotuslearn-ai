@@ -42,7 +42,7 @@ export const ClassSnapshotCard: React.FC<ClassSnapshotCardProps> = ({
             Class Snapshot: {context.lessonTitle}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {context.subject} · {context.gradeLevel} · Evaluated against lesson objective standard
+            {context.subject} / {context.gradeLevel} / Evaluated against lesson objective standard
           </p>
         </div>
 

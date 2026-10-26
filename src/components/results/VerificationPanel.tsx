@@ -270,7 +270,7 @@ export const VerificationPanel: React.FC<VerificationPanelProps> = ({
               Technical Pass ≠ Human Approval
             </span>
             <p className="leading-relaxed text-[11px]">
-              When deterministic code and Gemini verification pass, the item is labeled <em>&quot;Code Verified · Teacher Review Pending&quot;</em> until the educator explicitly reviews and accepts it.
+              When deterministic code and Gemini verification pass, the item is labeled <em>&quot;Code Verified / Teacher Review Pending&quot;</em> until the educator explicitly reviews and accepts it.
             </p>
           </div>
           <div className="rounded-lg bg-white p-3 border border-slate-200">

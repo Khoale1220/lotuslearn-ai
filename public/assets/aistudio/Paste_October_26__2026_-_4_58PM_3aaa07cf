@@ -1,0 +1,1622 @@
+# LotusLearn
+
+## Senior Product Revision and DE-01
+
+Continue from the current GitHub synchronized LotusLearn repository.
+
+Act as a senior product engineer, data engineer, data scientist, product designer, and technical delivery lead.
+
+This is not a hackathon build.
+
+This is not an AI demo.
+
+This is a long term engineering portfolio built around a real education problem.
+
+The primary career target is Data Engineering.
+
+Data Science is a later analytical layer.
+
+Project Management is demonstrated through scope, decisions, risk, acceptance criteria, validation, and measurable delivery.
+
+Optimize for clarity, trust, engineering depth, maintainability, and interview defensibility.
+
+Do not optimize for technology count.
+
+Do not fabricate school deployment, active users, student outcomes, institutional adoption, scale, accuracy, cost savings, or business impact.
+
+Everything must be supported by actual code or clearly identified as future work.
+
+# 1. Execution rule
+
+Complete work sequentially.
+
+Do not open a new phase while the current phase remains partially implemented.
+
+Priority order:
+
+1. Baseline verification
+2. Core product shell and information hierarchy
+3. Shared analytical contract
+4. TypeScript analytical producer
+5. Python ingestion and quality
+6. SQL execution and metrics
+7. Cross language CI
+8. Deeper UI refinement
+9. Documentation cleanup
+10. Final validation
+
+If execution budget becomes constrained, finish the current phase completely and stop.
+
+Do not leave:
+
+unfinished Python modules
+
+placeholder SQL
+
+half migrated UI components
+
+temporary schemas
+
+disabled tests
+
+TODO based implementations
+
+unvalidated dependencies
+
+Prefer a smaller complete milestone over a larger incomplete diff.
+
+# 2. Git safety
+
+Do not push to GitHub.
+
+Do not merge.
+
+Do not force push.
+
+Do not rewrite history.
+
+Do not automatically create a pull request.
+
+Leave the workspace in a clean reviewable state.
+
+The user will review the code, report, and diff before synchronizing anything to GitHub.
+
+# 3. Writing standard
+
+LotusLearn must read as software written and maintained by experienced humans.
+
+Apply this rule to:
+
+UI copy
+
+documentation
+
+comments
+
+README text
+
+reports
+
+labels
+
+ADRs
+
+delivery plans
+
+examples
+
+Do not use Unicode em dash.
+
+Do not use Unicode en dash.
+
+Do not use vertical bars as prose separators.
+
+Do not use decorative middle dots.
+
+Do not place decorative bullets between phrases.
+
+Do not use sparkle language.
+
+Do not use fake command center language.
+
+Do not use inflated phrases such as:
+
+enterprise grade
+
+revolutionary
+
+cutting edge
+
+world class
+
+fully secure
+
+production ready
+
+intelligent platform
+
+unless precise evidence genuinely requires the wording.
+
+Avoid repetitive headings.
+
+Avoid unnecessary parenthetical explanations.
+
+Avoid explaining obvious interfaces.
+
+Avoid paragraphs where one sentence is enough.
+
+Avoid generic generated wording such as:
+
+unlock insights
+
+powered by AI
+
+AI powered
+
+smart insights
+
+intelligent analysis
+
+transform your classroom
+
+revolutionize learning
+
+Prefer direct product language.
+
+Prefer concise technical language.
+
+Prefer concrete nouns and verbs.
+
+Technical syntax is exempt where required by programming languages, schemas, shell commands, SQL, regular expressions, or machine readable configuration.
+
+Before completion, inspect every newly changed user facing and repository facing text file for these style violations.
+
+# 4. Baseline gate
+
+Before making major changes, run:
+
+npm ci
+
+npm run lint
+
+npm run typecheck
+
+npm test
+
+npm run build
+
+The previous hardening pass reportedly fixed:
+
+dependency lockfile consistency
+
+privacy boundary enforcement
+
+rate limiting
+
+frontend retry behavior
+
+Google cloud credential separation
+
+Do not repeat another broad security audit.
+
+If the baseline passes, continue immediately.
+
+If a serious dependency, privacy, build, or runtime regression exists, fix it first.
+
+Do not spend most of the session searching for hypothetical defects.
+
+# 5. Product objective
+
+The current UI looks too much like a generated SaaS dashboard.
+
+Correct that.
+
+The result should feel like a serious internal education data product.
+
+The interface should be:
+
+calm
+
+compact
+
+analytical
+
+task focused
+
+readable
+
+predictable
+
+The teacher's work must dominate the screen.
+
+Product chrome must recede.
+
+Do not redesign for novelty.
+
+Do not add features to fill empty space.
+
+# 6. Product shell first
+
+Before performing deep visual refinement, fix the highest impact structural problems.
+
+Reduce simultaneous navigation layers.
+
+Reduce repeated cards.
+
+Reduce repeated status chips.
+
+Reduce saturated purple.
+
+Reduce redundant explanatory text.
+
+Reduce decorative labels.
+
+Remove the small AI badge from the primary LotusLearn identity.
+
+Make one primary navigation model obvious.
+
+Make one primary page action obvious.
+
+Keep secondary actions visually secondary.
+
+Move technical and governance surfaces away from the main teacher workflow unless directly relevant.
+
+This shell cleanup must be completed before DE-01 begins.
+
+Do not spend excessive time polishing isolated components at this stage.
+
+# 7. Design tokens
+
+Create or rationalize a small internal token system.
+
+Cover:
+
+color
+
+typography
+
+spacing
+
+radius
+
+border
+
+surface
+
+focus
+
+Use existing Tailwind configuration or CSS variables where practical.
+
+Do not introduce another styling library.
+
+Avoid arbitrary repeated values.
+
+Use a restrained spacing scale.
+
+Prefer moderate radii.
+
+Prefer borders to decorative shadows.
+
+Use shadows only when elevation has functional meaning.
+
+No glow effects.
+
+No glass effects.
+
+No neon.
+
+No decorative gradients.
+
+# 8. Color
+
+Reduce saturated purple substantially.
+
+Keep one recognizable LotusLearn accent.
+
+Use it as an accent, not the entire visual language.
+
+Use neutral surfaces for most information.
+
+Use semantic colors only for actual semantic state.
+
+Success should indicate success.
+
+Warning should indicate warning.
+
+Error should indicate error.
+
+Do not use green merely to imply activity.
+
+Color must never be the only indicator of state.
+
+Normal text must meet WCAG AA contrast of at least 4.5 to 1.
+
+Important non text UI components should meet appropriate WCAG contrast requirements.
+
+# 9. Typography
+
+Use a compact product typography system.
+
+Use roughly four or five meaningful text roles.
+
+For example:
+
+page title
+
+section title
+
+body
+
+supporting text
+
+metadata
+
+Do not use marketing sized headings inside application workflows.
+
+Keep normal product body text within a conventional readable range.
+
+Avoid excessive uppercase.
+
+Avoid decorative tracking.
+
+Use weight and spacing before increasing font size.
+
+Prefer a system font stack or the existing high quality application font.
+
+Do not add a remote font dependency without a clear need.
+
+# 10. Brand
+
+Use the primary name:
+
+LotusLearn
+
+Remove AI from the primary brand badge.
+
+AI belongs in technical, trust, help, or methodology surfaces where disclosure is relevant.
+
+Create or refine a simple SVG mark.
+
+The mark should suggest a lotus, learning, or structured growth without becoming decorative.
+
+It must:
+
+work around 20px
+
+work in one color
+
+work on light backgrounds
+
+work on dark backgrounds
+
+remain recognizable at favicon size
+
+Avoid:
+
+sparkles
+
+magic wands
+
+robot heads
+
+brains
+
+chat bubbles
+
+circuit boards
+
+network node clichés
+
+3D effects
+
+gradient logos
+
+Create a favicon from the same visual system if practical.
+
+Do not spend disproportionate time on branding.
+
+# 11. Navigation
+
+Keep one primary navigation structure.
+
+Sidebar navigation should contain durable product areas only.
+
+Use short task oriented labels.
+
+Do not expose internal architecture language to normal teacher workflows unless teachers genuinely need it.
+
+Remove duplicated navigation between:
+
+sidebar
+
+header
+
+tabs
+
+large page actions
+
+The current page must be obvious without relying only on color.
+
+Reduce sidebar visual weight.
+
+Do not show counts unless they help a decision.
+
+Do not permanently display status labels such as Active when they add no useful information.
+
+Keep teacher identity compact.
+
+# 12. Header
+
+Reduce action density.
+
+Do not show several visually equal primary actions.
+
+The header should communicate:
+
+current context
+
+current location
+
+main action
+
+Current Results is a state, not a primary call to action.
+
+Demo access should not visually compete with real analysis.
+
+Technical Trace should remain available but quiet.
+
+# 13. Results information architecture
+
+Reorganize results around teacher decisions.
+
+Prefer concise categories such as:
+
+Summary
+
+Evidence
+
+Groups
+
+Plan
+
+Review
+
+Use different wording only if the existing domain makes another structure clearly stronger.
+
+The interface should help a teacher understand:
+
+the main issue
+
+the supporting evidence
+
+the affected students
+
+the next teaching action
+
+the decisions requiring teacher review
+
+Do not repeat these questions as decorative navigation labels.
+
+# 14. Cards
+
+Use a card only when content is genuinely modular.
+
+Do not wrap every:
+
+paragraph
+
+metric
+
+student
+
+quote
+
+label
+
+action
+
+inside separate rounded containers.
+
+Replace unnecessary cards with:
+
+sections
+
+rows
+
+tables
+
+definition lists
+
+compact panels
+
+borders
+
+Avoid card inside card layouts.
+
+Reduce empty padding.
+
+# 15. Evidence view
+
+Evidence must feel analytical.
+
+Reduce repeated labels.
+
+Do not repeat the same status on every record when normal state can be communicated more quietly.
+
+Make exceptional conditions visually stronger than successful normal states.
+
+Keep source provenance available.
+
+Keep citation status available.
+
+Do not make normal successful evidence look like a collection of promotional badges.
+
+# 16. Student cohort view
+
+The current repeated student card grid uses too much space.
+
+If records share the same fields, prefer:
+
+compact rows
+
+a table
+
+a structured dense grid
+
+Keep pseudonymous identity visible.
+
+Do not add decorative avatars.
+
+Do not add student illustrations.
+
+Make group or support status easy to compare.
+
+# 17. Lesson plan
+
+Present the lesson plan as a usable teacher document.
+
+Use clear phases.
+
+Use clear timing.
+
+Use objective.
+
+Use activity.
+
+Use evidence.
+
+Use teacher action.
+
+Reduce visual theatrics.
+
+Avoid generated sounding adjectives such as:
+
+targeted
+
+optimized
+
+intelligent
+
+generated
+
+recommended
+
+unless they carry specific meaning.
+
+Keep Edit and Copy actions visible but secondary.
+
+# 18. Status components
+
+Reduce pills and badges.
+
+Use strong badges only when rapid state recognition matters.
+
+Examples:
+
+needs review
+
+failed validation
+
+privacy issue
+
+important exception
+
+Normal successful state often belongs as plain text or quiet metadata.
+
+Do not turn nouns into pills.
+
+# 19. Metrics
+
+Only display metrics that support a teacher or engineering decision.
+
+Do not fill whitespace with statistics.
+
+Use a table when structured comparison matters.
+
+Use a chart only when visual pattern recognition is genuinely better than text or tabular comparison.
+
+If charts are needed, prefer familiar forms such as:
+
+bar
+
+line
+
+Each chart should communicate one main idea.
+
+No animated charts.
+
+No decorative charts.
+
+No fake dashboard telemetry.
+
+# 20. Accessibility
+
+Meet WCAG 2.2 AA where practical.
+
+Provide visible keyboard focus.
+
+Do not remove focus outlines without an accessible replacement.
+
+Use semantic HTML.
+
+Keep heading hierarchy logical.
+
+Do not rely only on color.
+
+Normal text should meet at least 4.5 to 1 contrast.
+
+Pointer targets should meet WCAG 2.2 Target Size Minimum.
+
+Use at least 24 by 24 CSS pixels or provide sufficient spacing according to the WCAG criterion.
+
+Frequently used or important controls may use larger targets.
+
+Do not allow sticky elements to hide keyboard focus.
+
+# 21. Responsive visual QA
+
+Before completion, inspect the redesigned interface at approximately:
+
+1440px desktop width
+
+1366px laptop width
+
+1280px laptop width
+
+390px mobile width
+
+Verify:
+
+no clipped navigation
+
+no accidental page level horizontal scrolling
+
+no overlapping sticky elements
+
+no hidden primary action
+
+no unreadable density
+
+no excessively wide text
+
+no collapsed information hierarchy
+
+no controls too close to operate
+
+no desktop grid forced awkwardly onto mobile
+
+Compare the main results workflow before and after the redesign.
+
+Remove visual changes that increase complexity without improving comprehension.
+
+# 22. Preserve functionality
+
+Do not break:
+
+analysis
+
+demo mode
+
+privacy status
+
+verification
+
+teacher decisions
+
+saved sessions
+
+lesson plan editing
+
+API contracts
+
+tests
+
+Do not change domain logic merely to simplify presentation.
+
+# 23. DE-01 objective
+
+After the product shell is stable, begin DE-01.
+
+The first executable Data Engineering path is:
+
+trusted TypeScript domain output
+
+shared analytical contract
+
+TypeScript producer
+
+Python ingestion
+
+data quality
+
+duplicate safe local persistence
+
+SQLite
+
+SQL transformations
+
+deterministic metrics
+
+cross language CI
+
+Do not add infrastructure beyond this milestone.
+
+# 24. Shared contract standard
+
+Use JSON Schema Draft 2020-12 for the analytical contract unless a concrete existing repository constraint makes that impossible.
+
+Declare the schema using the correct Draft 2020-12 meta schema.
+
+Place the contract under a clear contracts directory.
+
+The same contract must be usable by both TypeScript and Python.
+
+Do not maintain two independent contract definitions that can silently drift.
+
+# 25. Analytical contract
+
+Derive the contract from actual LotusLearn domain objects.
+
+Do not invent fields because they sound useful.
+
+Include only fields justified by the existing application.
+
+Appropriate fields may include:
+
+schema_version
+
+event_id
+
+event_type
+
+occurred_at
+
+analysis_run_id
+
+provenance
+
+pseudonymous student reference when applicable
+
+finding reference when applicable
+
+concept or skill when supported
+
+teacher decision when supported
+
+Do not include:
+
+raw student text
+
+legal names
+
+emails
+
+phone numbers
+
+raw images
+
+Gemini prompts
+
+credentials
+
+authentication data
+
+# 26. Stable event time
+
+Business event timestamps and pipeline execution timestamps are different concepts.
+
+`occurred_at` must come from a stable domain timestamp or explicit source input.
+
+Do not generate `occurred_at` using Date.now or equivalent during export if event determinism is required.
+
+Pipeline execution time belongs in run metadata.
+
+Do not include pipeline execution time in deterministic business event identity.
+
+# 27. Event identity
+
+Create deterministic event IDs.
+
+The same logical event must receive the same ID when produced again.
+
+Use stable canonical business keys.
+
+Use a deterministic cryptographic hash where appropriate.
+
+Do not use a random UUID when it prevents replay detection.
+
+Document the identity rule concisely.
+
+Test it.
+
+# 28. Schema evolution
+
+Include schema_version.
+
+Use a simple rule:
+
+additive optional fields may remain compatible
+
+removing required fields requires a new contract version
+
+changing the meaning of an existing field requires a new contract version
+
+Do not build a schema registry.
+
+# 29. TypeScript producer
+
+Create a small server side analytical event producer.
+
+Do not build analytical events in React.
+
+The producer must consume trusted downstream objects after privacy processing.
+
+Prefer:
+
+sanitized evidence
+
+analysis results
+
+verification state
+
+findings
+
+teacher decisions
+
+Do not rely on raw submissions.
+
+Generating events from the same trusted input twice must produce equivalent event content and identical event IDs.
+
+Add tests.
+
+# 30. Privacy defense
+
+Add defense in depth tests.
+
+Serialized analytical events must not contain fixture values resembling:
+
+a full legal name
+
+an email address
+
+a phone number
+
+Do not claim these checks provide universal PII detection.
+
+The primary guarantee remains the upstream privacy gateway.
+
+# 31. Python package
+
+Create the first substantive Python package.
+
+Use a clear pipelines directory.
+
+Use pyproject.toml.
+
+Use a currently supported Python version appropriate for CI.
+
+Prefer Python 3.12 or another supported version only when tooling compatibility justifies it.
+
+Use:
+
+pytest
+
+Ruff
+
+Keep dependencies small.
+
+Use the standard library where sufficient.
+
+Do not install:
+
+Pandas
+
+Polars
+
+PySpark
+
+scikit learn
+
+Pydantic
+
+or orchestration frameworks merely to increase technology count.
+
+# 32. Python ingestion
+
+Python must validate the shared JSON Schema contract.
+
+Reject:
+
+unsupported schema versions
+
+missing required fields
+
+invalid event types
+
+malformed timestamps
+
+malformed IDs
+
+invalid decision values
+
+Represent ingestion outcomes explicitly as:
+
+accepted
+
+duplicate
+
+rejected
+
+Rejected records must contain safe reasons.
+
+Do not silently discard malformed records.
+
+Do not expose sensitive payload values in errors.
+
+# 33. Real idempotency
+
+Implement actual replay safe behavior.
+
+The same event processed more than once must not create additional analytical state.
+
+Use event_id as the duplicate protection key.
+
+Add a test equivalent to:
+
+first ingestion inserts one event
+
+second ingestion identifies duplicate
+
+third ingestion identifies duplicate
+
+stored row count remains one
+
+metrics remain unchanged
+
+Do not call hashing alone idempotency.
+
+# 34. SQLite
+
+Use SQLite as the DE-01 local relational execution and test engine.
+
+SQLite is not the future production datastore.
+
+Explicitly enable foreign key enforcement for every relevant connection:
+
+PRAGMA foreign_keys = ON
+
+Do not rely on SQLite default behavior.
+
+Where appropriate, validate relational integrity in tests using foreign key checks.
+
+Do not add PostgreSQL during DE-01.
+
+# 35. SQL files
+
+Create real SQL files.
+
+Do not place all relational logic inside Python strings.
+
+Create the minimum tables needed for the analytical contract and current metrics.
+
+Use appropriate:
+
+primary keys
+
+unique constraints
+
+not null constraints
+
+foreign keys
+
+checks
+
+Do not model an entire school information system.
+
+# 36. SQL transformations
+
+Implement only metrics supported by actual available data.
+
+Good candidates:
+
+unique accepted events
+
+distinct pseudonymous students
+
+findings by concept
+
+findings by skill
+
+finding prevalence when a valid denominator exists
+
+educator modification rate when decisions exist
+
+Do not invent a mastery score.
+
+Do not calculate percentages without a defensible denominator.
+
+# 37. Metric contracts
+
+Every metric must define:
+
+grain
+
+numerator
+
+denominator
+
+duplicate behavior
+
+null behavior
+
+excluded states
+
+Keep definitions concise and close to implementation.
+
+# 38. Educator Modification Rate
+
+If supported, define this metric explicitly.
+
+A reasonable form is:
+
+edited plus dismissed reviewed recommendations
+
+divided by
+
+all reviewed recommendations
+
+Decide explicitly whether pending recommendations are excluded.
+
+Do not call this a distance metric.
+
+# 39. Data quality
+
+Implement executable checks for:
+
+event uniqueness
+
+required identifiers
+
+required timestamps
+
+supported schema version
+
+allowed event types
+
+allowed teacher decisions
+
+referential integrity
+
+duplicate replay
+
+deterministic output
+
+privacy safe analytical identity
+
+obvious email or phone values inside analytical identity fields
+
+Do not claim these tests provide universal privacy detection.
+
+# 40. Rejected records
+
+Represent bad records explicitly.
+
+Provide a safe reason.
+
+Do not silently drop them.
+
+Do not add a message queue or dead letter infrastructure.
+
+Keep the result structure compatible with that future concept without implementing it now.
+
+# 41. Determinism
+
+Run the same fixture more than once.
+
+Normalized state must remain equivalent.
+
+SQL output must remain equivalent.
+
+Metrics must remain equivalent.
+
+Use stable ordering where output order matters.
+
+Do not let exporter execution time create different business events.
+
+# 42. Synthetic fixture
+
+Create a clearly synthetic fixture.
+
+Use pseudonymous students.
+
+Include:
+
+multiple students
+
+multiple findings or concepts
+
+teacher decisions when supported
+
+one deliberate duplicate
+
+one optional field omission if supported
+
+Tests should also contain malformed input.
+
+Do not imitate real identifiable student records.
+
+# 43. CLI
+
+Create one simple pipeline command.
+
+The command should perform:
+
+contract validation
+
+ingestion
+
+quality checks
+
+duplicate handling
+
+SQLite load
+
+SQL transformation
+
+metric calculation
+
+run summary
+
+Return a nonzero exit status on failed validation.
+
+Do not add a CLI framework unless necessary.
+
+# 44. Run metadata
+
+Emit concise structured run metadata.
+
+Include:
+
+run_id
+
+schema_version
+
+input_count
+
+accepted_count
+
+duplicate_count
+
+rejected_count
+
+metric_count
+
+duration_ms
+
+Do not include student text.
+
+Do not call this production monitoring.
+
+# 45. Cross language compatibility
+
+Add an automated test proving that the TypeScript producer and Python consumer agree on the shared contract.
+
+Use one shared JSON Schema.
+
+Avoid manually duplicated contract fixtures that can drift independently.
+
+The test should fail when a TypeScript event becomes incompatible with the Python consumer.
+
+# 46. CI
+
+Keep the existing Node job.
+
+Add a separate Python data job.
+
+Node job:
+
+npm ci
+
+npm run lint
+
+npm run typecheck
+
+npm test
+
+npm run build
+
+Python data job:
+
+set up Python
+
+install the package reproducibly
+
+run Ruff
+
+run pytest
+
+run the CLI smoke test
+
+execute actual SQLite SQL
+
+Do not claim SQL validation unless the SQL executes.
+
+# 47. Failure visibility
+
+Pipeline failures must be diagnosable.
+
+Rejected records need a reason.
+
+Failed quality checks need a rule name.
+
+Failed SQL execution should identify the relevant operation.
+
+Do not dump student content.
+
+Do not add a logging framework unless required.
+
+# 48. Delivery milestone
+
+Update the existing delivery plan with one milestone:
+
+DE-01 Analytical Contract and Local Data Pipeline
+
+Keep it concise.
+
+Define:
+
+objective
+
+scope
+
+non scope
+
+dependencies
+
+acceptance criteria
+
+risks
+
+exit criteria
+
+Acceptance criteria must refer to executable evidence.
+
+Relevant risks include:
+
+schema drift
+
+privacy leakage
+
+duplicate events
+
+incorrect metric definitions
+
+TypeScript and Python contract divergence
+
+silent rejection
+
+Do not add generic PM wording.
+
+Do not mark DE-01 complete unless all exit criteria pass.
+
+# 49. Data Science readiness
+
+Do not build a machine learning model.
+
+Do not install scikit learn.
+
+Do not calculate accuracy using synthetic data.
+
+Define at most three future research questions.
+
+For each define:
+
+outcome
+
+potential features
+
+history required
+
+simple baseline
+
+evaluation method
+
+leakage risk
+
+privacy or fairness concern
+
+State clearly that synthetic DE-01 data cannot answer those research questions.
+
+# 50. Do not add yet
+
+Do not add:
+
+PostgreSQL
+
+Cloud SQL
+
+Redis
+
+Kafka
+
+Pub Sub
+
+Airflow
+
+Dagster
+
+Prefect
+
+dbt
+
+Spark
+
+Kubernetes
+
+MLflow
+
+scikit learn
+
+new dashboards
+
+another UI framework
+
+The goal is depth, not tool count.
+
+# 51. README
+
+Keep README concise.
+
+Document only what is necessary to:
+
+validate Node
+
+validate Python
+
+run DE-01
+
+Do not turn README into portfolio marketing.
+
+# 52. Deep UI refinement
+
+Only after the contract, Python, SQL, and CI work are complete should remaining execution budget be used for deeper interface polish.
+
+Focus on:
+
+evidence density
+
+student comparison
+
+lesson plan readability
+
+responsive details
+
+microcopy
+
+status reduction
+
+spacing consistency
+
+Do not open another major design direction.
+
+Finish what already exists.
+
+# 53. Complete validation
+
+Before completion run:
+
+npm ci
+
+npm run lint
+
+npm run typecheck
+
+npm test
+
+npm run build
+
+For Python run:
+
+clean package installation
+
+Ruff
+
+pytest
+
+CLI smoke test
+
+For data run:
+
+JSON Schema validation
+
+SQLite schema execution
+
+foreign key enforcement
+
+SQL transformation execution
+
+duplicate replay test
+
+determinism test
+
+TypeScript to Python compatibility test
+
+For product QA inspect approximately:
+
+1440px
+
+1366px
+
+1280px
+
+390px
+
+Verify accessibility requirements and important workflows.
+
+Do not claim a validation result that was not actually executed.
+
+# 54. Self review
+
+Inspect the full diff.
+
+Remove unnecessary dependencies.
+
+Remove dead components.
+
+Remove dead styles.
+
+Confirm no secrets.
+
+Confirm .env remains ignored.
+
+Confirm bun.lock does not exist.
+
+Confirm no real student PII.
+
+Confirm raw student content cannot enter analytical events.
+
+Confirm business event timestamps are stable.
+
+Confirm event IDs are deterministic.
+
+Confirm duplicate replay cannot inflate state or metrics.
+
+Confirm SQLite foreign key enforcement is explicit.
+
+Confirm SQL executes.
+
+Confirm Python modules contain substantive logic.
+
+Confirm metric definitions are precise.
+
+Confirm no unsupported ML claim exists.
+
+Confirm documentation does not claim PostgreSQL is implemented.
+
+Confirm the UI no longer depends on repeated cards, pills, decorative labels, and saturated purple.
+
+Search all newly changed project prose for:
+
+Unicode em dash
+
+Unicode en dash
+
+decorative middle dots
+
+vertical bars used as prose separators
+
+AI marketing language
+
+Remove violations.
+
+# 55. Final report
+
+Use these headings only.
+
+## Baseline
+
+Give exact Node validation results.
+
+## Product revision
+
+State the major interface changes.
+
+## Brand
+
+State the identity and logo changes.
+
+## Accessibility
+
+State checks actually performed.
+
+## DE-01 architecture
+
+Describe the implemented data path.
+
+## Contract
+
+State JSON Schema version, event identity rule, timestamp rule, producer, consumer, and privacy boundary.
+
+## Ingestion
+
+State accepted, duplicate, and rejected behavior.
+
+## Data quality
+
+List actual executable checks.
+
+## SQL
+
+List actual tables, transformations, and metrics.
+
+## Idempotency
+
+State the replay test and result.
+
+## CI
+
+State Node and Python responsibilities.
+
+## Validation
+
+Give exact command results.
+
+## Delivery evidence
+
+Maximum three items.
+
+## Data Science readiness
+
+Maximum three items.
+
+## Portfolio evidence
+
+Maximum five items.
+
+Only include evidence backed by actual code, tests, CI, or delivered artifacts.
+
+## Remaining risks
+
+Separate:
+
+portfolio risks
+
+classroom production risks
+
+scaling risks
+
+## Suggested commits
+
+Recommend commits only for work actually completed.
+
+## Next milestone
+
+Recommend exactly one next milestone.
+
+Do not praise the project.
+
+Do not use marketing language.
+
+Do not recommend unrelated technologies.
+
+Complete the work before returning the report.

@@ -1,18 +1,12 @@
 import React from 'react';
 import {
   Home,
-  FileSearch,
   Users,
   UserRound,
-  Brain,
-  UsersRound,
-  BookOpen,
-  FileCheck,
+  FileText,
   ShieldCheck,
+  PlusCircle,
   HelpCircle,
-  Sparkles,
-  ChevronRight,
-  GraduationCap,
   X,
 } from 'lucide-react';
 import { LotusIcon } from './icons/LotusIcon';
@@ -23,14 +17,10 @@ export type NavigationTarget =
   | 'classes'
   | 'students'
   | 'results'
-  | 'misconceptions'
-  | 'interventions'
-  | 'lesson-plans'
-  | 'evidence'
   | 'privacy';
 
 interface SidebarProps {
-  activeView: NavigationTarget;
+  activeView: string;
   onNavigate: (view: NavigationTarget) => void;
   onQuickDemo: () => void;
   onOpenResponsibleAI: () => void;
@@ -55,14 +45,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onCloseMobile();
   };
 
-  const isCurrent = (target: NavigationTarget) => activeView === target;
+  const isCurrent = (target: string) => activeView === target;
 
   return (
     <>
       {/* Mobile Backdrop */}
       {isOpenMobile && (
         <div
-          className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs lg:hidden"
           onClick={onCloseMobile}
           aria-hidden="true"
         />
@@ -70,236 +60,152 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Persistent Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-70 bg-[#0F172A] text-slate-300 flex flex-col border-r border-slate-800 transition-transform duration-250 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-70 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-transform duration-200 ease-in-out lg:translate-x-0 ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'
         }`}
-        aria-label="Application Sidebar"
+        aria-label="Main Navigation"
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800/80">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
           <button
             onClick={() => handleNav('overview')}
-            className="flex items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-lg p-1"
+            className="flex items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 rounded-md p-1"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-md shadow-indigo-950/50">
-              <LotusIcon size={22} className="text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-slate-100 border border-slate-700">
+              <LotusIcon size={18} className="text-slate-100" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-base font-bold tracking-tight text-white font-heading">
-                  LotusLearn
-                </span>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  AI
-                </span>
-              </div>
-              <p className="text-[11px] font-medium text-slate-400">
-                Diagnostic Assessment Platform
-              </p>
+              <span className="text-sm font-semibold tracking-tight text-white block">
+                LotusLearn
+              </span>
+              <span className="text-[11px] text-slate-400 block">
+                Formative Diagnostics
+              </span>
             </div>
           </button>
 
           <button
             onClick={onCloseMobile}
-            className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+            className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition"
             aria-label="Close menu"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Primary Action Button (Prominent Analyze Work CTA) */}
-        <div className="p-4 pb-2">
+        {/* Primary Page Action */}
+        <div className="p-3">
           <button
             onClick={() => handleNav('new-analysis')}
-            className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-xs font-semibold shadow-md shadow-indigo-950/60 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            className={`w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
+              isCurrent('new-analysis')
+                ? 'bg-slate-100 text-slate-900 shadow-xs'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+            }`}
           >
-            <FileSearch size={16} />
+            <PlusCircle size={15} />
             <span>Analyze Student Work</span>
           </button>
         </div>
 
         {/* Navigation Sections */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-6 text-xs">
-          {/* Section: Product */}
-          <div className="space-y-1">
-            <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Product
+        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1 text-xs" aria-label="Durable areas">
+          <button
+            onClick={() => handleNav('overview')}
+            aria-current={isCurrent('overview') ? 'page' : undefined}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition font-medium ${
+              isCurrent('overview')
+                ? 'bg-slate-800 text-white font-semibold border-l-2 border-indigo-400 pl-2.5'
+                : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+            }`}
+          >
+            <Home size={15} className={isCurrent('overview') ? 'text-indigo-400' : 'text-slate-400'} />
+            <span>Overview</span>
+          </button>
+
+          <button
+            onClick={() => handleNav('classes')}
+            aria-current={isCurrent('classes') ? 'page' : undefined}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition font-medium ${
+              isCurrent('classes')
+                ? 'bg-slate-800 text-white font-semibold border-l-2 border-indigo-400 pl-2.5'
+                : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+            }`}
+          >
+            <Users size={15} className={isCurrent('classes') ? 'text-indigo-400' : 'text-slate-400'} />
+            <span>Classes</span>
+          </button>
+
+          <button
+            onClick={() => handleNav('students')}
+            aria-current={isCurrent('students') ? 'page' : undefined}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition font-medium ${
+              isCurrent('students')
+                ? 'bg-slate-800 text-white font-semibold border-l-2 border-indigo-400 pl-2.5'
+                : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+            }`}
+          >
+            <UserRound size={15} className={isCurrent('students') ? 'text-indigo-400' : 'text-slate-400'} />
+            <span>Students</span>
+          </button>
+
+          {hasActiveResult && (
+            <button
+              onClick={() => handleNav('results')}
+              aria-current={isCurrent('results') ? 'page' : undefined}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition font-medium ${
+                isCurrent('results')
+                  ? 'bg-slate-800 text-white font-semibold border-l-2 border-indigo-400 pl-2.5'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <FileText size={15} className={isCurrent('results') ? 'text-indigo-400' : 'text-slate-400'} />
+                <span>Results</span>
+              </div>
+              <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
+                Current
+              </span>
+            </button>
+          )}
+
+          <div className="pt-4 pb-1">
+            <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              System
             </span>
-
-            <button
-              onClick={() => handleNav('overview')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('overview')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Home size={16} className={isCurrent('overview') ? 'text-indigo-400' : 'text-slate-400'} />
-                <span>Overview</span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleNav('classes')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('classes')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Users size={16} className={isCurrent('classes') ? 'text-indigo-400' : 'text-slate-400'} />
-                <span>Classes</span>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded">
-                Grade 10
-              </span>
-            </button>
-
-            <button
-              onClick={() => handleNav('students')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('students')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <UserRound size={16} className={isCurrent('students') ? 'text-indigo-400' : 'text-slate-400'} />
-                <span>Students</span>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded">
-                12 active
-              </span>
-            </button>
           </div>
 
-          {/* Section: Insights (Active Analysis) */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between px-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Insights
-              </span>
-              {hasActiveResult && (
-                <span className="inline-flex items-center gap-1 text-[9px] font-mono font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-1.5 py-0.5 rounded">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  Active
-                </span>
-              )}
-            </div>
+          <button
+            onClick={() => handleNav('privacy')}
+            aria-current={isCurrent('privacy') ? 'page' : undefined}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition font-medium ${
+              isCurrent('privacy')
+                ? 'bg-slate-800 text-white font-semibold border-l-2 border-indigo-400 pl-2.5'
+                : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+            }`}
+          >
+            <ShieldCheck size={15} className={isCurrent('privacy') ? 'text-indigo-400' : 'text-slate-400'} />
+            <span>Privacy and Boundaries</span>
+          </button>
+        </nav>
 
-            <button
-              onClick={() => handleNav('misconceptions')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('misconceptions')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Brain size={16} className={isCurrent('misconceptions') ? 'text-indigo-400' : 'text-slate-400'} />
-                <span>Misconceptions</span>
-              </div>
-            </button>
+        {/* Secondary Sample Exploration */}
+        <div className="p-3 border-t border-slate-800 space-y-2">
+          <button
+            onClick={onQuickDemo}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md text-xs text-slate-300 bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 hover:text-white transition"
+          >
+            <span>Load Demo Dataset</span>
+            <span className="text-[10px] text-slate-400">12 items</span>
+          </button>
 
-            <button
-              onClick={() => handleNav('interventions')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('interventions')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <UsersRound size={16} className={isCurrent('interventions') ? 'text-indigo-400' : 'text-slate-400'} />
-                <span>Intervention Groups</span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleNav('lesson-plans')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('lesson-plans')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <BookOpen size={16} className={isCurrent('lesson-plans') ? 'text-indigo-400' : 'text-slate-400'} />
-                <span>Lesson Plans</span>
-              </div>
-              <span className="text-[10px] font-mono text-indigo-300 bg-indigo-950/60 px-1.5 py-0.5 rounded">
-                25 min
-              </span>
-            </button>
-          </div>
-
-          {/* Section: Trust & Governance */}
-          <div className="space-y-1">
-            <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Trust &amp; Governance
-            </span>
-
-            <button
-              onClick={() => handleNav('evidence')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('evidence')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <FileCheck size={16} className={isCurrent('evidence') ? 'text-emerald-400' : 'text-slate-400'} />
-                <span>Evidence Citations</span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleNav('privacy')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors font-medium ${
-                isCurrent('privacy')
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck size={16} className={isCurrent('privacy') ? 'text-emerald-400' : 'text-slate-400'} />
-                <span>Privacy &amp; AI Boundary</span>
-              </div>
-            </button>
-          </div>
-
-          {/* Golden Demo Quick Launcher */}
-          <div className="pt-2">
-            <button
-              onClick={onQuickDemo}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-br from-slate-800/90 to-indigo-950/50 border border-slate-700/80 hover:border-indigo-500/50 text-left transition group"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                  <Sparkles size={14} className="text-amber-400 shrink-0" />
-                  <span>Try Classroom Demo</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-snug">
-                  12 Vietnamese G10 English submissions
-                </p>
-              </div>
-              <ChevronRight size={14} className="text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition" />
-            </button>
-          </div>
-        </div>
-
-        {/* Sidebar Bottom: Help, Charter & Teacher Profile */}
-        <div className="p-3 border-t border-slate-800/80 space-y-2 bg-[#0A0F1D]/80">
-          <div className="flex items-center justify-between px-2 text-[11px] text-slate-400">
+          <div className="flex items-center justify-between px-1 text-[11px] text-slate-400 pt-1">
             <button
               onClick={onOpenHowItWorks}
-              className="flex items-center gap-1.5 hover:text-white transition"
+              className="flex items-center gap-1 hover:text-white transition"
             >
-              <HelpCircle size={13} />
-              <span>How it works</span>
+              <HelpCircle size={12} />
+              <span>Methodology</span>
             </button>
             <button
               onClick={onOpenResponsibleAI}
@@ -309,18 +215,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* Teacher Profile Card */}
-          <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-900/60 text-indigo-300 font-bold text-xs border border-indigo-700/50">
+          {/* Compact Teacher Identity */}
+          <div className="flex items-center gap-2.5 pt-1 px-1">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-slate-300 font-semibold text-[10px] border border-slate-700">
               LA
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-white truncate">
+              <p className="text-xs font-medium text-slate-200 truncate">
                 Ms. Lan Anh
               </p>
-              <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                <GraduationCap size={10} className="text-slate-400" />
-                Grade 10 English Teacher
+              <p className="text-[10px] text-slate-500 truncate">
+                Grade 10 English
               </p>
             </div>
           </div>
