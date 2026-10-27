@@ -1,16 +1,22 @@
+-- Authoritative SQL Metric Definitions for LotusLearn
+
 -- Query 1: Total accepted events count
 SELECT COUNT(*) AS total_accepted_events
 FROM analytical_events;
 
--- Query 2: Distinct pseudonymous students count across cohorts
+-- Query 2: Run-scoped student appearances count across cohorts
+SELECT COUNT(*) AS run_scoped_student_appearances_count
+FROM v_run_scoped_students;
+
+-- Query 3: Distinct student identifiers count
 SELECT COUNT(*) AS distinct_students_count
 FROM v_distinct_students;
 
--- Query 3: Total diagnostic analysis runs
+-- Query 4: Total diagnostic analysis runs
 SELECT COUNT(*) AS total_analysis_runs
 FROM analysis_runs;
 
--- Query 4: Misconception clusters with prevalence rates
+-- Query 5: Misconception clusters with prevalence rates
 SELECT
     analysis_run_id,
     cluster_id,
@@ -22,7 +28,7 @@ SELECT
 FROM v_cohort_prevalence
 ORDER BY prevalence_rate DESC, teaching_priority ASC;
 
--- Query 5: Global Educator Modification Rate (R_mod)
+-- Query 6: Global Educator Modification Rate (R_mod)
 SELECT
     COALESCE(SUM(count_accepted), 0) AS total_accepted,
     COALESCE(SUM(count_edited), 0) AS total_edited,

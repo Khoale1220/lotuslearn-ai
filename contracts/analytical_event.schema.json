@@ -46,7 +46,7 @@
         "occurred_at": {
           "type": "string",
           "format": "date-time",
-          "description": "ISO 8601 UTC timestamp inherited from the analysis run domain timestamp."
+          "description": "ISO 8601 UTC timestamp representing the moment the factual event occurred."
         },
         "analysis_run_id": {
           "type": "string",
@@ -272,7 +272,8 @@
           "required": [
             "target_type",
             "target_id",
-            "teacher_decision"
+            "teacher_decision",
+            "decision_recorded_at"
           ],
           "properties": {
             "event_type": { "const": "DECISION_RECORDED" },
@@ -287,7 +288,11 @@
             },
             "teacher_decision": {
               "type": "string",
-              "enum": ["pending", "accepted", "edited", "dismissed"]
+              "enum": ["accepted", "edited", "dismissed"]
+            },
+            "decision_recorded_at": {
+              "type": "string",
+              "format": "date-time"
             },
             "notes": {
               "type": "string",

@@ -96,6 +96,7 @@ export interface MisconceptionCluster {
   recommendedInstructionalResponse: string;
   status?: TeacherDecision;
   teacherDecision?: TeacherDecision;
+  decisionRecordedAt?: string;
 }
 
 export interface InstructionalGroup {
@@ -142,6 +143,7 @@ export interface DifferentiatedIntervention {
   exitTicketQuestion: string;
   status?: TeacherDecision;
   teacherDecision?: TeacherDecision;
+  decisionRecordedAt?: string;
 }
 
 export interface VerificationResult {

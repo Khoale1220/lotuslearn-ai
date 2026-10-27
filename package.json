@@ -14,11 +14,11 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test server/services/pipelineRegression.test.ts server/services/analyticalEventProducer.test.ts",
-    "test:python": "PYTHONPATH=. pytest pipelines/tests",
+    "test": "tsx --test server/services/pipelineRegression.test.ts server/services/analyticalEventProducer.test.ts src/context/ThemeContext.test.ts",
+    "test:python": "pytest pipelines/tests",
     "lint": "oxlint",
     "lint:python": "ruff check pipelines",
-    "pipeline:run": "tsx scripts/export_demo_events.ts /tmp/demo_events.json && PYTHONPATH=. python3 -m pipelines.cli --input /tmp/demo_events.json --db lotuslearn_analytics.db --metrics"
+    "pipeline:run": "tsx scripts/export_demo_events.ts /tmp/demo_events.json && python3 -m lotuslearn_pipeline.cli --input /tmp/demo_events.json --db lotuslearn_analytics.db --metrics"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

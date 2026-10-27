@@ -1,8 +1,9 @@
 """Unit tests for analytical event validation and privacy boundaries."""
 
 import pytest
-from pipelines.ingestion import AnalyticalEventValidator, validate_event_batch
-from pipelines.models import IngestionOutcome
+
+from lotuslearn_pipeline.ingestion import AnalyticalEventValidator, validate_event_batch
+from lotuslearn_pipeline.models import IngestionOutcome
 
 
 @pytest.fixture

@@ -59,6 +59,7 @@ describe('Analytical Event Producer (DE-01)', () => {
         confidence: 0.92,
         recommendedInstructionalResponse: 'Timeline sorting exercise',
         teacherDecision: 'accepted',
+        decisionRecordedAt: '2026-10-26T10:15:00.000Z',
       },
     ],
     instructionalGroups: [
@@ -93,6 +94,7 @@ describe('Analytical Event Producer (DE-01)', () => {
         exampleQuestion: 'I ___ visited my grandmother yesterday.',
         exitTicketQuestion: 'Write one sentence with since and one with yesterday.',
         teacherDecision: 'accepted',
+        decisionRecordedAt: '2026-10-26T10:20:00.000Z',
       },
     ],
     verification: {
@@ -133,11 +135,15 @@ describe('Analytical Event Producer (DE-01)', () => {
 
     for (let i = 0; i < events1.length; i++) {
       assert.strictEqual(events1[i].event_id, events2[i].event_id);
-      assert.strictEqual(events1[i].occurred_at, mockAnalysisResult.timestamp);
+      if (events1[i].event_type === 'DECISION_RECORDED') {
+        assert.notStrictEqual(events1[i].occurred_at, mockAnalysisResult.timestamp);
+      } else {
+        assert.strictEqual(events1[i].occurred_at, mockAnalysisResult.timestamp);
+      }
     }
   });
 
-  it('emits all 5 core analytical event types with required fields', () => {
+  it('emits all 5 core analytical event types with truthful, non-fabricated fields', () => {
     const events = produceAnalyticalEvents(mockAnalysisResult);
     const eventTypes = events.map((e) => e.event_type);
 
@@ -156,25 +162,130 @@ describe('Analytical Event Producer (DE-01)', () => {
       'a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890'
     );
     assert.strictEqual(ingested.submission_count, 5);
+    assert.strictEqual(ingested.subject, 'English Language Arts');
+    assert.strictEqual(ingested.grade_level, 'Grade 10');
 
     const finding = events.find((e) => e.event_type === 'FINDING_IDENTIFIED')!;
     assert.strictEqual(finding.finding_id, 'cluster-time-markers');
     assert.strictEqual(finding.provenance, 'gemini');
+    assert.strictEqual(finding.teaching_priority, 'urgent');
     assert.deepStrictEqual(finding.affected_student_ids, ['Student 01', 'Student 03']);
 
     const group = events.find((e) => e.event_type === 'GROUP_FORMED')!;
     assert.strictEqual(group.group_id, 'group-guided-practice');
     assert.strictEqual(group.student_count, 2);
+    assert.strictEqual(group.suggested_activity, 'Adverb sorting drill');
 
     const audit = events.find((e) => e.event_type === 'VERIFICATION_AUDITED')!;
     assert.strictEqual(audit.overall_status, 'verified');
     assert.strictEqual(audit.coverage_passed, true);
     assert.strictEqual(audit.cluster_math_passed, true);
+    assert.strictEqual(audit.group_partition_passed, true);
 
-    const decisions = events.filter((e) => e.event_type === 'DECISION_RECORDED');
+    const decisions = events.filter((e) => e.event_type === 'DECISION_RECORDED') as any[];
     assert.strictEqual(decisions.length, 2); // 1 for cluster, 1 for intervention
     assert.strictEqual(decisions[0].provenance, 'human');
     assert.strictEqual(decisions[0].teacher_decision, 'accepted');
+    // Human decision timestamp MUST NOT inherit analysis run timestamp
+    assert.strictEqual(decisions[0].occurred_at, '2026-10-26T10:15:00.000Z');
+    assert.strictEqual(decisions[0].decision_recorded_at, '2026-10-26T10:15:00.000Z');
+    assert.notStrictEqual(decisions[0].occurred_at, mockAnalysisResult.timestamp);
+
+    assert.strictEqual(decisions[1].occurred_at, '2026-10-26T10:20:00.000Z');
+  });
+
+  it('rejects event generation when subject or gradeLevel is missing from context', () => {
+    const invalidResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    delete invalidResult.context.subject;
+
+    assert.throws(
+      () => produceAnalyticalEvents(invalidResult),
+      /missing subject in analysis context/
+    );
+
+    const invalidGradeResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    invalidGradeResult.context.gradeLevel = '';
+    assert.throws(
+      () => produceAnalyticalEvents(invalidGradeResult),
+      /missing grade_level in analysis context/
+    );
+  });
+
+  it('rejects event generation when submission count is missing or zero', () => {
+    const invalidResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    delete invalidResult.classSnapshot.totalSubmissions;
+    invalidResult.studentObservations = [];
+
+    assert.throws(
+      () => produceAnalyticalEvents(invalidResult),
+      /missing or invalid submission_count/
+    );
+  });
+
+  it('rejects cluster without explicit teachingPriority', () => {
+    const invalidResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    delete invalidResult.misconceptionClusters[0].teachingPriority;
+
+    assert.throws(
+      () => produceAnalyticalEvents(invalidResult),
+      /missing teachingPriority/
+    );
+  });
+
+  it('fails closed when verification checks are missing or malformed', () => {
+    const invalidResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    delete invalidResult.verification.deterministicChecks.coveragePassed;
+
+    assert.throws(
+      () => produceAnalyticalEvents(invalidResult),
+      /missing mandatory deterministic check booleans/
+    );
+  });
+
+  it('omits VERIFICATION_AUDITED truthfully when verification is not performed', () => {
+    const unverifiedResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    delete unverifiedResult.verification;
+
+    const events = produceAnalyticalEvents(unverifiedResult);
+    const hasVerification = events.some((e) => e.event_type === 'VERIFICATION_AUDITED');
+    assert.strictEqual(hasVerification, false);
+  });
+
+  it('never emits DECISION_RECORDED for pending recommendation state', () => {
+    const pendingResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    pendingResult.misconceptionClusters[0].teacherDecision = 'pending';
+    pendingResult.interventions[0].teacherDecision = 'pending';
+
+    const events = produceAnalyticalEvents(pendingResult);
+    const decisions = events.filter((e) => e.event_type === 'DECISION_RECORDED');
+    assert.strictEqual(decisions.length, 0);
+  });
+
+  it('omits DECISION_RECORDED for legacy items lacking authentic decisionRecordedAt', () => {
+    const legacyResult = JSON.parse(JSON.stringify(mockAnalysisResult));
+    // Accepted but without authentic recorded timestamp
+    delete legacyResult.misconceptionClusters[0].decisionRecordedAt;
+    delete legacyResult.interventions[0].decisionRecordedAt;
+
+    const events = produceAnalyticalEvents(legacyResult);
+    const decisions = events.filter((e) => e.event_type === 'DECISION_RECORDED');
+    assert.strictEqual(decisions.length, 0);
+  });
+
+  it('produces distinct event IDs for distinct decision actions across time', () => {
+    const action1Result = JSON.parse(JSON.stringify(mockAnalysisResult));
+    action1Result.misconceptionClusters[0].decisionRecordedAt = '2026-10-26T10:15:00.000Z';
+
+    const action2Result = JSON.parse(JSON.stringify(mockAnalysisResult));
+    action2Result.misconceptionClusters[0].decisionRecordedAt = '2026-10-26T10:25:00.000Z';
+
+    const events1 = produceAnalyticalEvents(action1Result);
+    const events2 = produceAnalyticalEvents(action2Result);
+
+    const dec1 = events1.find((e) => e.event_type === 'DECISION_RECORDED')!;
+    const dec2 = events2.find((e) => e.event_type === 'DECISION_RECORDED')!;
+
+    assert.notStrictEqual(dec1.event_id, dec2.event_id);
   });
 
   it('fails closed when personal email or phone number is present in analytical event', () => {

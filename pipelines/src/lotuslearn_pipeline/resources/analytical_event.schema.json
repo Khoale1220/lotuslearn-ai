@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lotuslearn.org/schemas/analytical_event.schema.json",
+  "title": "LotusLearn Analytical Event",
+  "description": "Canonical analytical event contract for educational diagnostic assessment and learning analytics. Enforces zero student PII, deterministic identity, and strict provenance.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/AnalysisIngestedEvent" },
+    { "$ref": "#/$defs/FindingIdentifiedEvent" },
+    { "$ref": "#/$defs/GroupFormedEvent" },
+    { "$ref": "#/$defs/VerificationAuditedEvent" },
+    { "$ref": "#/$defs/DecisionRecordedEvent" }
+  ],
+  "$defs": {
+    "BaseEnvelope": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "event_id",
+        "event_type",
+        "occurred_at",
+        "analysis_run_id",
+        "provenance"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^1\\.[0-9]+\\.[0-9]+$",
+          "description": "Semantic schema version of the event envelope."
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Deterministic SHA-256 hex digest identifying this unique event."
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "ANALYSIS_INGESTED",
+            "FINDING_IDENTIFIED",
+            "GROUP_FORMED",
+            "VERIFICATION_AUDITED",
+            "DECISION_RECORDED"
+          ]
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp representing the moment the factual event occurred."
+        },
+        "analysis_run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Identifier linking events within a single diagnostic analysis run."
+        },
+        "provenance": {
+          "type": "string",
+          "enum": [
+            "source",
+            "gemini",
+            "deterministic_code",
+            "gemini_verifier",
+            "human"
+          ],
+          "description": "System or human origin component that produced the underlying artifact."
+        }
+      }
+    },
+    "AnalysisIngestedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/BaseEnvelope" },
+        {
+          "type": "object",
+          "required": [
+            "dataset_fingerprint",
+            "submission_count",
+            "subject",
+            "grade_level"
+          ],
+          "properties": {
+            "event_type": { "const": "ANALYSIS_INGESTED" },
+            "dataset_fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Deterministic SHA-256 fingerprint of the normalized classroom submissions."
+            },
+            "submission_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Count of student submissions in the diagnostic cohort."
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "grade_level": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "total_duration_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "execution_mode": {
+              "type": "string",
+              "enum": ["live_gemini", "demo_resilience"]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FindingIdentifiedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/BaseEnvelope" },
+        {
+          "type": "object",
+          "required": [
+            "finding_id",
+            "concept",
+            "teaching_priority",
+            "affected_student_count",
+            "affected_student_ids"
+          ],
+          "properties": {
+            "event_type": { "const": "FINDING_IDENTIFIED" },
+            "finding_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "concept": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 250,
+              "description": "Curricular concept or misconception label."
+            },
+            "teaching_priority": {
+              "type": "string",
+              "enum": ["urgent", "high", "moderate"]
+            },
+            "affected_student_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "affected_student_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "uniqueItems": true,
+              "description": "Pseudonymous student identifiers exhibiting this misconception."
+            },
+            "percentage_affected": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "explanation": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "GroupFormedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/BaseEnvelope" },
+        {
+          "type": "object",
+          "required": [
+            "group_id",
+            "group_name",
+            "student_count",
+            "student_ids",
+            "suggested_activity"
+          ],
+          "properties": {
+            "event_type": { "const": "GROUP_FORMED" },
+            "group_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "group_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "student_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "student_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "uniqueItems": true,
+              "description": "Assigned cohort members for targeted intervention."
+            },
+            "suggested_activity": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "estimated_duration": {
+              "type": "string",
+              "maxLength": 50
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "VerificationAuditedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/BaseEnvelope" },
+        {
+          "type": "object",
+          "required": [
+            "overall_status",
+            "coverage_passed",
+            "cluster_math_passed",
+            "group_partition_passed",
+            "quotes_grounded_count",
+            "quotes_flagged_count"
+          ],
+          "properties": {
+            "event_type": { "const": "VERIFICATION_AUDITED" },
+            "overall_status": {
+              "type": "string",
+              "enum": ["verified", "partially_verified", "needs_review"]
+            },
+            "coverage_passed": {
+              "type": "boolean"
+            },
+            "cluster_math_passed": {
+              "type": "boolean"
+            },
+            "group_partition_passed": {
+              "type": "boolean"
+            },
+            "quotes_grounded_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "quotes_flagged_count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "DecisionRecordedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/BaseEnvelope" },
+        {
+          "type": "object",
+          "required": [
+            "target_type",
+            "target_id",
+            "teacher_decision",
+            "decision_recorded_at"
+          ],
+          "properties": {
+            "event_type": { "const": "DECISION_RECORDED" },
+            "target_type": {
+              "type": "string",
+              "enum": ["misconception_cluster", "differentiated_intervention"]
+            },
+            "target_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "teacher_decision": {
+              "type": "string",
+              "enum": ["accepted", "edited", "dismissed"]
+            },
+            "decision_recorded_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "notes": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

@@ -1,15 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lotuslearn-pipelines"
+name = "lotuslearn-pipeline"
 version = "0.1.0"
 description = "LotusLearn analytical event ingestion, quality gates, and relational SQLite metrics pipeline"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "jsonschema>=4.20.0",
+    "rfc3339-validator>=0.1.4",
 ]
 
 [project.optional-dependencies]
@@ -18,8 +19,21 @@ dev = [
     "ruff>=0.1.0",
 ]
 
+[project.scripts]
+lotuslearn-pipeline = "lotuslearn_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+lotuslearn_pipeline = [
+    "resources/*.json",
+    "sql/*.sql",
+]
+
 [tool.pytest.ini_options]
-testpaths = ["pipelines/tests"]
+testpaths = ["tests", "pipelines/tests"]
+pythonpath = ["src", "pipelines/src"]
 python_files = ["test_*.py"]
 
 [tool.ruff]

@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS group_memberships (
 
 CREATE TABLE IF NOT EXISTS verifications (
     analysis_run_id TEXT PRIMARY KEY REFERENCES analysis_runs(run_id) ON DELETE CASCADE,
-    overall_status TEXT NOT NULL,
+    overall_status TEXT NOT NULL CHECK (overall_status IN ('verified', 'partially_verified', 'needs_review')),
     coverage_passed INTEGER NOT NULL CHECK (coverage_passed IN (0, 1)),
     cluster_math_passed INTEGER NOT NULL CHECK (cluster_math_passed IN (0, 1)),
     group_partition_passed INTEGER NOT NULL CHECK (group_partition_passed IN (0, 1)),
@@ -80,20 +80,36 @@ CREATE TABLE IF NOT EXISTS verifications (
     quotes_flagged_count INTEGER NOT NULL DEFAULT 0
 );
 
+-- Historical educator actions stream (all recorded human decisions across time)
 CREATE TABLE IF NOT EXISTS teacher_decisions (
     analysis_run_id TEXT NOT NULL REFERENCES analysis_runs(run_id) ON DELETE CASCADE,
     target_type TEXT NOT NULL,
     target_id TEXT NOT NULL,
-    teacher_decision TEXT NOT NULL CHECK (teacher_decision IN ('pending', 'accepted', 'edited', 'dismissed')),
+    teacher_decision TEXT NOT NULL CHECK (teacher_decision IN ('accepted', 'edited', 'dismissed')),
     notes TEXT,
     recorded_at TEXT NOT NULL,
-    PRIMARY KEY (analysis_run_id, target_type, target_id, teacher_decision)
+    PRIMARY KEY (analysis_run_id, target_type, target_id, recorded_at)
 );
 
+-- Current teacher decision projection (tracks latest decision per target)
+CREATE TABLE IF NOT EXISTS current_teacher_decisions (
+    analysis_run_id TEXT NOT NULL REFERENCES analysis_runs(run_id) ON DELETE CASCADE,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    teacher_decision TEXT NOT NULL CHECK (teacher_decision IN ('accepted', 'edited', 'dismissed')),
+    notes TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (analysis_run_id, target_type, target_id)
+);
+
+-- Append-only ingestion audit log
 CREATE TABLE IF NOT EXISTS ingestion_audit_log (
-    event_id TEXT PRIMARY KEY,
+    attempt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id TEXT NOT NULL,
     event_type TEXT,
-    outcome TEXT NOT NULL CHECK (outcome IN ('accepted', 'duplicate', 'rejected')),
+    outcome TEXT NOT NULL CHECK (outcome IN ('accepted', 'duplicate', 'conflict', 'rejected')),
     rejection_reason TEXT,
     processed_at TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_audit_event_id ON ingestion_audit_log(event_id);

@@ -320,12 +320,14 @@ export default function App() {
     newTitle?: string
   ) => {
     if (!activeAnalysis) return;
+    const nowIso = new Date().toISOString();
     const updatedClusters = activeAnalysis.misconceptionClusters.map((c) => {
       if (c.clusterId === clusterId) {
         return {
           ...c,
           status,
           teacherDecision: status,
+          decisionRecordedAt: nowIso,
           misconceptionTitle:
             newTitle && newTitle.trim() ? newTitle.trim() : c.misconceptionTitle,
         };
@@ -346,9 +348,10 @@ export default function App() {
     status: TeacherDecision
   ) => {
     if (!activeAnalysis) return;
+    const nowIso = new Date().toISOString();
     const updatedInterventions = activeAnalysis.interventions.map((i) =>
       i.interventionId === interventionId
-        ? { ...i, status, teacherDecision: status }
+        ? { ...i, status, teacherDecision: status, decisionRecordedAt: nowIso }
         : i
     );
     const updated = {
@@ -369,7 +372,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex font-sans selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 flex font-sans selection:bg-indigo-100 selection:text-indigo-900 transition-colors">
       {/* Persistent Desktop Sidebar */}
       <Sidebar
         activeView={currentView}
@@ -497,30 +500,30 @@ export default function App() {
         </main>
 
         {/* Global Restrained Footer */}
-        <footer className="border-t border-slate-200 bg-white py-6 text-xs text-slate-500">
+        <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 py-6 text-xs text-slate-500 dark:text-slate-400 transition-colors">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-800">LotusLearn</span>
-              <span className="text-slate-300">/</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200">LotusLearn</span>
+              <span className="text-slate-300 dark:text-slate-700">/</span>
               <span>Evidence-grounded formative assessment</span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-slate-500">
+            <div className="flex flex-wrap items-center gap-4 text-slate-500 dark:text-slate-400">
               <button
                 onClick={() => setIsHowItWorksOpen(true)}
-                className="hover:text-slate-900 transition"
+                className="hover:text-slate-900 dark:hover:text-slate-200 transition"
               >
                 6-Stage Pipeline
               </button>
               <button
                 onClick={() => setCurrentView('privacy')}
-                className="hover:text-slate-900 transition"
+                className="hover:text-slate-900 dark:hover:text-slate-200 transition"
               >
                 Privacy Model
               </button>
               <button
                 onClick={() => setIsResponsibleAIModalOpen(true)}
-                className="hover:text-slate-900 underline underline-offset-2"
+                className="hover:text-slate-900 dark:hover:text-slate-200 underline underline-offset-2"
               >
                 Responsible AI Charter
               </button>

@@ -1,8 +1,5 @@
 import crypto from 'node:crypto';
-import {
-  ClassAnalysisResult,
-  TeacherDecision,
-} from '../../src/types';
+import { ClassAnalysisResult } from '../../src/types';
 
 export type AnalyticalEventType =
   | 'ANALYSIS_INGESTED'
@@ -72,7 +69,8 @@ export interface DecisionRecordedEvent extends BaseAnalyticalEnvelope {
   event_type: 'DECISION_RECORDED';
   target_type: 'misconception_cluster' | 'differentiated_intervention';
   target_id: string;
-  teacher_decision: TeacherDecision;
+  teacher_decision: 'accepted' | 'edited' | 'dismissed';
+  decision_recorded_at: string;
   notes?: string;
 }
 
@@ -190,6 +188,24 @@ export function produceAnalyticalEvents(
     throw new Error('Invalid analysis result: missing timestamp.');
   }
 
+  if (!result.context?.subject || !result.context.subject.trim()) {
+    throw new Error('Analytical event rejected: missing subject in analysis context.');
+  }
+
+  if (!result.context?.gradeLevel || !result.context.gradeLevel.trim()) {
+    throw new Error('Analytical event rejected: missing grade_level in analysis context.');
+  }
+
+  const submissionCount =
+    result.classSnapshot?.totalSubmissions ??
+    (result.studentObservations && result.studentObservations.length > 0
+      ? result.studentObservations.length
+      : undefined);
+
+  if (typeof submissionCount !== 'number' || submissionCount < 1) {
+    throw new Error('Analytical event rejected: missing or invalid submission_count.');
+  }
+
   const events: AnalyticalEvent[] = [];
   const runId = result.id;
   const occurredAt = result.timestamp;
@@ -200,7 +216,13 @@ export function produceAnalyticalEvents(
     crypto
       .createHash('sha256')
       .update(
-        (result.studentObservations || []).map((o) => o.studentId).sort().join(',')
+        (result.studentObservations || [])
+          .map(
+            (o) =>
+              `${o.studentId}:${o.demonstratedUnderstanding?.slice().sort().join(',') || ''}:${(o.misconceptions || []).slice().sort().join(',')}`
+          )
+          .sort()
+          .join(';')
       )
       .digest('hex');
 
@@ -212,12 +234,9 @@ export function produceAnalyticalEvents(
     analysis_run_id: runId,
     provenance: 'source',
     dataset_fingerprint: datasetFingerprint,
-    submission_count:
-      result.classSnapshot?.totalSubmissions ||
-      result.studentObservations?.length ||
-      1,
-    subject: result.context?.subject || 'English Language Arts',
-    grade_level: result.context?.gradeLevel || 'Grade 10',
+    submission_count: submissionCount,
+    subject: result.context.subject,
+    grade_level: result.context.gradeLevel,
     total_duration_ms: result.executionMetadata?.totalDurationMs,
     execution_mode: result.executionMetadata?.executionMode,
   };
@@ -226,12 +245,17 @@ export function produceAnalyticalEvents(
 
   // 2. FINDING_IDENTIFIED events (one per misconception cluster)
   if (Array.isArray(result.misconceptionClusters)) {
-    // Sort clusters by clusterId for deterministic ordering
     const sortedClusters = [...result.misconceptionClusters].sort((a, b) =>
       a.clusterId.localeCompare(b.clusterId)
     );
 
     for (const cluster of sortedClusters) {
+      if (!cluster.teachingPriority) {
+        throw new Error(
+          `Analytical event rejected: cluster ${cluster.clusterId} is missing teachingPriority.`
+        );
+      }
+
       const studentIds = [...(cluster.affectedStudentIds || [])].sort();
       const findingEvent: FindingIdentifiedEvent = {
         schema_version: '1.0.0',
@@ -242,7 +266,7 @@ export function produceAnalyticalEvents(
         provenance: 'gemini',
         finding_id: cluster.clusterId,
         concept: cluster.misconceptionTitle,
-        teaching_priority: cluster.teachingPriority || 'moderate',
+        teaching_priority: cluster.teachingPriority,
         affected_student_count: cluster.studentCount || studentIds.length,
         affected_student_ids: studentIds,
         percentage_affected: cluster.percentageAffected,
@@ -251,23 +275,32 @@ export function produceAnalyticalEvents(
       assertZeroPII(findingEvent);
       events.push(findingEvent);
 
-      // If cluster has an explicit educator decision, emit DECISION_RECORDED
+      // Human educator decisions:
+      // Real human decision must be accepted, edited, or dismissed. Never pending.
+      // Must have authentic decisionRecordedAt; never inherit analysis timestamp.
+      // Legacy records without decisionRecordedAt must not receive a fabricated timestamp.
       const clusterDecision = cluster.teacherDecision || cluster.status;
-      if (clusterDecision) {
+      if (
+        clusterDecision &&
+        clusterDecision !== 'pending' &&
+        ['accepted', 'edited', 'dismissed'].includes(clusterDecision) &&
+        cluster.decisionRecordedAt
+      ) {
         const decisionEvent: DecisionRecordedEvent = {
           schema_version: '1.0.0',
           event_id: computeEventId(
             'DECISION_RECORDED',
             runId,
-            `cluster:${cluster.clusterId}:${clusterDecision}`
+            `cluster:${cluster.clusterId}:${clusterDecision}:${cluster.decisionRecordedAt}`
           ),
           event_type: 'DECISION_RECORDED',
-          occurred_at: occurredAt,
+          occurred_at: cluster.decisionRecordedAt,
           analysis_run_id: runId,
           provenance: 'human',
           target_type: 'misconception_cluster',
           target_id: cluster.clusterId,
-          teacher_decision: clusterDecision,
+          teacher_decision: clusterDecision as 'accepted' | 'edited' | 'dismissed',
+          decision_recorded_at: cluster.decisionRecordedAt,
         };
         assertZeroPII(decisionEvent);
         events.push(decisionEvent);
@@ -282,6 +315,12 @@ export function produceAnalyticalEvents(
     );
 
     for (const group of sortedGroups) {
+      if (!group.suggestedActivity || !group.suggestedActivity.trim()) {
+        throw new Error(
+          `Analytical event rejected: group ${group.groupId} is missing suggestedActivity.`
+        );
+      }
+
       const groupStudentIds = [...(group.studentIds || [])].sort();
       const groupEvent: GroupFormedEvent = {
         schema_version: '1.0.0',
@@ -294,7 +333,7 @@ export function produceAnalyticalEvents(
         group_name: group.groupName,
         student_count: groupStudentIds.length,
         student_ids: groupStudentIds,
-        suggested_activity: group.suggestedActivity || 'Targeted small group practice',
+        suggested_activity: group.suggestedActivity,
         estimated_duration: group.estimatedDuration,
       };
       assertZeroPII(groupEvent);
@@ -303,7 +342,28 @@ export function produceAnalyticalEvents(
   }
 
   // 4. VERIFICATION_AUDITED event
+  // Missing verification must NEVER become successful verification.
+  // Missing status does not become verified.
+  // Missing check booleans do not default to true.
   if (result.verification) {
+    const checks = result.verification.deterministicChecks;
+    if (
+      !checks ||
+      typeof checks.coveragePassed !== 'boolean' ||
+      typeof checks.clusterMathPassed !== 'boolean' ||
+      typeof checks.groupPartitionPassed !== 'boolean'
+    ) {
+      throw new Error(
+        'Analytical event rejected: verification event missing mandatory deterministic check booleans.'
+      );
+    }
+    const status = result.verification.overallStatus;
+    if (!status || !['verified', 'partially_verified', 'needs_review'].includes(status)) {
+      throw new Error(
+        `Analytical event rejected: verification overallStatus is invalid or missing ('${status}').`
+      );
+    }
+
     const verificationEvent: VerificationAuditedEvent = {
       schema_version: '1.0.0',
       event_id: computeEventId('VERIFICATION_AUDITED', runId, 'audit'),
@@ -311,20 +371,12 @@ export function produceAnalyticalEvents(
       occurred_at: occurredAt,
       analysis_run_id: runId,
       provenance: 'deterministic_code',
-      overall_status: result.verification.overallStatus || 'verified',
-      coverage_passed: Boolean(
-        result.verification.deterministicChecks?.coveragePassed ?? true
-      ),
-      cluster_math_passed: Boolean(
-        result.verification.deterministicChecks?.clusterMathPassed ?? true
-      ),
-      group_partition_passed: Boolean(
-        result.verification.deterministicChecks?.groupPartitionPassed ?? true
-      ),
-      quotes_grounded_count:
-        result.verification.deterministicChecks?.quotesGroundedCount ?? 0,
-      quotes_flagged_count:
-        result.verification.deterministicChecks?.quotesFlaggedCount ?? 0,
+      overall_status: status as 'verified' | 'partially_verified' | 'needs_review',
+      coverage_passed: checks.coveragePassed,
+      cluster_math_passed: checks.clusterMathPassed,
+      group_partition_passed: checks.groupPartitionPassed,
+      quotes_grounded_count: checks.quotesGroundedCount ?? 0,
+      quotes_flagged_count: checks.quotesFlaggedCount ?? 0,
     };
     assertZeroPII(verificationEvent);
     events.push(verificationEvent);
@@ -338,21 +390,27 @@ export function produceAnalyticalEvents(
 
     for (const intervention of sortedInterventions) {
       const decision = intervention.teacherDecision || intervention.status;
-      if (decision) {
+      if (
+        decision &&
+        decision !== 'pending' &&
+        ['accepted', 'edited', 'dismissed'].includes(decision) &&
+        intervention.decisionRecordedAt
+      ) {
         const decisionEvent: DecisionRecordedEvent = {
           schema_version: '1.0.0',
           event_id: computeEventId(
             'DECISION_RECORDED',
             runId,
-            `intervention:${intervention.interventionId}:${decision}`
+            `intervention:${intervention.interventionId}:${decision}:${intervention.decisionRecordedAt}`
           ),
           event_type: 'DECISION_RECORDED',
-          occurred_at: occurredAt,
+          occurred_at: intervention.decisionRecordedAt,
           analysis_run_id: runId,
           provenance: 'human',
           target_type: 'differentiated_intervention',
           target_id: intervention.interventionId,
-          teacher_decision: decision,
+          teacher_decision: decision as 'accepted' | 'edited' | 'dismissed',
+          decision_recorded_at: intervention.decisionRecordedAt,
         };
         assertZeroPII(decisionEvent);
         events.push(decisionEvent);
