@@ -71,7 +71,7 @@ jobs:
         run: pytest pipelines/tests
 
       - name: Build Distribution Wheel
-        run: python -m build -n pipelines
+        run: python -m build pipelines
 
       - name: Verify Non-Editable Package Installation from Wheel
         run: |
