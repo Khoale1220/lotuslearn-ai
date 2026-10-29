@@ -31,17 +31,17 @@ export const ClassSnapshotCard: React.FC<ClassSnapshotCardProps> = ({
   ).length;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xs space-y-6">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-2xs space-y-6 text-slate-900 dark:text-slate-100">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-200 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800 gap-4">
         <div>
-          <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider block mb-1">
-            Executive Diagnostic Summary
+          <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider block mb-1">
+            Class Summary
           </span>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             Class Snapshot: {context.lessonTitle}
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {context.subject} / {context.gradeLevel} / Evaluated against lesson objective standard
           </p>
         </div>
@@ -61,51 +61,51 @@ export const ClassSnapshotCard: React.FC<ClassSnapshotCardProps> = ({
       {/* 4 Decision-Oriented Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* Metric 1: Student Submissions */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-1">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-1">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
             Student Submissions
           </span>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono">
             {snapshot.totalSubmissions}
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
             {isCoverageVerified ? 'Complete roster coverage verified' : `${snapshot.totalSubmissions} submissions analyzed`}
           </p>
         </div>
 
         {/* Metric 2: Evidence-Backed Patterns */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-1">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-1">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
             Diagnosed Patterns
           </span>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono">
             {snapshot.misconceptionCount}
           </div>
-          <p className="text-[11px] text-slate-500">Shared class misconception clusters</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Shared class misconception clusters</p>
         </div>
 
         {/* Metric 3: Students Affected by Top Misconception */}
-        <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 space-y-1">
-          <span className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider block">
+        <div className="rounded-xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 p-4 space-y-1">
+          <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wider block">
             Top Pattern Impact
           </span>
-          <div className="text-2xl font-bold text-amber-950 font-mono">
+          <div className="text-2xl font-bold text-amber-950 dark:text-amber-200 font-mono">
             {topCluster ? `${topCount} / ${snapshot.totalSubmissions}` : 'None'}
           </div>
-          <p className="text-[11px] text-amber-800 font-medium truncate">
+          <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium truncate">
             {topCluster ? topCluster.misconceptionTitle : 'No priority misconception identified'}
           </p>
         </div>
 
         {/* Metric 4: Teacher Review Status */}
-        <div className="rounded-xl border border-blue-200/80 bg-blue-50/40 p-4 space-y-1">
-          <span className="text-[11px] font-semibold text-blue-800 uppercase tracking-wider block">
+        <div className="rounded-xl border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 p-4 space-y-1">
+          <span className="text-[11px] font-semibold text-blue-800 dark:text-blue-400 uppercase tracking-wider block">
             Teacher Decisions
           </span>
-          <div className="text-2xl font-bold text-blue-950 font-mono">
+          <div className="text-2xl font-bold text-blue-950 dark:text-blue-200 font-mono">
             {pendingTeacherReviews > 0 ? `${pendingTeacherReviews} Pending` : 'All Reviewed'}
           </div>
-          <p className="text-[11px] text-blue-800 font-medium truncate">
+          <p className="text-[11px] text-blue-800 dark:text-blue-300 font-medium truncate">
             {pendingTeacherReviews > 0 ? 'Educator review required' : 'Decisions recorded'}
           </p>
         </div>
@@ -113,29 +113,29 @@ export const ClassSnapshotCard: React.FC<ClassSnapshotCardProps> = ({
 
       {/* 3 Executive Takeaway Boxes */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-1">
-          <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-4 space-y-1">
+          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
             Strongest Concept Mastered:
           </span>
-          <p className="text-xs text-slate-800 font-medium leading-relaxed">
+          <p className="text-xs text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
             {snapshot.strongestConcept}
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-1">
-          <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider block">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-4 space-y-1">
+          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
             Highest Priority Need:
           </span>
-          <p className="text-xs text-slate-800 font-medium leading-relaxed">
+          <p className="text-xs text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
             {snapshot.highestPriorityNeed}
           </p>
         </div>
 
-        <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4 space-y-1">
-          <span className="text-[11px] font-semibold text-blue-900 uppercase tracking-wider block">
+        <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 p-4 space-y-1">
+          <span className="text-[11px] font-semibold text-blue-900 dark:text-blue-300 uppercase tracking-wider block">
             Recommended Action:
           </span>
-          <p className="text-xs text-blue-950 font-medium leading-relaxed">
+          <p className="text-xs text-blue-950 dark:text-blue-100 font-medium leading-relaxed">
             {snapshot.overallRecommendation}
           </p>
         </div>

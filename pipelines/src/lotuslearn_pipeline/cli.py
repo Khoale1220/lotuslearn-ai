@@ -47,8 +47,8 @@ def main(argv: List[str] = None) -> int:
         "--db",
         "-d",
         type=str,
-        default="lotuslearn_analytics.db",
-        help="Path to SQLite database file (default: lotuslearn_analytics.db)",
+        default=":memory:",
+        help="Path to SQLite database file (default: :memory:)",
     )
     parser.add_argument(
         "--metrics",
@@ -98,8 +98,7 @@ def main(argv: List[str] = None) -> int:
         metrics = db.compute_metrics()
         print("\n--- Educational Learning Analytics Metrics ---")
         print(f"Total accepted events:            {metrics.total_accepted_events}")
-        print(f"Run-scoped student appearances:   {metrics.run_scoped_student_appearances_count}")
-        print(f"Distinct pseudonymous students:   {metrics.distinct_students_count}")
+        print(f"Run-scoped student appearances:   {metrics.student_appearances}")
         mod_rate = (
             f"{metrics.educator_modification_rate:.4f}"
             if metrics.educator_modification_rate is not None

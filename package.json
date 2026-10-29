@@ -1,5 +1,5 @@
 {
-  "name": "lotuslearn-ai",
+  "name": "lotuslearn",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -18,7 +18,7 @@
     "test:python": "pytest pipelines/tests",
     "lint": "oxlint",
     "lint:python": "ruff check pipelines",
-    "pipeline:run": "tsx scripts/export_demo_events.ts /tmp/demo_events.json && python3 -m lotuslearn_pipeline.cli --input /tmp/demo_events.json --db lotuslearn_analytics.db --metrics"
+    "pipeline:run": "tsx scripts/export_demo_events.ts /tmp/demo_events.json && python -m lotuslearn_pipeline.cli --input /tmp/demo_events.json --metrics"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

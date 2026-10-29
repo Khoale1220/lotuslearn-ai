@@ -19,7 +19,6 @@ import {
   Clock,
   Cpu,
   Layers,
-  Sparkles,
 } from 'lucide-react';
 import { GlowEdgeCard } from './GlowEdgeCard';
 import { ProvenanceBadge } from './ProvenanceBadge';
@@ -192,22 +191,22 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
       {/* Horizontal Compact Pipeline Overview Wrapped in GlowEdgeCard */}
       <GlowEdgeCard variant="ai" className="shadow-xs">
         <div className="p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
                 <Cpu size={16} />
               </span>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">
-                    AI Contribution Trace
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Model Trace
                   </span>
-                  <span className="text-slate-300">/</span>
-                  <span className="text-[11px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 font-semibold">
+                  <span className="text-slate-300 dark:text-slate-700">/</span>
+                  <span className="text-[11px] font-mono text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800 font-semibold">
                     7-Stage Provenance Flow
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Full lineage connecting source student work → Gemini extraction → code verification → pedagogical strategy → teacher decision.
                 </p>
               </div>
@@ -215,12 +214,12 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
 
             <div className="flex items-center gap-2 shrink-0">
               {isDemo ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-medium bg-amber-50 text-amber-900 border border-amber-200">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                   mode: demo_resilience
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-medium bg-emerald-50 text-emerald-900 border border-emerald-200">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   mode: live_gemini ({Math.round((metadata?.totalDurationMs || 0) / 1000)}s)
                 </span>
@@ -229,11 +228,11 @@ export const AIContributionTrace: React.FC<AIContributionTraceProps> = ({
               {onOpenDrawer && (
                 <button
                   onClick={onOpenDrawer}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-900 transition shadow-2xs"
-                  aria-label="Open detailed AI Contribution Trace Drawer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 px-3 py-1.5 text-xs font-semibold text-indigo-900 dark:text-indigo-200 transition shadow-2xs"
+                  aria-label="Open detailed Model Trace Drawer"
                 >
-                  <Cpu size={13} className="text-indigo-600" />
-                  <span>View AI Contribution Trace</span>
+                  <Cpu size={13} className="text-indigo-600 dark:text-indigo-400" />
+                  <span>View Model Trace</span>
                   <ChevronRight size={13} />
                 </button>
               )}
@@ -362,29 +361,29 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
     >
       <div
         ref={drawerRef}
-        className="w-full max-w-2xl bg-white h-full shadow-2xl overflow-y-auto flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300"
+        className="w-full max-w-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 h-full shadow-2xl overflow-y-auto flex flex-col border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-300"
         role="dialog"
         aria-modal="true"
         aria-labelledby="trace-drawer-title"
       >
         {/* Drawer Header */}
-        <div className="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-20">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-20">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
               <Cpu size={20} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">
                   Technical Transparency Log
                 </span>
-                <span className="text-slate-300">/</span>
-                <span className="text-[11px] font-mono text-slate-500">
+                <span className="text-slate-300 dark:text-slate-700">/</span>
+                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                   Visible Intelligence
                 </span>
               </div>
-              <h2 id="trace-drawer-title" className="text-lg font-bold text-slate-900">
-                Full AI Contribution Trace
+              <h2 id="trace-drawer-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                Full Model Trace
               </h2>
             </div>
           </div>
@@ -392,7 +391,7 @@ export const AITraceDrawer: React.FC<AITraceDrawerProps> = ({
           <button
             ref={closeButtonRef}
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             aria-label="Close Trace Drawer"
           >
             <X size={18} />

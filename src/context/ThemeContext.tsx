@@ -67,18 +67,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return theme;
   }, [theme, systemTheme]);
 
-  // Synchronize DOM elements (both data-theme and .dark class for CSS consistency)
+  // Synchronize DOM elements (authoritative data-theme and colorScheme)
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
     const root = document.documentElement;
     root.setAttribute('data-theme', resolvedTheme);
-
-    if (resolvedTheme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    root.style.colorScheme = resolvedTheme;
   }, [resolvedTheme]);
 
   const setTheme = useCallback((newTheme: ThemeMode) => {

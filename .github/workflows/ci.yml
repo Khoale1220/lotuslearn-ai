@@ -59,16 +59,24 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: Install Python package and dev dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest jsonschema
+          pip install -e "./pipelines[dev]"
 
       - name: Python Lint (ruff)
         run: ruff check pipelines
 
       - name: Python Automated Pipeline Tests (pytest)
-        run: PYTHONPATH=. pytest pipelines/tests
+        run: pytest pipelines/tests
+
+      - name: Build Distribution Wheel
+        run: python -m build -n pipelines
+
+      - name: Verify Non-Editable Package Installation from Wheel
+        run: |
+          pip install --force-reinstall pipelines/dist/*.whl
+          python -c "import lotuslearn_pipeline; print('Installed package import successful')"
 
       - name: Run DE-01 End-to-End Pipeline Smoke Test
         run: npm run pipeline:run

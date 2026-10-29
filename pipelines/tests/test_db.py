@@ -241,9 +241,38 @@ def test_run_scoped_pseudonym_metric_semantics(db, run_event, finding_event):
 
     metrics = db.compute_metrics()
     # Run A has 5 students, Run B has 1 student => 6 appearances across cohorts
+    assert metrics.student_appearances == 6
     assert metrics.run_scoped_student_appearances_count == 6
-    # Distinct strings across runs is 5 ("Student 01" through "Student 05")
-    assert metrics.distinct_students_count == 5
+
+
+def test_analysis_run_conflict_different_metadata(db, run_event, finding_event):
+    """
+    Submitting an ANALYSIS_INGESTED event with the same analysis_run_id but
+    differing immutable metadata (e.g. changed submission_count) produces CONFLICT
+    (ANALYSIS_RUN_CONFLICT) and does not corrupt or modify existing child records.
+    """
+    res1 = db.load_events([run_event, finding_event])
+    assert res1[0].outcome == IngestionOutcome.ACCEPTED
+    assert res1[1].outcome == IngestionOutcome.ACCEPTED
+
+    # Re-submitting same run_id under a new event_id with changed submission count
+    conflicting_run_event = dict(run_event)
+    conflicting_run_event["event_id"] = "f" * 64
+    conflicting_run_event["submission_count"] = 99
+
+    res2 = db.ingest_single_event(conflicting_run_event)
+    assert res2.outcome == IngestionOutcome.CONFLICT
+    assert "ANALYSIS_RUN_CONFLICT" in (res2.rejection_reason or "")
+
+    # Ensure existing metadata and child records remain intact
+    conn = db.get_connection()
+    run_row = conn.execute(
+        "SELECT submission_count FROM analysis_runs WHERE run_id = ?",
+        (run_event["analysis_run_id"],),
+    ).fetchone()
+    assert run_row["submission_count"] == 20
+    child_count = conn.execute("SELECT COUNT(*) FROM misconception_clusters").fetchone()[0]
+    assert child_count == 1
 
 
 def test_teacher_decision_action_stream_and_current_projection(db, run_event, finding_event):

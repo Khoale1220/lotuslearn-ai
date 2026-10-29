@@ -5,16 +5,20 @@ SELECT COUNT(*) AS total_accepted_events
 FROM analytical_events;
 
 -- Query 2: Run-scoped student appearances count across cohorts
-SELECT COUNT(*) AS run_scoped_student_appearances_count
+SELECT COUNT(*) AS student_appearances
 FROM v_run_scoped_students;
 
--- Query 3: Distinct student identifiers count
-SELECT COUNT(*) AS distinct_students_count
-FROM v_distinct_students;
-
--- Query 4: Total diagnostic analysis runs
+-- Query 3: Total diagnostic analysis runs
 SELECT COUNT(*) AS total_analysis_runs
 FROM analysis_runs;
+
+-- Query 4: Concept findings rollup
+SELECT
+    concept,
+    teaching_priority,
+    cluster_count,
+    total_affected_instances
+FROM v_concept_findings;
 
 -- Query 5: Misconception clusters with prevalence rates
 SELECT
@@ -36,7 +40,11 @@ SELECT
     COALESCE(SUM(total_reviewed), 0) AS total_reviewed,
     CASE
         WHEN SUM(total_reviewed) > 0 THEN
-            ROUND(CAST(SUM(count_edited) + SUM(count_dismissed) AS REAL) / CAST(SUM(total_reviewed) AS REAL), 4)
+            ROUND(
+                CAST(SUM(count_edited) + SUM(count_dismissed) AS REAL) /
+                CAST(SUM(total_reviewed) AS REAL),
+                4
+            )
         ELSE NULL
     END AS educator_modification_rate
 FROM v_educator_modification_rate;

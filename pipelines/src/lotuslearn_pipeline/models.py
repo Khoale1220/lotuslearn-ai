@@ -37,9 +37,20 @@ class IngestionBatchSummary:
 @dataclass
 class LearningAnalyticsMetrics:
     total_accepted_events: int
-    run_scoped_student_appearances_count: int
-    distinct_students_count: int
+    student_appearances: int
     total_analysis_runs: int
     findings_by_concept: List[Dict[str, Any]]
     prevalence_by_cluster: List[Dict[str, Any]]
     educator_modification_rate: Optional[float]
+
+    @property
+    def distinct_run_students(self) -> int:
+        return self.student_appearances
+
+    @property
+    def run_scoped_student_appearances_count(self) -> int:
+        return self.student_appearances
+
+    @property
+    def distinct_students_count(self) -> int:
+        return self.student_appearances

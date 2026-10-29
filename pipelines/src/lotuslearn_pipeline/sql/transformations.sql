@@ -13,19 +13,24 @@ SELECT
 FROM misconception_clusters c
 JOIN analysis_runs r ON c.analysis_run_id = r.run_id;
 
--- Run-scoped students composite view (analysis_run_id, student_id)
+-- Run-scoped students composite view (composite key analysis_run_id, student_id)
 DROP VIEW IF EXISTS v_run_scoped_students;
 CREATE VIEW v_run_scoped_students AS
 SELECT DISTINCT analysis_run_id, student_id FROM student_findings
 UNION
 SELECT DISTINCT analysis_run_id, student_id FROM group_memberships;
 
--- Distinct student identifiers view
-DROP VIEW IF EXISTS v_distinct_students;
-CREATE VIEW v_distinct_students AS
-SELECT DISTINCT student_id FROM student_findings
-UNION
-SELECT DISTINCT student_id FROM group_memberships;
+-- Concept findings rollup
+DROP VIEW IF EXISTS v_concept_findings;
+CREATE VIEW v_concept_findings AS
+SELECT
+    concept,
+    teaching_priority,
+    COUNT(*) AS cluster_count,
+    SUM(affected_student_count) AS total_affected_instances
+FROM misconception_clusters
+GROUP BY concept, teaching_priority
+ORDER BY total_affected_instances DESC;
 
 -- Current teacher decision metrics (derives from current_teacher_decisions projection)
 DROP VIEW IF EXISTS v_educator_decisions;
@@ -47,6 +52,11 @@ SELECT
     count_edited,
     count_dismissed,
     total_reviewed,
+    CASE
+        WHEN total_reviewed > 0 THEN
+            ROUND(CAST(count_edited + count_dismissed AS REAL) / CAST(total_reviewed AS REAL), 4)
+        ELSE NULL
+    END AS educator_modification_rate,
     CASE
         WHEN total_reviewed > 0 THEN
             ROUND(CAST(count_edited + count_dismissed AS REAL) / CAST(total_reviewed AS REAL), 4)

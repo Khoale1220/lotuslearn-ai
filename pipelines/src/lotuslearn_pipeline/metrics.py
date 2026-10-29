@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 def compute_pipeline_metrics(database: "AnalyticalDatabase") -> LearningAnalyticsMetrics:
-    """Executes authoritative relational queries and returns LearningAnalyticsMetrics."""
+    """Executes authoritative relational views and returns LearningAnalyticsMetrics."""
     conn = database.get_connection()
 
     # Query 1: Total accepted events
@@ -18,29 +18,17 @@ def compute_pipeline_metrics(database: "AnalyticalDatabase") -> LearningAnalytic
 
     # Query 2: Run-scoped student appearances (composite key analysis_run_id, student_id)
     cur = conn.execute("SELECT COUNT(*) FROM v_run_scoped_students")
-    run_scoped_appearances = cur.fetchone()[0]
+    student_appearances = cur.fetchone()[0]
 
-    # Query 3: Distinct student identifiers (pseudonymous labels across cohorts)
-    cur = conn.execute("SELECT COUNT(*) FROM v_distinct_students")
-    distinct_students = cur.fetchone()[0]
-
-    # Query 4: Total diagnostic runs
+    # Query 3: Total diagnostic runs
     cur = conn.execute("SELECT COUNT(*) FROM analysis_runs")
     total_runs = cur.fetchone()[0]
 
-    # Query 5: Findings by concept & priority
-    cur = conn.execute(
-        """
-        SELECT concept, teaching_priority, COUNT(*) AS cluster_count,
-               SUM(affected_student_count) AS total_affected_instances
-        FROM misconception_clusters
-        GROUP BY concept, teaching_priority
-        ORDER BY total_affected_instances DESC
-        """
-    )
+    # Query 4: Concept findings rollup
+    cur = conn.execute("SELECT * FROM v_concept_findings")
     findings = [dict(row) for row in cur.fetchall()]
 
-    # Query 6: Prevalence by cluster
+    # Query 5: Prevalence by cluster
     cur = conn.execute(
         """
         SELECT analysis_run_id, cluster_id, concept, teaching_priority,
@@ -51,14 +39,10 @@ def compute_pipeline_metrics(database: "AnalyticalDatabase") -> LearningAnalytic
     )
     prevalence = [dict(row) for row in cur.fetchall()]
 
-    # Query 7: Global Educator Modification Rate (R_mod)
+    # Query 6: Global Educator Modification Rate (R_mod)
     cur = conn.execute(
         """
         SELECT
-            COALESCE(SUM(count_accepted), 0) AS total_accepted,
-            COALESCE(SUM(count_edited), 0) AS total_edited,
-            COALESCE(SUM(count_dismissed), 0) AS total_dismissed,
-            COALESCE(SUM(total_reviewed), 0) AS total_reviewed,
             CASE
                 WHEN SUM(total_reviewed) > 0 THEN
                     ROUND(
@@ -76,8 +60,7 @@ def compute_pipeline_metrics(database: "AnalyticalDatabase") -> LearningAnalytic
 
     return LearningAnalyticsMetrics(
         total_accepted_events=total_accepted,
-        run_scoped_student_appearances_count=run_scoped_appearances,
-        distinct_students_count=distinct_students,
+        student_appearances=student_appearances,
         total_analysis_runs=total_runs,
         findings_by_concept=findings,
         prevalence_by_cluster=prevalence,

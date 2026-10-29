@@ -1,2 +1,0 @@
-[console_scripts]
-lotuslearn-pipeline = lotuslearn_pipeline.cli:main

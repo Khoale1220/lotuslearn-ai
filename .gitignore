@@ -1,8 +1,46 @@
+# Dependencies
 node_modules/
-build/
+.pnp
+.pnp.js
+
+# Production and distribution builds
 dist/
+build/
 coverage/
-.DS_Store
-*.log
-.env*
+*.egg-info/
+.eggs/
+
+# Environment and keys
+.env
+.env.local
+.env.*.local
 !.env.example
+
+# Logs and runtime databases
+*.log
+*.sqlite
+*.sqlite3
+*.db
+lotuslearn_analytics.db
+
+# Python caches and tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+env/
+venv/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Non-canonical package lock files (LotusLearn uses npm)
+bun.lock
+yarn.lock
+pnpm-lock.yaml

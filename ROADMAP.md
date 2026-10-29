@@ -1,4 +1,4 @@
-# LotusLearn AI — Roadmap
+# LotusLearn - Roadmap
 
 ## Now (Current Hardened Baseline)
 

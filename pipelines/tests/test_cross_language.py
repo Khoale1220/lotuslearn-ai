@@ -42,6 +42,7 @@ def test_typescript_producer_output_accepted_by_python_pipeline():
 
     metrics = db.compute_metrics()
     assert metrics.total_accepted_events == len(events)
-    assert metrics.distinct_students_count == 12
+    assert metrics.student_appearances == 12
+    assert metrics.run_scoped_student_appearances_count == 12
     assert len(metrics.prevalence_by_cluster) >= 3
     db.close()

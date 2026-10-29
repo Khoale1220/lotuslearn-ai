@@ -12,7 +12,7 @@ from lotuslearn_pipeline.ingestion import AnalyticalEventValidator
 from lotuslearn_pipeline.models import IngestionOutcome, IngestionResult
 
 
-def _load_sql_resource(filename: str) -> str:
+def load_sql_resource(filename: str) -> str:
     """Loads SQL resource text via importlib.resources or repo fallback."""
     try:
         res = resources.files("lotuslearn_pipeline.sql").joinpath(filename)
@@ -20,6 +20,9 @@ def _load_sql_resource(filename: str) -> str:
     except Exception:
         fallback = Path(__file__).resolve().parent / "sql" / filename
         return fallback.read_text(encoding="utf-8")
+
+
+_load_sql_resource = load_sql_resource
 
 
 def canonical_json_string(obj: Any) -> str:
@@ -156,32 +159,55 @@ class AnalyticalDatabase:
 
                 # Relational projection writes (cascade delete safe: DO NOT USE INSERT OR REPLACE!)
                 if event_type == "ANALYSIS_INGESTED":
-                    conn.execute(
+                    cur_run = conn.execute(
                         """
-                        INSERT INTO analysis_runs (
-                            run_id, dataset_fingerprint, submission_count, subject,
-                            grade_level, total_duration_ms, execution_mode, occurred_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(run_id) DO UPDATE SET
-                            dataset_fingerprint = excluded.dataset_fingerprint,
-                            submission_count = excluded.submission_count,
-                            subject = excluded.subject,
-                            grade_level = excluded.grade_level,
-                            total_duration_ms = excluded.total_duration_ms,
-                            execution_mode = excluded.execution_mode,
-                            occurred_at = excluded.occurred_at
+                        SELECT dataset_fingerprint, submission_count, subject,
+                               grade_level, total_duration_ms, execution_mode, occurred_at
+                        FROM analysis_runs WHERE run_id = ?
                         """,
-                        (
-                            run_id,
-                            event["dataset_fingerprint"],
-                            event["submission_count"],
-                            event["subject"],
-                            event["grade_level"],
-                            event.get("total_duration_ms"),
-                            event.get("execution_mode"),
-                            event["occurred_at"],
-                        ),
+                        (run_id,),
                     )
+                    existing_run = cur_run.fetchone()
+                    if existing_run is not None:
+                        is_same_metadata = (
+                            existing_run["dataset_fingerprint"] == event["dataset_fingerprint"]
+                            and existing_run["submission_count"] == event["submission_count"]
+                            and existing_run["subject"] == event["subject"]
+                            and existing_run["grade_level"] == event["grade_level"]
+                            and existing_run["occurred_at"] == event["occurred_at"]
+                        )
+                        if not is_same_metadata:
+                            conflict_reason = (
+                                f"ANALYSIS_RUN_CONFLICT: analysis_run_id '{run_id}' "
+                                "already exists with differing immutable metadata"
+                            )
+                            res = IngestionResult(
+                                event_id=event_id,
+                                outcome=IngestionOutcome.CONFLICT,
+                                rejection_reason=conflict_reason,
+                                event_type=event_type,
+                            )
+                            self.record_audit_log([res])
+                            return res
+                    else:
+                        conn.execute(
+                            """
+                            INSERT INTO analysis_runs (
+                                run_id, dataset_fingerprint, submission_count, subject,
+                                grade_level, total_duration_ms, execution_mode, occurred_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                run_id,
+                                event["dataset_fingerprint"],
+                                event["submission_count"],
+                                event["subject"],
+                                event["grade_level"],
+                                event.get("total_duration_ms"),
+                                event.get("execution_mode"),
+                                event["occurred_at"],
+                            ),
+                        )
 
                 elif event_type == "FINDING_IDENTIFIED":
                     cluster_id = event["finding_id"]

@@ -1,8 +1,8 @@
-# LotusLearn AI — Data Architecture & Engineering Foundation
+# LotusLearn - Data Architecture and Engineering Foundation
 
 ## 1. Executive Summary
 
-This document specifies the data engineering foundation and data science readiness framework for LotusLearn AI. It establishes:
+This document specifies the data engineering foundation and data science readiness framework for LotusLearn. It establishes:
 1. A rigorous educational domain data model (entities, relationships, and data contracts).
 2. End-to-end data lineage through the 7-stage privacy and analysis lifecycle.
 3. Strict data retention boundaries ensuring zero student PII enters persistent storage tiers.
@@ -54,12 +54,12 @@ interface LearningContext {
 }
 ```
 
-#### 2. `StudentSubmissionInput` (Ingestion Entity — Transient Only)
+#### 2. `StudentSubmissionInput` (Ingestion Entity: Transient Only)
 Raw input provided at the ingestion boundary. **Never persisted to database or local storage.**
 
 ```typescript
 interface StudentSubmissionInput {
-  studentId: string;              // Roster identifier or pseudonym (1–64 chars)
+  studentId: string;              // Roster identifier or pseudonym (1 to 64 chars)
   studentText: string;            // Typed student answer (max 10,000 chars)
   workType: 'typed' | 'handwritten_work' | 'worksheet';
   imageBase64?: string;           // Base64 encoded image (max 7.5 MB)
@@ -117,10 +117,10 @@ Cohort-level clustering synthesized across individual observations.
 interface MisconceptionCluster {
   clusterId: string;              // e.g., "cluster-1"
   misconceptionTitle: string;     // Pedagogical classification title
-  explanation: string;            // 2–3 sentence root-cause synthesis
+  explanation: string;            // 2 to 3 sentence root-cause synthesis
   affectedStudentIds: string[];   // Cohort subset exhibiting this error
   studentCount: number;           // Deterministically verified count
-  percentageAffected: number;     // Deterministically verified percentage (0–100%)
+  percentageAffected: number;     // Deterministically verified percentage (0 to 100%)
   evidenceExamples: Array<{
     studentId: string;
     excerpt: string;
@@ -328,3 +328,62 @@ CREATE TABLE misconception_clusters (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+
+---
+
+## 8. Database Portability and Oracle Readiness (DE-02 Architectural Evaluation)
+
+LotusLearn maintains relational and analytical data schemas designed for seamless migration from SQLite to enterprise relational engines in milestone DE-02. This evaluation compares PostgreSQL against Oracle AI Database 26ai and Oracle Autonomous Database.
+
+### Multi-Engine Architectural Evaluation Matrix
+
+1. Operational Cost
+   - PostgreSQL: Highly cost-effective for developer sandboxes, self-hosted container clusters, and commodity cloud deployments (AWS RDS, GCP Cloud SQL, Supabase). Scale-to-zero capabilities reduce staging overhead.
+   - Oracle AI Database 26ai / Autonomous DB: Higher baseline licensing in proprietary clouds, offset by Oracle Cloud Infrastructure (OCI) Free Tier (2 Autonomous Databases with 20 GB each) and unified database consolidation that eliminates separate vector and cache licenses.
+
+2. Connection Pooling and Concurrency
+   - PostgreSQL: Requires external connection poolers (PgBouncer, Supavisor) to prevent process-per-connection memory bloat under high web concurrency.
+   - Oracle AI Database 26ai: Built-in Database Resident Connection Pooling (DRCP) and Autonomous Transaction Processing (ATP) auto-scaling handle thousands of concurrent serverless requests natively without sidecar proxies.
+
+3. JSON and Semi-Structured Document Capability
+   - PostgreSQL: Robust JSONB storage with GIN indexing and jsonpath query syntax.
+   - Oracle AI Database 26ai: Native JSON data type with binary storage (OSON format) offering faster traversal, JSON Relational Duality Views (exposing relational tables as JSON documents and vice versa with ACID concurrency), and SQL/JSON path expressions.
+
+4. Developer Ergonomics and Tooling Ecosystem
+   - PostgreSQL: Ubiquitous ORM support (Drizzle, Prisma, SQLAlchemy), standard Docker local development images, and fast migration pipelines.
+   - Oracle AI Database 26ai: Improved with modern node-oracledb and python-oracledb thin drivers (no Instant Client installation required). SQL syntax requires adherence to standard ANSI joins and specific sequence or identity column semantics.
+
+5. Vector and AI Workload Readiness
+   - PostgreSQL: Supported via pgvector extension, requiring manual index tuning (HNSW vs IVFFlat) and separate compute scaling.
+   - Oracle AI Database 26ai: Native AI Vector Search integrated directly into the SQL engine with automated indexing, quantization, and hybrid relational-vector queries executed in a single transaction.
+
+6. Enterprise Deployment and Public Sector Procurement
+   - PostgreSQL: Standard choice for modern SaaS web applications, but requires manual configuration for FedRAMP, FERPA, and CJIS certification.
+   - Oracle AI Database 26ai: Pre-certified for statewide public school system procurements, enterprise district data centers, and multi-tenant compliance boundaries with Transparent Data Encryption (TDE) and Oracle Data Safe.
+
+### Strategic Rationale for Oracle Readiness
+
+LotusLearn maintains Oracle compatibility at the SQL and relational abstraction layer for three strategic reasons:
+1. Enterprise K-12 Statewide Procurement: Large state departments of education and regional education service agencies operate existing Oracle enterprise agreements. Ensuring DDL portability enables deployment directly into state-managed infrastructure without architectural rewrite.
+2. FERPA and Regulatory Compliance: Built-in data redaction, cryptographic column masking, and audited session policies satisfy strict educational privacy regulations out of the box.
+3. Anti-Lock-In Discipline: By adhering to ANSI SQL standards, strict foreign key constraints, and declarative relational views, the codebase remains 100% portable across SQLite, PostgreSQL, and Oracle without proprietary extensions.
+
+---
+
+## 9. Run-Scoped Pseudonym Semantics and Longitudinal Boundary
+
+In educational data engineering, student identifiers in formative diagnostic runs represent transient cohort pseudonyms (for example, "Student 01" through "Student 12"), not durable longitudinal identities across school years.
+
+### Semantic Invariant
+
+- Composite Identity: A student finding is uniquely keyed by the composite pair:
+  `(analysis_run_id, student_id)`
+- Truthful Aggregation: "Student 01" in Diagnostic Run A and "Student 01" in Diagnostic Run B represent two separate run-scoped student appearances, not the same longitudinal individual.
+- Prohibited Inference: Emitting longitudinal mastery tracking, historical skill growth, or cross-run student profiles based on run-scoped pseudonyms is prohibited because the current architecture does not link individual student records across runs.
+
+### Architectural Roadmap to Longitudinal Identity
+
+Future milestones (DE-03) will introduce an opt-in, privacy-preserving cryptographic identity service:
+1. Salted Roster Hashes: District SIS roster IDs will be hashed using student-specific, district-managed cryptographic salts before entry into the analytical pipeline.
+2. Blinded Linkage Tokens: Cryptographic linkage tokens will enable longitudinal tracking of competency progression while guaranteeing that engineering teams, analytical stores, and generative AI models never possess raw student identities.
+3. Explicit Data Contracts: Until that cryptographic service is formally deployed and audited, all cohort and student metrics remain strictly run-scoped.

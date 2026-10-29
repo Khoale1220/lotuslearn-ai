@@ -11,5 +11,5 @@ Sanitize all student artifacts strictly before data reaches any AI model. In pro
 ## Consequences
 
 - Prevents student PII from entering model prompts or inference training sets.
-- Adds an upfront network latency step to the pipeline (~200ms–800ms).
+- Adds an upfront network latency step to the pipeline (~200ms to 800ms).
 - Requires a local deterministic provider for offline test suites and developer environments without active GCP credentials.

@@ -63,14 +63,15 @@ Student Submissions (Text / Images)
 - Validation: Zod and JSON Schema Draft 2020-12
 - Data Engineering (DE-01): Python 3.10+, SQLite 3 with enforced foreign keys, pytest, ruff, jsonschema
 
-## Data Engineering Foundation (DE-01)
+## Data Engineering Foundation (DE-01 & DE-01.1)
 
-The DE-01 milestone establishes a verifiable analytical event contract and cross-language data quality gate between the TypeScript application and Python analytics runtime:
+The DE-01.1 milestone establishes a verifiable analytical event contract, transactional idempotency, and real Python packaging for the LotusLearn analytical pipeline:
 
 1. Canonical Analytical Contract (`contracts/analytical_event.schema.json`): Authored in JSON Schema Draft 2020-12. Specifies strictly typed event envelopes for `ANALYSIS_INGESTED`, `FINDING_IDENTIFIED`, `GROUP_FORMED`, `VERIFICATION_AUDITED`, and `DECISION_RECORDED`. Zero student text, raw names, emails, phone numbers, or credentials can enter the schema.
-2. TypeScript Analytical Producer (`server/services/analyticalEventProducer.ts`): Transforms domain analysis results into deterministic, idempotent events using SHA-256 event IDs and domain timestamps.
-3. Python Ingestion Gate (`pipelines/ingestion.py`): Validates incoming event payloads against Draft 2020-12 schemas and enforces fail-closed zero-PII checks. Categorizes records into accepted, duplicate, and rejected with safe diagnostic error codes that never echo sensitive payload text.
-4. SQLite Relational Storage & Metrics (`pipelines/db.py`, `pipelines/sql/`): Enforces `PRAGMA foreign_keys = ON;` on every database connection. Loads accepted events into relational tables (`analysis_runs`, `misconception_clusters`, `student_findings`, `instructional_groups`, `teacher_decisions`) and calculates learning metrics via analytical views.
+2. TypeScript Analytical Producer (`server/services/analyticalEventProducer.ts`): Transforms domain analysis results into deterministic, idempotent events using SHA-256 event IDs and authentic domain timestamps without fabricated defaults.
+3. Python Ingestion Gate (`pipelines/src/lotuslearn_pipeline/ingestion.py`): Validates incoming event payloads against Draft 2020-12 schemas using `importlib.resources` and enforces fail-closed zero-PII checks. Categorizes records into accepted, duplicate, conflict, and rejected with safe diagnostic error codes that never echo sensitive payload text.
+4. SQLite Relational Storage & Metrics (`pipelines/src/lotuslearn_pipeline/storage.py`, `metrics.py`): Enforces `PRAGMA foreign_keys = ON;` on every database connection. Loads accepted events into relational tables and calculates learning metrics via authoritative relational views.
+5. Standard Wheel Packaging (`pipelines/pyproject.toml`): Distributes the pipeline as a standalone wheel package containing all JSON schemas and SQL transformations.
 
 ## Data Science Readiness & Research Questions
 
@@ -85,7 +86,7 @@ LotusLearn collects structured, de-identified diagnostic telemetry designed for 
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd lotuslearn-ai
+cd lotuslearn
 
 # Install Node dependencies
 npm ci
@@ -106,7 +107,7 @@ npm run typecheck
 # Node linting
 npm run lint
 
-# Automated Node regression tests (220 tests across 46 suites)
+# Automated Node regression tests (232 tests across 47 suites)
 npm test
 
 # Production bundle build
@@ -115,7 +116,7 @@ npm run build
 # Python pipeline linting (ruff)
 npm run lint:python
 
-# Python pipeline unit & integration tests (pytest)
+# Python pipeline unit & integration tests (19 pytest tests)
 npm run test:python
 
 # End-to-end cross-language analytical pipeline execution

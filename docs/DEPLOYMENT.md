@@ -1,4 +1,4 @@
-# LotusLearn AI — Cloud Deployment & Operational Guardrails
+# LotusLearn - Cloud Deployment and Operational Guardrails
 
 ## 1. Overview & Architecture Boundary
 
