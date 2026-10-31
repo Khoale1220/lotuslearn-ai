@@ -1,4 +1,4 @@
-// Centralized dynamic verification and provenance mapping for LotusLearn AI
+// Centralized dynamic verification and provenance mapping for LotusLearn
 // Enforces Priority 3, 4, 5, 9, 10 requirements: strictly factual, zero fabricated statuses
 import { MisconceptionCluster, TeacherDecision } from '../types';
 

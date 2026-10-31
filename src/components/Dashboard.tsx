@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlusCircle, Sparkles, BookOpen, Users, AlertCircle, Lightbulb, ArrowUpRight, Clock, HardDrive } from 'lucide-react';
+import { PlusCircle, Play, BookOpen, Users, AlertCircle, Lightbulb, ArrowUpRight, Clock, HardDrive } from 'lucide-react';
 import { ClassAnalysisResult } from '../types';
 import { getCanonicalTeacherDecision } from '../utils/verificationDisplay';
 
@@ -48,7 +48,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             onClick={onTryDemo}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-800 shadow-2xs transition hover:bg-slate-50 hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 active:scale-98"
           >
-            <Sparkles size={16} className="text-rose-500" />
+            <Play size={15} className="text-indigo-600" />
             <span>Try Demo Classroom</span>
           </button>
           <button

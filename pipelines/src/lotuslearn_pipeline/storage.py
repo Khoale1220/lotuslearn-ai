@@ -174,6 +174,8 @@ class AnalyticalDatabase:
                             and existing_run["submission_count"] == event["submission_count"]
                             and existing_run["subject"] == event["subject"]
                             and existing_run["grade_level"] == event["grade_level"]
+                            and existing_run["total_duration_ms"] == event.get("total_duration_ms")
+                            and existing_run["execution_mode"] == event.get("execution_mode")
                             and existing_run["occurred_at"] == event["occurred_at"]
                         )
                         if not is_same_metadata:
@@ -330,16 +332,21 @@ class AnalyticalDatabase:
                         ),
                     )
                     # 2. Latest state projection update
+                    # (out-of-order protected with deterministic tie rule)
                     conn.execute(
                         """
                         INSERT INTO current_teacher_decisions (
                             analysis_run_id, target_type, target_id, teacher_decision,
-                            notes, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?)
+                            notes, updated_at, last_event_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(analysis_run_id, target_type, target_id) DO UPDATE SET
                             teacher_decision = excluded.teacher_decision,
                             notes = excluded.notes,
-                            updated_at = excluded.updated_at
+                            updated_at = excluded.updated_at,
+                            last_event_id = excluded.last_event_id
+                        WHERE excluded.updated_at > current_teacher_decisions.updated_at
+                           OR (excluded.updated_at = current_teacher_decisions.updated_at
+                               AND excluded.last_event_id > current_teacher_decisions.last_event_id)
                         """,
                         (
                             run_id,
@@ -348,6 +355,7 @@ class AnalyticalDatabase:
                             event["teacher_decision"],
                             event.get("notes"),
                             rec_at,
+                            event["event_id"],
                         ),
                     )
 

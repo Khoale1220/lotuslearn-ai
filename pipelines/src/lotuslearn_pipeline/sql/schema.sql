@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS current_teacher_decisions (
     teacher_decision TEXT NOT NULL CHECK (teacher_decision IN ('accepted', 'edited', 'dismissed')),
     notes TEXT,
     updated_at TEXT NOT NULL,
+    last_event_id TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (analysis_run_id, target_type, target_id)
 );
 

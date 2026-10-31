@@ -331,42 +331,38 @@ CREATE TABLE misconception_clusters (
 
 ---
 
-## 8. Database Portability and Oracle Readiness (DE-02 Architectural Evaluation)
+## 8. Database Portability and Future Persistence Evaluation (DE-02)
 
-LotusLearn maintains relational and analytical data schemas designed for seamless migration from SQLite to enterprise relational engines in milestone DE-02. This evaluation compares PostgreSQL against Oracle AI Database 26ai and Oracle Autonomous Database.
+LotusLearn maintains relational and analytical data schemas designed with ANSI SQL discipline. In milestone DE-02, the team will evaluate relational database targets beyond SQLite for production persistence, comparing PostgreSQL with candidates such as Oracle Database.
 
-### Multi-Engine Architectural Evaluation Matrix
+### Multi-Engine Architectural Evaluation Matrix (Candidate Assessment)
 
 1. Operational Cost
    - PostgreSQL: Highly cost-effective for developer sandboxes, self-hosted container clusters, and commodity cloud deployments (AWS RDS, GCP Cloud SQL, Supabase). Scale-to-zero capabilities reduce staging overhead.
-   - Oracle AI Database 26ai / Autonomous DB: Higher baseline licensing in proprietary clouds, offset by Oracle Cloud Infrastructure (OCI) Free Tier (2 Autonomous Databases with 20 GB each) and unified database consolidation that eliminates separate vector and cache licenses.
+   - Oracle Database: Enterprise commercial licensing model; candidate for environments with existing enterprise database agreements or dedicated infrastructure.
 
 2. Connection Pooling and Concurrency
-   - PostgreSQL: Requires external connection poolers (PgBouncer, Supavisor) to prevent process-per-connection memory bloat under high web concurrency.
-   - Oracle AI Database 26ai: Built-in Database Resident Connection Pooling (DRCP) and Autonomous Transaction Processing (ATP) auto-scaling handle thousands of concurrent serverless requests natively without sidecar proxies.
+   - PostgreSQL: Typically paired with external connection poolers (PgBouncer, Supavisor) to optimize process-per-connection scaling under high web concurrency.
+   - Oracle Database: Built-in Database Resident Connection Pooling (DRCP) manages session pooling natively.
 
 3. JSON and Semi-Structured Document Capability
    - PostgreSQL: Robust JSONB storage with GIN indexing and jsonpath query syntax.
-   - Oracle AI Database 26ai: Native JSON data type with binary storage (OSON format) offering faster traversal, JSON Relational Duality Views (exposing relational tables as JSON documents and vice versa with ACID concurrency), and SQL/JSON path expressions.
+   - Oracle Database: Standard JSON column storage with SQL/JSON operators and path expressions.
 
 4. Developer Ergonomics and Tooling Ecosystem
-   - PostgreSQL: Ubiquitous ORM support (Drizzle, Prisma, SQLAlchemy), standard Docker local development images, and fast migration pipelines.
-   - Oracle AI Database 26ai: Improved with modern node-oracledb and python-oracledb thin drivers (no Instant Client installation required). SQL syntax requires adherence to standard ANSI joins and specific sequence or identity column semantics.
+   - PostgreSQL: Broad ecosystem support (Drizzle, Prisma, SQLAlchemy) and fast migration pipelines.
+   - Oracle Database: Supported via node-oracledb and python-oracledb drivers; requires adherence to database-specific sequence and identity column semantics.
 
-5. Vector and AI Workload Readiness
-   - PostgreSQL: Supported via pgvector extension, requiring manual index tuning (HNSW vs IVFFlat) and separate compute scaling.
-   - Oracle AI Database 26ai: Native AI Vector Search integrated directly into the SQL engine with automated indexing, quantization, and hybrid relational-vector queries executed in a single transaction.
+5. AI and Vector Capabilities
+   - PostgreSQL: Supported via pgvector extension for embedding storage and similarity indexing.
+   - Oracle Database: Supported via integrated AI vector search extensions in modern releases.
 
-6. Enterprise Deployment and Public Sector Procurement
-   - PostgreSQL: Standard choice for modern SaaS web applications, but requires manual configuration for FedRAMP, FERPA, and CJIS certification.
-   - Oracle AI Database 26ai: Pre-certified for statewide public school system procurements, enterprise district data centers, and multi-tenant compliance boundaries with Transparent Data Encryption (TDE) and Oracle Data Safe.
+### Architectural Rationale for ANSI SQL Portability
 
-### Strategic Rationale for Oracle Readiness
-
-LotusLearn maintains Oracle compatibility at the SQL and relational abstraction layer for three strategic reasons:
-1. Enterprise K-12 Statewide Procurement: Large state departments of education and regional education service agencies operate existing Oracle enterprise agreements. Ensuring DDL portability enables deployment directly into state-managed infrastructure without architectural rewrite.
-2. FERPA and Regulatory Compliance: Built-in data redaction, cryptographic column masking, and audited session policies satisfy strict educational privacy regulations out of the box.
-3. Anti-Lock-In Discipline: By adhering to ANSI SQL standards, strict foreign key constraints, and declarative relational views, the codebase remains 100% portable across SQLite, PostgreSQL, and Oracle without proprietary extensions.
+LotusLearn adheres to relational standards at the SQL and schema abstraction layer:
+1. ANSI SQL Discipline: By avoiding proprietary vendor SQL dialects, schema DDL remains clean, testable, and maintainable across SQLite, PostgreSQL, and future evaluation targets.
+2. Relational Integrity: Foreign key constraints and declarative analytical rollup views enforce data integrity independently of the underlying engine.
+3. Candidate Evaluation: Oracle remains a candidate for future persistence evaluation in milestone DE-02 alongside PostgreSQL.
 
 ---
 

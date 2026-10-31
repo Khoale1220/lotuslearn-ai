@@ -50,7 +50,3 @@ class LearningAnalyticsMetrics:
     @property
     def run_scoped_student_appearances_count(self) -> int:
         return self.student_appearances
-
-    @property
-    def distinct_students_count(self) -> int:
-        return self.student_appearances

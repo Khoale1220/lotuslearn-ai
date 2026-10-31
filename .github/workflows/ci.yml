@@ -76,7 +76,9 @@ jobs:
       - name: Verify Non-Editable Package Installation from Wheel
         run: |
           pip install --force-reinstall pipelines/dist/*.whl
+          cd "$RUNNER_TEMP"
           python -c "import lotuslearn_pipeline; print('Installed package import successful')"
+          lotuslearn-pipeline --help
 
       - name: Run DE-01 End-to-End Pipeline Smoke Test
         run: npm run pipeline:run

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Sparkles,
+  Play,
   Upload,
   Plus,
   Trash2,
@@ -179,7 +179,7 @@ export const NewAnalysisWizard: React.FC<NewAnalysisWizardProps> = ({
           onClick={handleLoadDemo}
           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 self-start sm:self-auto"
         >
-          <Sparkles size={14} className="text-rose-500" />
+          <Play size={14} className="text-indigo-600" />
           <span>Pre-fill 12 Demo Students</span>
         </button>
       </div>
@@ -427,7 +427,7 @@ export const NewAnalysisWizard: React.FC<NewAnalysisWizardProps> = ({
                 onClick={handleLoadDemo}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
               >
-                <Sparkles size={14} className="text-rose-500" />
+                <Play size={14} className="text-indigo-600" />
                 <span>Pre-fill 12 Demo Students</span>
               </button>
             </div>

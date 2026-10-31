@@ -79,7 +79,7 @@ LotusLearn collects structured, de-identified diagnostic telemetry designed for 
 
 1. Research Question 1: What is the empirical correlation between cluster prevalence ($P_c$) and student support tier allocation in formative diagnostic assessments?
 2. Research Question 2: How accurately does the grounded citation integrity ratio ($R_{\text{grounding}}$) predict teacher acceptance versus modification ($R_{\text{mod}}$) of AI-generated instructional recommendations?
-3. Research Question 3: What is the longitudinal decay rate of grammatical misconceptions (such as finished-time markers with present perfect) when targeted with code-verified differentiated interventions?
+3. Research Question 3: What is the longitudinal decay rate of grammatical misconceptions (such as finished-time markers with present perfect) when targeted with code-verified differentiated interventions? [BLOCKED until a privacy-preserving stable learner identity exists]
 
 ## Local development
 

@@ -1,61 +1,53 @@
-"""Authoritative SQL metrics computation for LotusLearn analytical pipeline."""
+"""Authoritative SQL metrics computation for LotusLearn analytical pipeline.
+
+Relational SQL queries defined in sql/metrics.sql are the single metric authority.
+Python only loads, executes, and maps the results.
+"""
 
 from typing import TYPE_CHECKING
 
 from lotuslearn_pipeline.models import LearningAnalyticsMetrics
+from lotuslearn_pipeline.storage import load_sql_resource
 
 if TYPE_CHECKING:
     from lotuslearn_pipeline.storage import AnalyticalDatabase
 
 
 def compute_pipeline_metrics(database: "AnalyticalDatabase") -> LearningAnalyticsMetrics:
-    """Executes authoritative relational views and returns LearningAnalyticsMetrics."""
+    """Loads authoritative metrics.sql, executes each definition,
+    and returns LearningAnalyticsMetrics."""
     conn = database.get_connection()
+    sql_text = load_sql_resource("metrics.sql")
 
-    # Query 1: Total accepted events
-    cur = conn.execute("SELECT COUNT(*) FROM analytical_events")
-    total_accepted = cur.fetchone()[0]
+    # Split SQL into individual statements, ignoring whitespace and trailing semicolons
+    statements = [stmt.strip() for stmt in sql_text.split(";") if stmt.strip()]
 
-    # Query 2: Run-scoped student appearances (composite key analysis_run_id, student_id)
-    cur = conn.execute("SELECT COUNT(*) FROM v_run_scoped_students")
-    student_appearances = cur.fetchone()[0]
+    # Query 1: Total accepted events count
+    cur1 = conn.execute(statements[0])
+    row1 = cur1.fetchone()
+    total_accepted = row1["total_accepted_events"] if row1 else 0
 
-    # Query 3: Total diagnostic runs
-    cur = conn.execute("SELECT COUNT(*) FROM analysis_runs")
-    total_runs = cur.fetchone()[0]
+    # Query 2: Run-scoped student appearances count across cohorts
+    cur2 = conn.execute(statements[1])
+    row2 = cur2.fetchone()
+    student_appearances = row2["student_appearances"] if row2 else 0
+
+    # Query 3: Total diagnostic analysis runs
+    cur3 = conn.execute(statements[2])
+    row3 = cur3.fetchone()
+    total_runs = row3["total_analysis_runs"] if row3 else 0
 
     # Query 4: Concept findings rollup
-    cur = conn.execute("SELECT * FROM v_concept_findings")
-    findings = [dict(row) for row in cur.fetchall()]
+    cur4 = conn.execute(statements[3])
+    findings = [dict(row) for row in cur4.fetchall()]
 
-    # Query 5: Prevalence by cluster
-    cur = conn.execute(
-        """
-        SELECT analysis_run_id, cluster_id, concept, teaching_priority,
-               affected_students, total_students, prevalence_rate
-        FROM v_cohort_prevalence
-        ORDER BY prevalence_rate DESC, teaching_priority ASC
-        """
-    )
-    prevalence = [dict(row) for row in cur.fetchall()]
+    # Query 5: Misconception clusters with prevalence rates
+    cur5 = conn.execute(statements[4])
+    prevalence = [dict(row) for row in cur5.fetchall()]
 
     # Query 6: Global Educator Modification Rate (R_mod)
-    cur = conn.execute(
-        """
-        SELECT
-            CASE
-                WHEN SUM(total_reviewed) > 0 THEN
-                    ROUND(
-                        CAST(SUM(count_edited) + SUM(count_dismissed) AS REAL) /
-                        CAST(SUM(total_reviewed) AS REAL),
-                        4
-                    )
-                ELSE NULL
-            END AS educator_modification_rate
-        FROM v_educator_modification_rate
-        """
-    )
-    mod_row = cur.fetchone()
+    cur6 = conn.execute(statements[5])
+    mod_row = cur6.fetchone()
     mod_rate = mod_row["educator_modification_rate"] if mod_row else None
 
     return LearningAnalyticsMetrics(

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ShieldCheck, UserCheck, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { ShieldCheck, UserCheck, CheckCircle2, AlertOctagon } from 'lucide-react';
 
 export type ProvenanceType = 'gemini' | 'code' | 'human' | 'verified' | 'warning';
 

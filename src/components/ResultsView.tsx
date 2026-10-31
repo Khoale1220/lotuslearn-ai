@@ -97,7 +97,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
 
   // Export report as Markdown
   const handleExportMarkdown = () => {
-    const md = `# LotusLearn AI Diagnostic Assessment Report
+    const md = `# LotusLearn Diagnostic Assessment Report
 **Lesson:** ${result.context.lessonTitle} (${result.context.subject} - ${result.context.gradeLevel})
 **Date:** ${new Date(result.timestamp).toLocaleDateString()}
 **Objective:** ${result.context.learningObjective}

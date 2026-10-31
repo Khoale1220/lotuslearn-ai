@@ -21,7 +21,7 @@
 
 ## Later (Data Science & Longitudinal Learning Analytics)
 
-- **Longitudinal Mastery Tracking**: Analytical data warehouse models tracking student cognitive progression and recurring misconception resolution across instructional quarters and semesters.
+- **Longitudinal Mastery Tracking [BLOCKED until a privacy-preserving stable learner identity exists]**: Analytical data warehouse models tracking student cognitive progression and recurring misconception resolution across instructional quarters and semesters. Currently, student identities are run-scoped pseudonyms ('Student 01') and cannot be linked across runs without a privacy-preserving stable identifier.
 - **Curriculum Taxonomy Alignment**: Configurable mapping engines aligning diagnosed misconceptions to state and national standards (Common Core, NGSS, CEFR language competencies).
 - **Educator Modification Rate Modeling**: Quantitative tracking of teacher edit frequency and dismissal patterns ($R_{\text{modification}}$) to continuously refine prompt grounding instructions and model routing policies.
 - **District Multi-Tenant Governance**: Role-based access control (RBAC), district data retention policy enforcement, and aggregated departmental learning gap analytics.

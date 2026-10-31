@@ -148,7 +148,7 @@ def test_full_pipeline_load_and_metrics(
     metrics = db.compute_metrics()
     assert metrics.total_accepted_events == 6
     assert metrics.run_scoped_student_appearances_count == 5
-    assert metrics.distinct_students_count == 5
+    assert metrics.student_appearances == 5
     assert metrics.total_analysis_runs == 1
 
     # Verify prevalence calculation (5 affected / 20 total = 0.25)
@@ -318,3 +318,159 @@ def test_teacher_decision_action_stream_and_current_projection(db, run_event, fi
     # Current projection has 1 row with 'edited'
     proj = conn.execute("SELECT teacher_decision FROM current_teacher_decisions").fetchone()
     assert proj["teacher_decision"] == "edited"
+
+
+def test_out_of_order_teacher_decisions(db, run_event):
+    """
+    Out-of-order ingestion must not regress current teacher decision projection.
+    11:00 edited arrives first.
+    10:30 accepted arrives later.
+    Current projection must remain 11:00 edited.
+    Equal timestamps must break ties deterministically.
+    """
+    db.ingest_single_event(run_event)
+
+    # 11:00 edited event arrives first
+    event_1100 = {
+        "schema_version": "1.0.0",
+        "event_id": "2a" * 32,
+        "event_type": "DECISION_RECORDED",
+        "occurred_at": "2026-10-26T11:00:00Z",
+        "analysis_run_id": "run-test-001",
+        "provenance": "human",
+        "target_type": "misconception_cluster",
+        "target_id": "cluster-time-markers",
+        "teacher_decision": "edited",
+        "decision_recorded_at": "2026-10-26T11:00:00Z",
+    }
+    res1 = db.ingest_single_event(event_1100)
+    assert res1.outcome == IngestionOutcome.ACCEPTED
+
+    conn = db.get_connection()
+    proj = conn.execute(
+        "SELECT teacher_decision, updated_at FROM current_teacher_decisions WHERE target_id = ?",
+        ("cluster-time-markers",),
+    ).fetchone()
+    assert proj["teacher_decision"] == "edited"
+    assert proj["updated_at"] == "2026-10-26T11:00:00Z"
+
+    # 10:30 accepted event arrives later (out of order)
+    event_1030 = {
+        "schema_version": "1.0.0",
+        "event_id": "2b" * 32,
+        "event_type": "DECISION_RECORDED",
+        "occurred_at": "2026-10-26T10:30:00Z",
+        "analysis_run_id": "run-test-001",
+        "provenance": "human",
+        "target_type": "misconception_cluster",
+        "target_id": "cluster-time-markers",
+        "teacher_decision": "accepted",
+        "decision_recorded_at": "2026-10-26T10:30:00Z",
+    }
+    res2 = db.ingest_single_event(event_1030)
+    assert res2.outcome == IngestionOutcome.ACCEPTED
+
+    # Current projection must STILL be 'edited' from 11:00!
+    proj_after = conn.execute(
+        "SELECT teacher_decision, updated_at FROM current_teacher_decisions WHERE target_id = ?",
+        ("cluster-time-markers",),
+    ).fetchone()
+    assert proj_after["teacher_decision"] == "edited"
+    assert proj_after["updated_at"] == "2026-10-26T11:00:00Z"
+
+    # Historical stream must retain both
+    hist = conn.execute(
+        "SELECT teacher_decision, recorded_at FROM teacher_decisions ORDER BY recorded_at ASC"
+    ).fetchall()
+    assert len(hist) == 2
+    assert hist[0]["teacher_decision"] == "accepted"
+    assert hist[1]["teacher_decision"] == "edited"
+
+    # Deterministic tie-breaking on equal timestamps: higher last_event_id wins
+    tie_lower = {
+        "schema_version": "1.0.0",
+        "event_id": "aa" * 32,
+        "event_type": "DECISION_RECORDED",
+        "occurred_at": "2026-10-26T12:00:00Z",
+        "analysis_run_id": "run-test-001",
+        "provenance": "human",
+        "target_type": "misconception_cluster",
+        "target_id": "cluster-time-markers",
+        "teacher_decision": "accepted",
+        "decision_recorded_at": "2026-10-26T12:00:00Z",
+    }
+    tie_higher = {
+        "schema_version": "1.0.0",
+        "event_id": "bb" * 32,
+        "event_type": "DECISION_RECORDED",
+        "occurred_at": "2026-10-26T12:00:00Z",
+        "analysis_run_id": "run-test-001",
+        "provenance": "human",
+        "target_type": "misconception_cluster",
+        "target_id": "cluster-time-markers",
+        "teacher_decision": "dismissed",
+        "decision_recorded_at": "2026-10-26T12:00:00Z",
+    }
+    # Higher event_id arrives first
+    db.ingest_single_event(tie_higher)
+    proj_tie1 = conn.execute(
+        "SELECT teacher_decision, last_event_id FROM current_teacher_decisions WHERE target_id = ?",
+        ("cluster-time-markers",),
+    ).fetchone()
+    assert proj_tie1["teacher_decision"] == "dismissed"
+    assert proj_tie1["last_event_id"] == "bb" * 32
+
+    # Lower event_id arrives later with identical timestamp: must NOT overwrite
+    db.ingest_single_event(tie_lower)
+    proj_tie2 = conn.execute(
+        "SELECT teacher_decision, last_event_id FROM current_teacher_decisions WHERE target_id = ?",
+        ("cluster-time-markers",),
+    ).fetchone()
+    assert proj_tie2["teacher_decision"] == "dismissed"
+    assert proj_tie2["last_event_id"] == "bb" * 32
+
+
+def test_analysis_run_conflict_changed_duration(db, run_event, finding_event):
+    """
+    Submitting an ANALYSIS_INGESTED event with changed total_duration_ms produces
+    ANALYSIS_RUN_CONFLICT and does not mutate existing run or child state.
+    """
+    db.load_events([run_event, finding_event])
+
+    conflicting_run = dict(run_event)
+    conflicting_run["event_id"] = "d1" * 32
+    conflicting_run["total_duration_ms"] = 99999
+
+    res = db.ingest_single_event(conflicting_run)
+    assert res.outcome == IngestionOutcome.CONFLICT
+    assert "ANALYSIS_RUN_CONFLICT" in (res.rejection_reason or "")
+
+    conn = db.get_connection()
+    row = conn.execute(
+        "SELECT total_duration_ms FROM analysis_runs WHERE run_id = ?",
+        (run_event["analysis_run_id"],),
+    ).fetchone()
+    assert row["total_duration_ms"] == run_event["total_duration_ms"]
+
+
+def test_analysis_run_conflict_changed_execution_mode(db, run_event, finding_event):
+    """
+    Submitting an ANALYSIS_INGESTED event with changed execution_mode produces
+    ANALYSIS_RUN_CONFLICT and does not mutate existing run or child state.
+    """
+    db.load_events([run_event, finding_event])
+
+    conflicting_run = dict(run_event)
+    conflicting_run["event_id"] = "e1" * 32
+    conflicting_run["execution_mode"] = "live_gemini"
+
+    res = db.ingest_single_event(conflicting_run)
+    assert res.outcome == IngestionOutcome.CONFLICT
+    assert "ANALYSIS_RUN_CONFLICT" in (res.rejection_reason or "")
+
+    conn = db.get_connection()
+    row = conn.execute(
+        "SELECT execution_mode FROM analysis_runs WHERE run_id = ?",
+        (run_event["analysis_run_id"],),
+    ).fetchone()
+    assert row["execution_mode"] == run_event["execution_mode"]
