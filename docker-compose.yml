@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: lotuslearn-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: lotuslearn
+      POSTGRES_PASSWORD: lotuslearn_dev_password
+      POSTGRES_DB: lotuslearn_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lotuslearn -d lotuslearn_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

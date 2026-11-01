@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from lotuslearn_pipeline.models import IngestionOutcome
-from lotuslearn_pipeline.storage import AnalyticalDatabase
+from lotuslearn_pipeline.storage import get_database
 
 
 def load_events_from_file(file_path: Path) -> List[Dict[str, Any]]:
@@ -47,8 +47,11 @@ def main(argv: List[str] = None) -> int:
         "--db",
         "-d",
         type=str,
-        default=":memory:",
-        help="Path to SQLite database file (default: :memory:)",
+        default=None,
+        help=(
+            "Path to SQLite database file or PostgreSQL URL "
+            "(defaults to LOTUSLEARN_DATABASE_URL or :memory:)"
+        ),
     )
     parser.add_argument(
         "--metrics",
@@ -63,7 +66,7 @@ def main(argv: List[str] = None) -> int:
 
     args = parser.parse_args(argv)
 
-    db = AnalyticalDatabase(db_path=args.db)
+    db = get_database(args.db)
     db.initialize_schema()
 
     if args.input:

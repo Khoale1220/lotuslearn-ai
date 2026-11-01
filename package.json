@@ -18,7 +18,8 @@
     "test:python": "pytest pipelines/tests",
     "lint": "oxlint",
     "lint:python": "ruff check pipelines",
-    "pipeline:run": "tsx scripts/run_pipeline_smoke.ts"
+    "pipeline:run": "tsx scripts/run_pipeline_smoke.ts",
+    "pipeline:run:postgres": "tsx scripts/run_pipeline_postgres_smoke.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

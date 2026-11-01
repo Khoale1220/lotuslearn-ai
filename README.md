@@ -63,15 +63,31 @@ Student Submissions (Text / Images)
 - Validation: Zod and JSON Schema Draft 2020-12
 - Data Engineering (DE-01): Python 3.10+, SQLite 3 with enforced foreign keys, pytest, ruff, jsonschema
 
-## Data Engineering Foundation (DE-01 & DE-01.1)
+## Data Engineering Foundation (DE-01, DE-01.1, and DE-02A)
 
-The DE-01.1 milestone establishes a verifiable analytical event contract, transactional idempotency, and real Python packaging for the LotusLearn analytical pipeline:
+The data engineering milestones establish a verifiable analytical event contract, transactional idempotency, and dual-backend persistence for the LotusLearn analytical pipeline:
 
 1. Canonical Analytical Contract (`contracts/analytical_event.schema.json`): Authored in JSON Schema Draft 2020-12. Specifies strictly typed event envelopes for `ANALYSIS_INGESTED`, `FINDING_IDENTIFIED`, `GROUP_FORMED`, `VERIFICATION_AUDITED`, and `DECISION_RECORDED`. Zero student text, raw names, emails, phone numbers, or credentials can enter the schema.
 2. TypeScript Analytical Producer (`server/services/analyticalEventProducer.ts`): Transforms domain analysis results into deterministic, idempotent events using SHA-256 event IDs and authentic domain timestamps without fabricated defaults.
 3. Python Ingestion Gate (`pipelines/src/lotuslearn_pipeline/ingestion.py`): Validates incoming event payloads against Draft 2020-12 schemas using `importlib.resources` and enforces fail-closed zero-PII checks. Categorizes records into accepted, duplicate, conflict, and rejected with safe diagnostic error codes that never echo sensitive payload text.
-4. SQLite Relational Storage & Metrics (`pipelines/src/lotuslearn_pipeline/storage.py`, `metrics.py`): Enforces `PRAGMA foreign_keys = ON;` on every database connection. Loads accepted events into relational tables and calculates learning metrics via authoritative relational views.
-5. Standard Wheel Packaging (`pipelines/pyproject.toml`): Distributes the pipeline as a standalone wheel package containing all JSON schemas and SQL transformations.
+4. Relational Storage and Authoritative Metrics:
+   - SQLite Backend (`pipelines/src/lotuslearn_pipeline/storage.py`): Enforces `PRAGMA foreign_keys = ON;` on every database connection. Serves fast local development and hermetic CI unit tests.
+   - PostgreSQL 18 Backend (`pipelines/src/lotuslearn_pipeline/postgres.py`): Durable production target implemented via Psycopg 3. Uses native `TIMESTAMPTZ`, `JSONB`, native booleans, strict foreign keys, and versioned migrations (`schema_migrations`). Selected for modern JSONB indexing, robust transactionality, and native temporal types. Oracle remains a candidate for future enterprise evaluation.
+   - Single Metric Authority (`pipelines/src/lotuslearn_pipeline/sql/metrics.sql`): Business logic exists exclusively in authoritative SQL files executed identically across engines.
+5. Standard Wheel Packaging (`pipelines/pyproject.toml`): Distributes the pipeline as a standalone wheel package containing all JSON schemas, SQL transformations, and versioned PostgreSQL migrations.
+
+### Running PostgreSQL Locally
+
+```bash
+# Start PostgreSQL 18 service container
+docker compose up -d
+
+# Run Python test suite with PostgreSQL and SQLite parity tests
+LOTUSLEARN_DATABASE_URL="postgresql://lotuslearn:lotuslearn_dev_password@localhost:5432/lotuslearn_dev" pytest pipelines/tests
+
+# Run cross-language smoke test against PostgreSQL
+npm run pipeline:run:postgres
+```
 
 ## Data Science Readiness & Research Questions
 
@@ -133,6 +149,7 @@ Create a `.env` file based on `.env.example`:
 | `SDP_PROVIDER` | Privacy provider: `deterministic` or `google` | No | `deterministic` in dev/test, `google` in prod |
 | `GEMINI_API_KEY` | Google Gemini API key for server-side inference | For live AI runs | None |
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID for Google Cloud SDP API calls | Required in production | None |
+| `LOTUSLEARN_DATABASE_URL` | PostgreSQL connection URL | No | SQLite `:memory:` when unset |
 
 ### Privacy provider modes
 

@@ -37,8 +37,27 @@ jobs:
         run: npm run build
 
   python_pipeline:
-    name: Data Engineering Pipeline (Python, Schema, SQLite, Metrics)
+    name: Data Engineering Pipeline (PostgreSQL 18, SQLite, Parity, Metrics)
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_ci_password
+          POSTGRES_DB: lotuslearn_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lotuslearn_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LOTUSLEARN_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
+      LOTUSLEARN_TEST_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
 
     steps:
       - name: Checkout repository
@@ -79,6 +98,12 @@ jobs:
           cd "$RUNNER_TEMP"
           python -c "import lotuslearn_pipeline; print('Installed package import successful')"
           lotuslearn-pipeline --help
+          lotuslearn-pipeline --db "$LOTUSLEARN_DATABASE_URL" --metrics
 
-      - name: Run DE-01 End-to-End Pipeline Smoke Test
+      - name: Run SQLite End-to-End Pipeline Smoke Test
         run: npm run pipeline:run
+        env:
+          LOTUSLEARN_DATABASE_URL: ":memory:"
+
+      - name: Run PostgreSQL End-to-End Pipeline Smoke Test
+        run: npm run pipeline:run:postgres

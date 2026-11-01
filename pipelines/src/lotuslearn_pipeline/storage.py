@@ -2,6 +2,7 @@
 and conflict detection."""
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone
 from importlib import resources
@@ -28,6 +29,42 @@ _load_sql_resource = load_sql_resource
 def canonical_json_string(obj: Any) -> str:
     """Returns deterministic canonical JSON string for payload comparison."""
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+
+def get_database(database_target: Optional[str] = None) -> Any:
+    """
+    Factory function returning PostgresAnalyticalDatabase or SQLite AnalyticalDatabase.
+    If database_target is None:
+      - Reads LOTUSLEARN_DATABASE_URL from environment if present.
+      - Defaults to SQLite in-memory database (:memory:) if unset.
+    Raises ValueError on invalid database URLs.
+    """
+    from lotuslearn_pipeline.postgres import PostgresAnalyticalDatabase
+
+    target = database_target
+    if not target:
+        env_url = os.environ.get("LOTUSLEARN_DATABASE_URL", "").strip()
+        if env_url:
+            target = env_url
+        else:
+            target = ":memory:"
+
+    if target.startswith("postgresql://") or target.startswith("postgres://"):
+        return PostgresAnalyticalDatabase(target)
+    elif (
+        target == ":memory:"
+        or target.endswith(".db")
+        or target.startswith("sqlite://")
+        or "/" in target
+        or "." in target
+    ):
+        sqlite_path = target[len("sqlite://") :] if target.startswith("sqlite://") else target
+        return AnalyticalDatabase(sqlite_path)
+    else:
+        raise ValueError(
+            f"Unsupported database scheme: '{target}'. "
+            "Expected postgresql://, postgres://, or SQLite path/:memory:"
+        )
 
 
 class AnalyticalDatabase:

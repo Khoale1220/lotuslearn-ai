@@ -11,7 +11,12 @@ from lotuslearn_pipeline.models import (
     IngestionResult,
     LearningAnalyticsMetrics,
 )
-from lotuslearn_pipeline.storage import AnalyticalDatabase, load_sql_resource
+from lotuslearn_pipeline.postgres import PostgresAnalyticalDatabase, apply_postgres_migrations
+from lotuslearn_pipeline.storage import (
+    AnalyticalDatabase,
+    get_database,
+    load_sql_resource,
+)
 
 __all__ = [
     "load_canonical_schema",
@@ -23,6 +28,9 @@ __all__ = [
     "IngestionBatchSummary",
     "LearningAnalyticsMetrics",
     "AnalyticalDatabase",
+    "PostgresAnalyticalDatabase",
+    "apply_postgres_migrations",
+    "get_database",
     "load_sql_resource",
     "compute_pipeline_metrics",
 ]

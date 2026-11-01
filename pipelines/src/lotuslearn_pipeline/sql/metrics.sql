@@ -41,8 +41,8 @@ SELECT
     CASE
         WHEN SUM(total_reviewed) > 0 THEN
             ROUND(
-                CAST(SUM(count_edited) + SUM(count_dismissed) AS REAL) /
-                CAST(SUM(total_reviewed) AS REAL),
+                CAST(CAST(SUM(count_edited) + SUM(count_dismissed) AS REAL) /
+                     CAST(SUM(total_reviewed) AS REAL) AS NUMERIC),
                 4
             )
         ELSE NULL

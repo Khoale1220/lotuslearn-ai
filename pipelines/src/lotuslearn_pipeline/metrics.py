@@ -43,12 +43,18 @@ def compute_pipeline_metrics(database: "AnalyticalDatabase") -> LearningAnalytic
 
     # Query 5: Misconception clusters with prevalence rates
     cur5 = conn.execute(statements[4])
-    prevalence = [dict(row) for row in cur5.fetchall()]
+    prevalence = []
+    for row in cur5.fetchall():
+        d = dict(row)
+        if d.get("prevalence_rate") is not None:
+            d["prevalence_rate"] = float(d["prevalence_rate"])
+        prevalence.append(d)
 
     # Query 6: Global Educator Modification Rate (R_mod)
     cur6 = conn.execute(statements[5])
     mod_row = cur6.fetchone()
-    mod_rate = mod_row["educator_modification_rate"] if mod_row else None
+    raw_mod = mod_row["educator_modification_rate"] if mod_row else None
+    mod_rate = float(raw_mod) if raw_mod is not None else None
 
     return LearningAnalyticsMetrics(
         total_accepted_events=total_accepted,

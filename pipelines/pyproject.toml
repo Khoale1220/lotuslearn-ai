@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "jsonschema>=4.20.0",
     "rfc3339-validator>=0.1.4",
+    "psycopg[binary]>=3.2,<4",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +32,7 @@ where = ["src"]
 lotuslearn_pipeline = [
     "resources/*.json",
     "sql/*.sql",
+    "migrations/postgres/*.sql",
 ]
 
 [tool.pytest.ini_options]
