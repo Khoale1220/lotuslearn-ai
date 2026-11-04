@@ -11,7 +11,20 @@ from lotuslearn_pipeline.models import (
     IngestionResult,
     LearningAnalyticsMetrics,
 )
-from lotuslearn_pipeline.postgres import PostgresAnalyticalDatabase, apply_postgres_migrations
+from lotuslearn_pipeline.postgres import (
+    AnalysisRunConflictError,
+    MigrationDriftError,
+    MigrationFileMissingError,
+    PostgresAnalyticalDatabase,
+    apply_postgres_migrations,
+    get_migration_status,
+)
+from lotuslearn_pipeline.reconciliation import ReconciliationReport, reconcile_batch
+from lotuslearn_pipeline.retry import (
+    RetryExecution,
+    execute_with_retry,
+    is_transient_postgres_error,
+)
 from lotuslearn_pipeline.storage import (
     AnalyticalDatabase,
     get_database,
@@ -30,6 +43,15 @@ __all__ = [
     "AnalyticalDatabase",
     "PostgresAnalyticalDatabase",
     "apply_postgres_migrations",
+    "get_migration_status",
+    "MigrationDriftError",
+    "MigrationFileMissingError",
+    "AnalysisRunConflictError",
+    "execute_with_retry",
+    "is_transient_postgres_error",
+    "RetryExecution",
+    "reconcile_batch",
+    "ReconciliationReport",
     "get_database",
     "load_sql_resource",
     "compute_pipeline_metrics",

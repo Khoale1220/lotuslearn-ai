@@ -82,13 +82,13 @@ CREATE TABLE IF NOT EXISTS verifications (
 
 -- Historical educator actions stream (all recorded human decisions across time)
 CREATE TABLE IF NOT EXISTS teacher_decisions (
+    event_id TEXT PRIMARY KEY,
     analysis_run_id TEXT NOT NULL REFERENCES analysis_runs(run_id) ON DELETE CASCADE,
     target_type TEXT NOT NULL,
     target_id TEXT NOT NULL,
     teacher_decision TEXT NOT NULL CHECK (teacher_decision IN ('accepted', 'edited', 'dismissed')),
     notes TEXT,
-    recorded_at TEXT NOT NULL,
-    PRIMARY KEY (analysis_run_id, target_type, target_id, recorded_at)
+    recorded_at TEXT NOT NULL
 );
 
 -- Current teacher decision projection (tracks latest decision per target)

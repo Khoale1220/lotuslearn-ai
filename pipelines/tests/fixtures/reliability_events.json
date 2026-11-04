@@ -1,0 +1,243 @@
+{
+  "standardBatch": [
+    {
+      "schema_version": "1.0.0",
+      "event_id": "72da89d2621a15ce22246c6cf420809f172c66289f61dfe6a992cf4a4920d23b",
+      "event_type": "ANALYSIS_INGESTED",
+      "occurred_at": "2026-10-26T10:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "source",
+      "dataset_fingerprint": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "submission_count": 24,
+      "subject": "Mathematics",
+      "grade_level": "Grade 8",
+      "total_duration_ms": 1850,
+      "execution_mode": "live_gemini"
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "79ad246257d571dec81a6333225afd32c08e69bec82418ae64081e12554dfef1",
+      "event_type": "FINDING_IDENTIFIED",
+      "occurred_at": "2026-10-26T10:01:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "gemini",
+      "finding_id": "cluster-fractions",
+      "concept": "Adding Fractions with Unlike Denominators",
+      "teaching_priority": "urgent",
+      "affected_student_count": 8,
+      "affected_student_ids": [
+        "stu-01",
+        "stu-02",
+        "stu-03",
+        "stu-04",
+        "stu-05",
+        "stu-06",
+        "stu-07",
+        "stu-08"
+      ],
+      "percentage_affected": 33.3,
+      "explanation": "Students add numerators and denominators directly across."
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "e7e427c0f36194fe004d059e167f3a3b5b621fcfcfffbe99d83b877f2ed0ec8f",
+      "event_type": "FINDING_IDENTIFIED",
+      "occurred_at": "2026-10-26T10:02:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "gemini",
+      "finding_id": "cluster-decimals",
+      "concept": "Decimal Place Alignment",
+      "teaching_priority": "high",
+      "affected_student_count": 4,
+      "affected_student_ids": [
+        "stu-09",
+        "stu-10",
+        "stu-11",
+        "stu-12"
+      ],
+      "percentage_affected": 16.7,
+      "explanation": "Misaligned tenths and hundredths columns during subtraction."
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "1bb029a5076c3d4f2b47d6e657505d474e27ab785ec746f9a5da6747d3b77bbf",
+      "event_type": "GROUP_FORMED",
+      "occurred_at": "2026-10-26T10:03:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "gemini",
+      "group_id": "group-fractions-lab",
+      "group_name": "Visual Denominator Commonality Lab",
+      "student_count": 8,
+      "student_ids": [
+        "stu-01",
+        "stu-02",
+        "stu-03",
+        "stu-04",
+        "stu-05",
+        "stu-06",
+        "stu-07",
+        "stu-08"
+      ],
+      "suggested_activity": "Fraction strip folding and common multiple visualization",
+      "estimated_duration": "20 min"
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "806c834f460f56d206c62384660d9541a0632f181c0188d2cf775ff8dcdf2a99",
+      "event_type": "VERIFICATION_AUDITED",
+      "occurred_at": "2026-10-26T10:04:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "deterministic_code",
+      "overall_status": "verified",
+      "coverage_passed": true,
+      "cluster_math_passed": true,
+      "group_partition_passed": true,
+      "quotes_grounded_count": 12,
+      "quotes_flagged_count": 0
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "77ff856881b851b63b7de5136a74aae609c71e07e668b283630e8ffce5d21492",
+      "event_type": "DECISION_RECORDED",
+      "occurred_at": "2026-10-26T11:00:00Z",
+      "decision_recorded_at": "2026-10-26T11:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "human",
+      "target_type": "differentiated_intervention",
+      "target_id": "group-fractions-lab",
+      "teacher_decision": "edited",
+      "notes": "Teacher adjusted intervention time to 25 min"
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "f97da83f60c96070cf37ce13dcbc91c732ecdc4eb13dc1fd10c1a7acbf9ef426",
+      "event_type": "DECISION_RECORDED",
+      "occurred_at": "2026-10-26T12:30:00Z",
+      "decision_recorded_at": "2026-10-26T12:30:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "human",
+      "target_type": "differentiated_intervention",
+      "target_id": "group-fractions-lab",
+      "teacher_decision": "dismissed",
+      "notes": "Teacher dismissed recommendation in favor of whole-class review"
+    }
+  ],
+  "replayPair": {
+    "original": {
+      "schema_version": "1.0.0",
+      "event_id": "72da89d2621a15ce22246c6cf420809f172c66289f61dfe6a992cf4a4920d23b",
+      "event_type": "ANALYSIS_INGESTED",
+      "occurred_at": "2026-10-26T10:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "source",
+      "dataset_fingerprint": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "submission_count": 24,
+      "subject": "Mathematics",
+      "grade_level": "Grade 8",
+      "total_duration_ms": 1850,
+      "execution_mode": "live_gemini"
+    },
+    "replay": {
+      "schema_version": "1.0.0",
+      "event_id": "72da89d2621a15ce22246c6cf420809f172c66289f61dfe6a992cf4a4920d23b",
+      "event_type": "ANALYSIS_INGESTED",
+      "occurred_at": "2026-10-26T10:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "source",
+      "dataset_fingerprint": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "submission_count": 24,
+      "subject": "Mathematics",
+      "grade_level": "Grade 8",
+      "total_duration_ms": 1850,
+      "execution_mode": "live_gemini"
+    }
+  },
+  "payloadConflictPair": {
+    "original": {
+      "schema_version": "1.0.0",
+      "event_id": "72da89d2621a15ce22246c6cf420809f172c66289f61dfe6a992cf4a4920d23b",
+      "event_type": "ANALYSIS_INGESTED",
+      "occurred_at": "2026-10-26T10:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "source",
+      "dataset_fingerprint": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "submission_count": 24,
+      "subject": "Mathematics",
+      "grade_level": "Grade 8",
+      "total_duration_ms": 1850,
+      "execution_mode": "live_gemini"
+    },
+    "conflicting": {
+      "schema_version": "1.0.0",
+      "event_id": "72da89d2621a15ce22246c6cf420809f172c66289f61dfe6a992cf4a4920d23b",
+      "event_type": "ANALYSIS_INGESTED",
+      "occurred_at": "2026-10-26T10:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "source",
+      "dataset_fingerprint": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "submission_count": 24,
+      "subject": "Algebra I Honors",
+      "grade_level": "Grade 8",
+      "total_duration_ms": 1850,
+      "execution_mode": "live_gemini"
+    }
+  },
+  "analysisRunConflictPair": {
+    "runA": {
+      "schema_version": "1.0.0",
+      "event_id": "ab3b4f62d5896d701fbcbe999bad71042c5bec1fdfbf9d9edb38ef7023b5e45b",
+      "event_type": "ANALYSIS_INGESTED",
+      "occurred_at": "2026-10-26T10:00:00Z",
+      "analysis_run_id": "run-de02b-conflict-002",
+      "provenance": "source",
+      "dataset_fingerprint": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "submission_count": 20,
+      "subject": "Mathematics",
+      "grade_level": "Grade 8",
+      "total_duration_ms": 1200,
+      "execution_mode": "live_gemini"
+    },
+    "runB": {
+      "schema_version": "1.0.0",
+      "event_id": "bcbb2661524f553eac7507f4e8a2cd1b466af4dfbd01877be0318e23911cb4ac",
+      "event_type": "ANALYSIS_INGESTED",
+      "occurred_at": "2026-10-26T10:00:00Z",
+      "analysis_run_id": "run-de02b-conflict-002",
+      "provenance": "source",
+      "dataset_fingerprint": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "submission_count": 20,
+      "subject": "Mathematics",
+      "grade_level": "Grade 8",
+      "total_duration_ms": 9999,
+      "execution_mode": "demo_resilience"
+    }
+  },
+  "equalTimestampDecisions": {
+    "decisionA": {
+      "schema_version": "1.0.0",
+      "event_id": "682f99775bddc9f79e554c6c505ca7c42a6af2d0ed7f2c97a7b1a0e16bad9c5b",
+      "event_type": "DECISION_RECORDED",
+      "occurred_at": "2026-10-26T12:00:00Z",
+      "decision_recorded_at": "2026-10-26T12:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "human",
+      "target_type": "misconception_cluster",
+      "target_id": "cluster-fractions",
+      "teacher_decision": "accepted",
+      "notes": "Teacher verified fraction diagnostic cluster (initial confirmation)"
+    },
+    "decisionB": {
+      "schema_version": "1.0.0",
+      "event_id": "e62fb76a31e03d5b8d7058a83db168b56964ee3170d2357fb5b81f3165927a31",
+      "event_type": "DECISION_RECORDED",
+      "occurred_at": "2026-10-26T12:00:00Z",
+      "decision_recorded_at": "2026-10-26T12:00:00Z",
+      "analysis_run_id": "run-de02b-rel-001",
+      "provenance": "human",
+      "target_type": "misconception_cluster",
+      "target_id": "cluster-fractions",
+      "teacher_decision": "edited",
+      "notes": "Teacher updated notes at identical timestamp"
+    }
+  }
+}

@@ -1,12 +1,13 @@
-"""Command-line interface for LotusLearn DE-01.1 analytical pipeline."""
+"""Command-line interface for LotusLearn DE-02B analytical pipeline."""
 
 import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from lotuslearn_pipeline.models import IngestionOutcome
+from lotuslearn_pipeline.reconciliation import reconcile_batch
 from lotuslearn_pipeline.storage import get_database
 
 
@@ -33,9 +34,100 @@ def load_events_from_file(file_path: Path) -> List[Dict[str, Any]]:
         return events
 
 
-def main(argv: List[str] = None) -> int:
+def handle_migration_status(db: Any) -> int:
+    """Displays migration status table for the target database."""
+    from lotuslearn_pipeline.postgres import PostgresAnalyticalDatabase, get_migration_status
+
+    if not isinstance(db, PostgresAnalyticalDatabase):
+        print("Migration status is currently only applicable to PostgreSQL targets.")
+        return 0
+
+    conn = db.get_connection()
+    status_list = get_migration_status(conn)
+    print("\n--- PostgreSQL Migration Status ---")
+    print(f"{'Version':<10} {'Name':<35} {'Applied':<10} {'Checksum Valid':<15}")
+    print("-" * 72)
+    for s in status_list:
+        applied_str = "YES" if s["applied"] else "NO"
+        valid_str = "PASS" if s["checksum_valid"] else "FAIL"
+        print(f"{s['version']:<10} {s['name']:<35} {applied_str:<10} {valid_str:<15}")
+    return 0
+
+
+def handle_verify(db: Any) -> int:
+    """Provides concise database integrity evidence for PostgreSQL or SQLite."""
+    from lotuslearn_pipeline.postgres import PostgresAnalyticalDatabase, get_migration_status
+    from lotuslearn_pipeline.storage import AnalyticalDatabase
+
+    if isinstance(db, PostgresAnalyticalDatabase):
+        try:
+            conn = db.get_connection()
+            status_list = get_migration_status(conn)
+            unapplied = [s for s in status_list if not s["applied"]]
+            invalid_checksums = [
+                s for s in status_list if s["applied"] and not s["checksum_valid"]
+            ]
+
+            print("\n--- PostgreSQL Database Verification ---")
+            print("Connectivity:                  PASS")
+            print(f"Packaged Migrations Total:     {len(status_list)}")
+            applied_cnt = len(status_list) - len(unapplied)
+            print(f"Migrations Applied:            {applied_cnt}/{len(status_list)}")
+            chk_status = "PASS" if not invalid_checksums else "FAIL"
+            print(f"Checksum Integrity:            {chk_status}")
+
+            if invalid_checksums:
+                print("ERROR: Checksum mismatch detected in applied migrations:")
+                for inv in invalid_checksums:
+                    print(f"  - {inv['name']}: expected {inv['checksum']}")
+                return 1
+
+            if unapplied:
+                print(f"WARNING: {len(unapplied)} migration(s) remain unapplied.")
+                return 1
+
+            print("Database Status:               VERIFIED (Healthy)")
+            return 0
+        except Exception as e:
+            print(f"ERROR: PostgreSQL verification failed: {e}")
+            return 1
+
+    elif isinstance(db, AnalyticalDatabase):
+        try:
+            conn = db.conn
+            cur = conn.cursor()
+            cur.execute("PRAGMA integrity_check;")
+            rows = cur.fetchall()
+            status = rows[0][0] if rows else "unknown"
+
+            print("\n--- SQLite Database Verification ---")
+            print("Connectivity:                  PASS")
+            print(f"Integrity Check:               {'PASS' if status == 'ok' else 'FAIL'}")
+
+            if status != "ok":
+                print(f"ERROR: SQLite PRAGMA integrity_check returned: {status}")
+                return 1
+
+            print("Database Status:               VERIFIED (Healthy)")
+            return 0
+        except Exception as e:
+            print(f"ERROR: SQLite verification failed: {e}")
+            return 1
+
+    else:
+        print("Unknown database backend.")
+        return 1
+
+
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="LotusLearn DE-01.1 Analytical Ingestion & Metrics Pipeline"
+        description="LotusLearn DE-02B Analytical Ingestion, Migrations & Metrics Pipeline"
+    )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["ingest", "migrate", "migration-status", "verify"],
+        help="Optional command: ingest, migrate, migration-status, verify",
     )
     parser.add_argument(
         "--input",
@@ -54,6 +146,21 @@ def main(argv: List[str] = None) -> int:
         ),
     )
     parser.add_argument(
+        "--migrate",
+        action="store_true",
+        help="Run database migrations before processing",
+    )
+    parser.add_argument(
+        "--migration-status",
+        action="store_true",
+        help="Display migration status and exit",
+    )
+    parser.add_argument(
+        "--reconcile",
+        action="store_true",
+        help="Display batch reconciliation identity balance accounting",
+    )
+    parser.add_argument(
         "--metrics",
         action="store_true",
         help="Compute and display learning analytics metrics after ingestion",
@@ -67,7 +174,28 @@ def main(argv: List[str] = None) -> int:
     args = parser.parse_args(argv)
 
     db = get_database(args.db)
-    db.initialize_schema()
+
+    # Handle verify command
+    if args.command == "verify":
+        res = handle_verify(db)
+        db.close()
+        return res
+
+    # Handle migration-status command
+    if args.command == "migration-status" or args.migration_status:
+        res = handle_migration_status(db)
+        db.close()
+        return res
+
+    # Handle migrate command or flag
+    if args.command == "migrate" or args.migrate:
+        applied = db.initialize_schema()
+        print(f"Applied {len(applied)} migrations: {applied}")
+        if args.command == "migrate" and not args.input:
+            db.close()
+            return 0
+    else:
+        db.initialize_schema()
 
     if args.input:
         events = load_events_from_file(args.input)
@@ -86,6 +214,10 @@ def main(argv: List[str] = None) -> int:
         print(f"Duplicates:      {duplicate_count}")
         print(f"Conflicts:       {conflict_count}")
         print(f"Rejected:        {rejected_count}")
+
+        if args.reconcile:
+            report = reconcile_batch(results)
+            print("\n" + report.format_summary())
 
         if rejected_count > 0 or conflict_count > 0:
             print("\nIssues detail:")

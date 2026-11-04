@@ -12,19 +12,29 @@ function runPostgresPipelineSmoke(): void {
 
   const pgUrl =
     process.env.LOTUSLEARN_DATABASE_URL ||
-    'postgresql://postgres@localhost/lotuslearn_test?host=/tmp';
+    'postgresql://postgres:postgres@localhost:5432/lotuslearn_test';
 
   try {
     const demoResult = generateGroundedDemoAnalysis(DEMO_CONTEXT, DEMO_SUBMISSIONS);
     const events = produceAnalyticalEvents(demoResult);
     fs.writeFileSync(tmpJsonPath, JSON.stringify(events, null, 2), 'utf-8');
 
-    const pythonCmd = process.env.PYTHON || 'python3';
+    const pythonCmd = process.env.PYTHON || 'python';
     console.log(`Running PostgreSQL analytical pipeline smoke test against: ${pgUrl.split('@')[0]}...`);
 
     const result = spawnSync(
       pythonCmd,
-      ['-m', 'lotuslearn_pipeline.cli', '--input', tmpJsonPath, '--db', pgUrl, '--metrics', '--exit-on-rejection'],
+      [
+        '-m',
+        'lotuslearn_pipeline.cli',
+        '--input',
+        tmpJsonPath,
+        '--db',
+        pgUrl,
+        '--reconcile',
+        '--metrics',
+        '--exit-on-rejection',
+      ],
       { stdio: 'inherit', env: { ...process.env, LOTUSLEARN_DATABASE_URL: pgUrl } }
     );
 

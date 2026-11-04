@@ -18,6 +18,7 @@ class IngestionResult:
     outcome: IngestionOutcome
     rejection_reason: Optional[str] = None
     event_type: Optional[str] = None
+    retry_attempts: int = 1
 
 
 @dataclass

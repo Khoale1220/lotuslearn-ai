@@ -16,11 +16,21 @@ function runPipelineSmoke(): void {
     fs.writeFileSync(tmpJsonPath, JSON.stringify(events, null, 2), 'utf-8');
 
     // Target database URL or default to in-memory database (:memory:)
-    const pythonCmd = process.env.PYTHON || 'python3';
+    const pythonCmd = process.env.PYTHON || 'python';
     const dbTarget = process.env.LOTUSLEARN_DATABASE_URL || ':memory:';
     const result = spawnSync(
       pythonCmd,
-      ['-m', 'lotuslearn_pipeline.cli', '--input', tmpJsonPath, '--db', dbTarget, '--metrics', '--exit-on-rejection'],
+      [
+        '-m',
+        'lotuslearn_pipeline.cli',
+        '--input',
+        tmpJsonPath,
+        '--db',
+        dbTarget,
+        '--reconcile',
+        '--metrics',
+        '--exit-on-rejection',
+      ],
       { stdio: 'inherit', env: { ...process.env } }
     );
 

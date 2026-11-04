@@ -1,6 +1,6 @@
-"""Full behavioral and metric parity tests between SQLite and PostgreSQL backends."""
-
+import json
 import os
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -240,3 +240,104 @@ def test_complete_backend_parity(dual_databases):
         assert sq_f["concept"] == pg_f["concept"]
         assert sq_f["cluster_count"] == pg_f["cluster_count"]
         assert sq_f["total_affected_instances"] == pg_f["total_affected_instances"]
+
+
+def test_parity_reliability_fixtures(dual_databases):
+    """
+    Validates end-to-end behavioral parity using the TypeScript-generated
+    reliability test suite fixtures (pipelines/tests/fixtures/reliability_events.json).
+    Checks standard batch ingestion, duplicate replay, identity conflict,
+    and equal-timestamp teacher decision projections.
+    """
+    sqlite_db, pg_db = dual_databases
+    fixture_path = Path(__file__).parent / "fixtures" / "reliability_events.json"
+    if not fixture_path.exists():
+        pytest.fail(f"Reliability fixtures JSON not found at {fixture_path}")
+
+    with open(fixture_path, encoding="utf-8") as f:
+        fixtures = json.load(f)
+
+    # 1. Standard Batch Ingestion Parity
+    standard_batch = fixtures["standardBatch"]
+    sq_res = sqlite_db.load_events(standard_batch)
+    pg_res = pg_db.load_events(standard_batch)
+
+    assert len(sq_res) == len(pg_res)
+    for sr, pr in zip(sq_res, pg_res):
+        assert sr.outcome == pr.outcome
+        assert sr.event_id == pr.event_id
+
+    # 2. Replay Pair Parity
+    replay_pair = fixtures["replayPair"]
+    sq_dup = sqlite_db.ingest_single_event(replay_pair["replay"])
+    pg_dup = pg_db.ingest_single_event(replay_pair["replay"])
+    assert sq_dup.outcome == IngestionOutcome.DUPLICATE
+    assert pg_dup.outcome == IngestionOutcome.DUPLICATE
+
+    # 3. Payload Conflict Pair Parity
+    payload_conflict = fixtures["payloadConflictPair"]
+    sq_conf = sqlite_db.ingest_single_event(payload_conflict["conflicting"])
+    pg_conf = pg_db.ingest_single_event(payload_conflict["conflicting"])
+    assert sq_conf.outcome == IngestionOutcome.CONFLICT
+    assert pg_conf.outcome == IngestionOutcome.CONFLICT
+    assert "IDENTITY_CONFLICT_PAYLOAD_MISMATCH" in str(sq_conf.rejection_reason)
+    assert "IDENTITY_CONFLICT_PAYLOAD_MISMATCH" in str(pg_conf.rejection_reason)
+
+    # 4. Equal-Timestamp Teacher Decision History & Projection Parity
+    eq_decisions = fixtures["equalTimestampDecisions"]
+    dec_a = eq_decisions["decisionA"]
+    dec_b = eq_decisions["decisionB"]
+
+    sq_dec_a = sqlite_db.ingest_single_event(dec_a)
+    pg_dec_a = pg_db.ingest_single_event(dec_a)
+    assert sq_dec_a.outcome == IngestionOutcome.ACCEPTED
+    assert pg_dec_a.outcome == IngestionOutcome.ACCEPTED
+
+    sq_dec_b = sqlite_db.ingest_single_event(dec_b)
+    pg_dec_b = pg_db.ingest_single_event(dec_b)
+    assert sq_dec_b.outcome == IngestionOutcome.ACCEPTED
+    assert pg_dec_b.outcome == IngestionOutcome.ACCEPTED
+
+    # Both historical decisions survive for this target in both engines
+    with sqlite_db.conn as s_conn:
+        cur = s_conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM teacher_decisions WHERE target_id = ?",
+            (dec_a["target_id"],),
+        )
+        assert cur.fetchone()[0] == 2
+
+    pg_conn = pg_db.get_connection()
+    with pg_conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM teacher_decisions WHERE target_id = %s;",
+            (dec_a["target_id"],),
+        )
+        assert cur.fetchone()["c"] == 2
+
+    # Current projection selects one deterministic winner via event_id tie-breaking
+    expected_winner = dec_a if dec_a["event_id"] > dec_b["event_id"] else dec_b
+    s_cur = sqlite_db.get_current_teacher_decisions()
+    p_cur = pg_db.get_current_teacher_decisions()
+    assert len(s_cur) == len(p_cur)
+
+    s_target = next(r for r in s_cur if r["target_id"] == dec_a["target_id"])
+    p_target = next(r for r in p_cur if r["target_id"] == dec_a["target_id"])
+    assert s_target["teacher_decision"] == expected_winner["teacher_decision"]
+    assert p_target["teacher_decision"] == expected_winner["teacher_decision"]
+    assert s_target["last_event_id"] == expected_winner["event_id"]
+    assert p_target["last_event_id"] == expected_winner["event_id"]
+
+    for s_row, p_row in zip(s_cur, p_cur):
+        assert s_row["analysis_run_id"] == p_row["analysis_run_id"]
+        assert s_row["target_type"] == p_row["target_type"]
+        assert s_row["target_id"] == p_row["target_id"]
+        assert s_row["teacher_decision"] == p_row["teacher_decision"]
+
+    # 6. Metric parity
+    sq_metrics = sqlite_db.compute_metrics()
+    pg_metrics = pg_db.compute_metrics()
+    assert sq_metrics.total_accepted_events == pg_metrics.total_accepted_events
+    assert sq_metrics.student_appearances == pg_metrics.student_appearances
+    assert sq_metrics.educator_modification_rate == pg_metrics.educator_modification_rate
+

@@ -14,10 +14,12 @@
     "preview": "vite preview",
     "clean": "node scripts/clean.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test server/services/pipelineRegression.test.ts server/services/analyticalEventProducer.test.ts src/context/ThemeContext.test.ts",
+    "test": "tsx --test server/services/pipelineRegression.test.ts server/services/analyticalEventProducer.test.ts src/context/ThemeContext.test.ts server/services/reliabilityFixtureProducer.test.ts",
     "test:python": "pytest pipelines/tests",
     "lint": "oxlint",
     "lint:python": "ruff check pipelines",
+    "fixtures:reliability": "tsx scripts/export_reliability_fixtures.ts",
+    "fixtures:verify": "tsx scripts/verify_reliability_fixtures.ts",
     "pipeline:run": "tsx scripts/run_pipeline_smoke.ts",
     "pipeline:run:postgres": "tsx scripts/run_pipeline_postgres_smoke.ts"
   },

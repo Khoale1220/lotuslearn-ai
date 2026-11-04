@@ -351,15 +351,15 @@ class AnalyticalDatabase:
                     conn.execute(
                         """
                         INSERT INTO teacher_decisions (
-                            analysis_run_id, target_type, target_id, teacher_decision,
-                            notes, recorded_at
-                        ) VALUES (?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(analysis_run_id, target_type, target_id, recorded_at)
-                        DO UPDATE SET
+                            event_id, analysis_run_id, target_type, target_id,
+                            teacher_decision, notes, recorded_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(event_id) DO UPDATE SET
                             teacher_decision = excluded.teacher_decision,
                             notes = excluded.notes
                         """,
                         (
+                            event["event_id"],
                             run_id,
                             event["target_type"],
                             event["target_id"],
