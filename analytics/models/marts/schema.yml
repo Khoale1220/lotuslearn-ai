@@ -1,0 +1,106 @@
+version: 2
+
+models:
+  - name: fct_analysis_runs
+    description: "Core fact table for diagnostic analysis runs with aggregated student, cluster, and decision dimensions."
+    columns:
+      - name: analysis_run_id
+        description: "Primary key UUID of the diagnostic run."
+        data_tests:
+          - unique
+          - not_null
+      - name: dataset_fingerprint
+        data_tests:
+          - not_null
+      - name: submission_count
+        data_tests:
+          - not_null
+      - name: distinct_students_count
+        data_tests:
+          - not_null
+      - name: total_clusters_count
+        data_tests:
+          - not_null
+      - name: total_groups_count
+        data_tests:
+          - not_null
+      - name: total_decisions_reviewed
+        data_tests:
+          - not_null
+
+  - name: fct_misconception_clusters
+    description: "Fact table for misconception clusters with cohort prevalence rates and current educator review state."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('fct_analysis_runs')
+              field: analysis_run_id
+      - name: cluster_id
+        data_tests:
+          - not_null
+      - name: concept
+        data_tests:
+          - not_null
+      - name: teaching_priority
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['immediate', 'guided_group', 'reinforce', 'monitor']
+      - name: affected_students
+        data_tests:
+          - not_null
+      - name: total_students
+        data_tests:
+          - not_null
+      - name: prevalence_rate
+        data_tests:
+          - not_null
+
+  - name: fct_teacher_decisions
+    description: "Immutable fact table preserving the complete audit stream of educator decisions and overrides."
+    columns:
+      - name: event_id
+        description: "Primary key event ID for the immutable decision action."
+        data_tests:
+          - unique
+          - not_null
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('fct_analysis_runs')
+              field: analysis_run_id
+      - name: target_type
+        data_tests:
+          - not_null
+      - name: target_id
+        data_tests:
+          - not_null
+      - name: teacher_decision
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['accepted', 'edited', 'dismissed']
+      - name: decision_recorded_at
+        data_tests:
+          - not_null
+
+  - name: mart_learning_analytics
+    description: "Consumption mart joining run outcomes, cluster priority distributions, verification trust, and human-in-the-loop metrics."
+    columns:
+      - name: analysis_run_id
+        description: "Primary key UUID of the diagnostic run."
+        data_tests:
+          - unique
+          - not_null
+      - name: subject
+        data_tests:
+          - not_null
+      - name: grade_level
+        data_tests:
+          - not_null
+      - name: is_fully_verified
+        data_tests:
+          - not_null

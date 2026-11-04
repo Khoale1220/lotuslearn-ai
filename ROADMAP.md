@@ -10,11 +10,12 @@
 - **Zero-PII Client Persistence**: Browser `localStorage` caches only derived, de-identified evidence; raw student text, unredacted identities, and uploaded images are permanently discarded.
 - **Stage-Aware Reliability**: Tiered model routing (Gemini 3.8 Flash $\to$ 3.6 Flash $\to$ 3.5 Flash-Lite) with timeout abort controllers and model cooldown registry to survive transient provider issues.
 - **Production Server & Hygiene**: Compiled production server running Node 22 with ESM static asset delivery, `/healthz` liveness check, and strictly npm package management (zero `bun.lock`).
+- **Durable Relational Persistence (DE-02A & DE-02B Completed)**: Production PostgreSQL 18 persistence via Psycopg 3 with strict foreign keys, native `JSONB`, `TIMESTAMPTZ`, versioned SQL migrations (`0001_initial.sql`, `0002_reliability_hardening.sql`), advisory lock concurrency controls (`pg_advisory_xact_lock`), SHA-256 migration checksum verification, bounded exponential backoff retries, fault injection rollback atomicity, and dual-backend SQLite/PostgreSQL parity.
 
 ## Next (Data Engineering & Pipeline Scaling)
 
-- **Relational Data Persistence**: Formal PostgreSQL/Cloud SQL schema migrations (via Drizzle ORM) for persistent storage of classes, units, learning objectives, student roster mappings, and analysis runs.
-- **Structured Analytics Event Stream**: Schema-validated audit events emitted at each pipeline stage (ingestion, sanitization, observation, diagnosis, strategy, verification, educator review) for data engineering pipelines.
+- **Analytical Transformation and Data Quality Layer (DE-03 Active)**: Governed dbt Core analytical modeling over PostgreSQL with staging, intermediate, and dimensional marts, automated data quality assertions, deterministic metric reconciliation, and CI lineage generation.
+- **Structured Analytics Event Stream**: Schema-validated audit events emitted at each pipeline stage for analytical transformation and quality auditing.
 - **Asynchronous Batch Processing**: Background queue architecture (e.g. BullMQ / Cloud Tasks) to support cohorts larger than 35 submissions without encountering HTTP client timeouts.
 - **Standardized Ingestion Adapters**: Batch import modules for standard educational export formats (CSV roster imports, Google Classroom assignment submissions).
 - **Offline Evaluation Suite**: Automated CI evaluation harness running weekly against frozen student test cohorts to measure precision, recall, and false-positive rates of misconception clustering.

@@ -229,14 +229,17 @@ def test_concurrent_schema_migrations_under_advisory_lock():
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
 
-    with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                DROP SCHEMA public CASCADE;
-                CREATE SCHEMA public;
-                """
-            )
+    try:
+        with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    DROP SCHEMA public CASCADE;
+                    CREATE SCHEMA public;
+                    """
+                )
+    except Exception as e:
+        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {e}")
 
     num_threads = 4
     barrier_mig = threading.Barrier(num_threads)

@@ -1,0 +1,108 @@
+version: 2
+
+models:
+  - name: stg_analysis_runs
+    description: "Cleaned and typed analysis runs."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - unique
+          - not_null
+      - name: submission_count
+        data_tests:
+          - not_null
+
+  - name: stg_analytical_events
+    description: "Normalized analytical event stream."
+    columns:
+      - name: event_id
+        data_tests:
+          - unique
+          - not_null
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_analysis_runs')
+              field: analysis_run_id
+
+  - name: stg_misconception_clusters
+    description: "Staged misconception clusters."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: cluster_id
+        data_tests:
+          - not_null
+
+  - name: stg_student_findings
+    description: "Staged student finding associations."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: student_id
+        data_tests:
+          - not_null
+
+  - name: stg_instructional_groups
+    description: "Staged instructional support groups."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: group_id
+        data_tests:
+          - not_null
+
+  - name: stg_group_memberships
+    description: "Staged group memberships."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: student_id
+        data_tests:
+          - not_null
+
+  - name: stg_verifications
+    description: "Staged verification results."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_teacher_decisions
+    description: "Staged historical teacher decision events."
+    columns:
+      - name: event_id
+        data_tests:
+          - unique
+          - not_null
+      - name: teacher_decision
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['accepted', 'edited', 'dismissed']
+
+  - name: stg_current_teacher_decisions
+    description: "Staged current teacher decision projections."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: teacher_decision
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['accepted', 'edited', 'dismissed']
+
+  - name: stg_ingestion_audit
+    description: "Staged ingestion audit records."
+    columns:
+      - name: attempt_id
+        data_tests:
+          - unique
+          - not_null

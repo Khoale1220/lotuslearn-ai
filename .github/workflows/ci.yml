@@ -58,6 +58,12 @@ jobs:
     env:
       LOTUSLEARN_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
       LOTUSLEARN_TEST_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
+      LOTUSLEARN_PG_HOST: localhost
+      LOTUSLEARN_PG_PORT: 5432
+      LOTUSLEARN_PG_USER: postgres
+      LOTUSLEARN_PG_PASSWORD: postgres_ci_password
+      LOTUSLEARN_PG_DBNAME: lotuslearn_test
+      LOTUSLEARN_PG_SCHEMA: analytics
 
     steps:
       - name: Checkout repository
@@ -112,3 +118,27 @@ jobs:
 
       - name: Run PostgreSQL End-to-End Pipeline Smoke Test
         run: npm run pipeline:run:postgres
+
+      - name: Verify dbt Project Compilation
+        run: npm run dbt:parse
+
+      - name: Run dbt Build (Models and Data Quality Tests)
+        run: npm run dbt:build
+
+      - name: Generate dbt Documentation
+        run: dbt docs generate --project-dir analytics --profiles-dir analytics
+
+      - name: Reconcile Pipeline Metrics against dbt Marts
+        run: npm run dbt:reconcile
+
+      - name: Upload dbt Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dbt-artifacts
+          path: |
+            analytics/target/manifest.json
+            analytics/target/run_results.json
+            analytics/target/catalog.json
+          retention-days: 14
+

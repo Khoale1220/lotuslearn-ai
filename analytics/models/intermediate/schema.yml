@@ -1,0 +1,59 @@
+version: 2
+
+models:
+  - name: int_run_scoped_students
+    description: "Run-scoped student appearances uniquely keyed by (analysis_run_id, student_id)."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: student_id
+        data_tests:
+          - not_null
+
+  - name: int_cluster_prevalence
+    description: "Calculated cluster prevalence arithmetic (affected_student_count / submission_count)."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: cluster_id
+        data_tests:
+          - not_null
+      - name: prevalence_rate
+        data_tests:
+          - not_null
+
+  - name: int_educator_decision_current
+    description: "Current educator decision state derived with deterministic event_id lexical tie-breaking."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - not_null
+      - name: target_type
+        data_tests:
+          - not_null
+      - name: target_id
+        data_tests:
+          - not_null
+      - name: current_decision
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['accepted', 'edited', 'dismissed']
+
+  - name: int_educator_decision_metrics
+    description: "Aggregated educator decision metrics and modification rate per run."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_run_quality
+    description: "Run verification status, quality flags, and ingestion audit counts."
+    columns:
+      - name: analysis_run_id
+        data_tests:
+          - unique
+          - not_null

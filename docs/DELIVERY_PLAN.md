@@ -90,7 +90,7 @@ Every milestone must satisfy the following explicit quality gates before promoti
 5. **Continuous Integration & Clean Build**:
    - `npm run lint` executes with zero errors.
    - `npm run typecheck` passes with zero TypeScript diagnostic errors.
-   - `npm test` passes 100% of regression test cases (220 tests across 46 test suites).
+   - `npm test` passes 100% of regression test cases (237 tests across 48 test suites).
    - `npm run lint:python` executes cleanly with zero ruff warnings.
    - `npm run test:python` passes 100% of Python unit and cross-language tests.
    - Production compiled bundle (`npm run build`) builds cleanly with zero warnings.
@@ -100,12 +100,13 @@ Every milestone must satisfy the following explicit quality gates before promoti
 ## 5. Milestone Delivery Roadmap
 
 ```text
-[ M1: Hardened Baseline ] ──────> [ M2: Data Engineering (DE-01) ] ──────> [ M3: Learning Analytics ]
-  - Rate limiting & input bounds     - Draft 2020-12 analytical contract       - Longitudinal misconception tracking
-  - Fail-closed verification         - TS Producer -> Python SQLite pipeline    - Research questions evaluation
-  - Strict multimodal contracts      - Idempotent events & foreign keys         - Offline model evaluation harness
+[ M1: Hardened Baseline ] ----> [ M2: Data Engineering DE-01/02 ] ----> [ M3: Analytics DE-03 ]
+  - Rate limiting & input bounds   - Draft 2020-12 contract               - dbt Core + PostgreSQL marts
+  - Fail-closed verification       - Python ingestion pipeline            - Dimensional modeling
+  - Strict multimodal contracts    - PostgreSQL 18 + SQLite parity        - Automated data quality tests
+                                   - Migrations, locks, retries           - Metric reconciliation
 ```
 
-- **M1 (Completed)**: Reliable, hardened baseline. Strict schemas, in-memory rate limiting, dual-mode privacy gateway (Google SDP + ADC / deterministic local), fail-closed verification, and regression suite (211 tests).
-- **M2 / DE-01 (Completed)**: Data Engineering Foundation. Shared JSON Schema Draft 2020-12 analytical event contract, TypeScript event producer, Python ingestion package with safe diagnostic errors, SQLite relational database with strict foreign keys, and automated cross-language integration tests.
-- **M3 (Next)**: Advanced learning analytics. Longitudinal misconception tracking across instruction units, curriculum standard alignment, and offline evaluations answering core Data Science research questions.
+- **M1 (Completed)**: Reliable, hardened baseline. Strict schemas, in-memory rate limiting, dual-mode privacy gateway (Google SDP + ADC / deterministic local), fail-closed verification, and regression suite (237 tests across 48 test suites).
+- **M2 / DE-01 & DE-02 (Completed)**: Data Engineering Foundation & Durable Concurrency. Shared JSON Schema Draft 2020-12 analytical event contract, TypeScript event producer, Python ingestion package with safe diagnostic errors, PostgreSQL 18 durable relational persistence with Psycopg 3, SQLite parity, transactional migrations with SHA-256 checksums and advisory locks, bounded retries (40001/40P01), full rollback fault injection, and cross-language reliability fixtures.
+- **M3 / DE-03 (Active)**: Analytical Transformation and Data Quality Layer. dbt Core with PostgreSQL adapter, staging/intermediate/marts dimensional modeling, automated data-quality assertions, deterministic metric reconciliation against ingestion pipeline, and CI integration. Longitudinal identity tracking remains deferred to a future milestone pending a district-managed cryptographic identity service.

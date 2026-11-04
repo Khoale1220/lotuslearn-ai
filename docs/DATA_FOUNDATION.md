@@ -281,88 +281,55 @@ This metric serves as a direct ground-truth signal for tracking human trust and 
 LotusLearn maintains a 35-case educational privacy benchmark fixture (`server/services/privacyEvalSet.ts`) running automated regression tests:
 - **False-Positive Grammar Preservation**: Confirms that grammatical labels (e.g., "Past Simple", "Present Perfect", "Subject-Verb Agreement") are 100% preserved without erroneous PII scrubbing.
 - **True-Positive Identification**: Confirms that student full names, email addresses, and phone numbers are 100% redacted before inference.
-- **Deterministic Test Suite**: Comprehensive 211-test regression harness validating schema contracts, rate limiting, and fail-closed edge cases.
+- **Deterministic Test Suite**: Comprehensive 237-test regression harness across 48 suites validating schema contracts, rate limiting, and fail-closed edge cases.
 
 ---
 
-## 7. Future Relational Schema (PostgreSQL DDL Preparation)
+## 7. Relational Schema Architecture (PostgreSQL 18 Durable Storage)
+
+LotusLearn implements durable analytical event storage on PostgreSQL 18 via Psycopg 3 with strict foreign keys, transactional migrations, and JSONB envelopes, while preserving SQLite for hermetic parity testing:
 
 ```sql
-CREATE TABLE classrooms (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) NOT NULL,
-    grade_level VARCHAR(50) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE learning_contexts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    classroom_id UUID REFERENCES classrooms(id) ON DELETE CASCADE,
-    subject VARCHAR(100) NOT NULL,
-    lesson_title VARCHAR(200) NOT NULL,
-    learning_objective TEXT NOT NULL,
-    rubric TEXT,
-    teacher_notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE analysis_runs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    learning_context_id UUID REFERENCES learning_contexts(id) ON DELETE CASCADE,
-    dataset_fingerprint_sha256 CHAR(64) NOT NULL,
-    privacy_provider VARCHAR(50) NOT NULL,
-    deterministic_audit_passed BOOLEAN NOT NULL,
-    overall_verification_status VARCHAR(50) NOT NULL,
-    duration_ms INT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE misconception_clusters (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    analysis_run_id UUID REFERENCES analysis_runs(id) ON DELETE CASCADE,
-    cluster_title VARCHAR(200) NOT NULL,
-    explanation TEXT NOT NULL,
-    teaching_priority VARCHAR(20) NOT NULL,
-    affected_student_count INT NOT NULL,
-    teacher_decision VARCHAR(20) DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Migration 0001/0002 baseline schema in PostgreSQL 18
+-- Tables: analysis_runs, analytical_events, misconception_clusters,
+-- student_findings, instructional_groups, group_memberships,
+-- verifications, teacher_decisions, current_teacher_decisions, ingestion_audit_log
 ```
 
 ---
 
-## 8. Database Portability and Future Persistence Evaluation (DE-02)
+## 8. Database Portability and Dual-Engine Architecture (DE-02)
 
-LotusLearn maintains relational and analytical data schemas designed with ANSI SQL discipline. In milestone DE-02, the team will evaluate relational database targets beyond SQLite for production persistence, comparing PostgreSQL with candidates such as Oracle Database.
+LotusLearn maintains relational and analytical data schemas designed with ANSI SQL discipline. In milestone DE-02 (DE-02A and DE-02B), the team implemented PostgreSQL 18 as the primary durable analytical persistence engine while preserving SQLite for fast local unit testing and dual-engine parity verification.
 
-### Multi-Engine Architectural Evaluation Matrix (Candidate Assessment)
+### Multi-Engine Architectural Evaluation Matrix
 
 1. Operational Cost
-   - PostgreSQL: Highly cost-effective for developer sandboxes, self-hosted container clusters, and commodity cloud deployments (AWS RDS, GCP Cloud SQL, Supabase). Scale-to-zero capabilities reduce staging overhead.
+   - PostgreSQL 18: Cost-effective for developer sandboxes, container clusters, and cloud deployments (AWS RDS, GCP Cloud SQL, Supabase). Scale-to-zero capabilities reduce staging overhead.
    - Oracle Database: Enterprise commercial licensing model; candidate for environments with existing enterprise database agreements or dedicated infrastructure.
 
 2. Connection Pooling and Concurrency
-   - PostgreSQL: Typically paired with external connection poolers (PgBouncer, Supavisor) to optimize process-per-connection scaling under high web concurrency.
+   - PostgreSQL 18: Paired with transactional isolation and bounded retry policies (SQLSTATE 40001, 40P01).
    - Oracle Database: Built-in Database Resident Connection Pooling (DRCP) manages session pooling natively.
 
 3. JSON and Semi-Structured Document Capability
-   - PostgreSQL: Robust JSONB storage with GIN indexing and jsonpath query syntax.
+   - PostgreSQL 18: Robust JSONB storage with GIN indexing and jsonpath query syntax for analytical event envelopes.
    - Oracle Database: Standard JSON column storage with SQL/JSON operators and path expressions.
 
 4. Developer Ergonomics and Tooling Ecosystem
-   - PostgreSQL: Broad ecosystem support (Drizzle, Prisma, SQLAlchemy) and fast migration pipelines.
-   - Oracle Database: Supported via node-oracledb and python-oracledb drivers; requires adherence to database-specific sequence and identity column semantics.
+   - PostgreSQL 18: First-class support via Psycopg 3 with native Python typing, binary protocol speed, and dbt Core Postgres adapter.
+   - Oracle Database: Supported via python-oracledb; requires adherence to database-specific sequence and identity column semantics.
 
 5. AI and Vector Capabilities
-   - PostgreSQL: Supported via pgvector extension for embedding storage and similarity indexing.
+   - PostgreSQL 18: Supported via pgvector extension for embedding storage and similarity indexing.
    - Oracle Database: Supported via integrated AI vector search extensions in modern releases.
 
 ### Architectural Rationale for ANSI SQL Portability
 
 LotusLearn adheres to relational standards at the SQL and schema abstraction layer:
-1. ANSI SQL Discipline: By avoiding proprietary vendor SQL dialects, schema DDL remains clean, testable, and maintainable across SQLite, PostgreSQL, and future evaluation targets.
+1. ANSI SQL Discipline: By avoiding proprietary vendor SQL dialects, schema DDL and views remain clean, testable, and maintainable across SQLite and PostgreSQL 18.
 2. Relational Integrity: Foreign key constraints and declarative analytical rollup views enforce data integrity independently of the underlying engine.
-3. Candidate Evaluation: Oracle remains a candidate for future persistence evaluation in milestone DE-02 alongside PostgreSQL.
+3. Candidate Evaluation: Oracle remains an evaluation candidate for future district enterprise deployments alongside PostgreSQL.
 
 ---
 
@@ -377,9 +344,11 @@ In educational data engineering, student identifiers in formative diagnostic run
 - Truthful Aggregation: "Student 01" in Diagnostic Run A and "Student 01" in Diagnostic Run B represent two separate run-scoped student appearances, not the same longitudinal individual.
 - Prohibited Inference: Emitting longitudinal mastery tracking, historical skill growth, or cross-run student profiles based on run-scoped pseudonyms is prohibited because the current architecture does not link individual student records across runs.
 
-### Architectural Roadmap to Longitudinal Identity
+### Architectural Boundary: DE-03 Scope and Longitudinal Identity Deferral
 
-Future milestones (DE-03) will introduce an opt-in, privacy-preserving cryptographic identity service:
-1. Salted Roster Hashes: District SIS roster IDs will be hashed using student-specific, district-managed cryptographic salts before entry into the analytical pipeline.
-2. Blinded Linkage Tokens: Cryptographic linkage tokens will enable longitudinal tracking of competency progression while guaranteeing that engineering teams, analytical stores, and generative AI models never possess raw student identities.
-3. Explicit Data Contracts: Until that cryptographic service is formally deployed and audited, all cohort and student metrics remain strictly run-scoped.
+Milestone DE-03 implements the Analytical Transformation and Data Quality Layer using dbt Core and PostgreSQL, transforming raw relational tables into staging, intermediate, and dimensional marts (`fct_analysis_runs`, `fct_misconception_clusters`, `fct_teacher_decisions`, `mart_learning_analytics`).
+
+Longitudinal identity tracking across runs is explicitly deferred to a future milestone because no stable privacy-preserving student identity service currently exists. When addressed, that future milestone will require:
+1. Salted Roster Hashes: District SIS roster IDs hashed using student-specific, district-managed cryptographic salts before entry into the analytical pipeline.
+2. Blinded Linkage Tokens: Cryptographic linkage tokens enabling longitudinal tracking of competency progression while guaranteeing that engineering teams, analytical stores, and generative AI models never possess raw student identities.
+3. Explicit Data Contracts: Until that cryptographic service is formally deployed and security-audited, all cohort, cluster, and student metrics remain strictly run-scoped.

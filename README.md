@@ -123,7 +123,7 @@ npm run typecheck
 # Node linting
 npm run lint
 
-# Automated Node regression tests (232 tests across 47 suites)
+# Automated Node regression tests (237 tests across 48 suites)
 npm test
 
 # Production bundle build
@@ -132,8 +132,12 @@ npm run build
 # Python pipeline linting (ruff)
 npm run lint:python
 
-# Python pipeline unit & integration tests (19 pytest tests)
+# Python pipeline unit & integration tests (59 pytest tests)
 npm run test:python
+
+# dbt analytical transformation & data quality tests
+npm run dbt:parse
+npm run dbt:build
 
 # End-to-end cross-language analytical pipeline execution
 npm run pipeline:run

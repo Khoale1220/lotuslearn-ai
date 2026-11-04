@@ -20,6 +20,12 @@ dev = [
     "ruff>=0.1.0",
     "build>=0.9.0",
     "wheel",
+    "dbt-core>=1.8,<1.10",
+    "dbt-postgres>=1.8,<1.10",
+]
+analytics = [
+    "dbt-core>=1.8,<1.10",
+    "dbt-postgres>=1.8,<1.10",
 ]
 
 [project.scripts]
