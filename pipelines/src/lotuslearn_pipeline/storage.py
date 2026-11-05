@@ -74,6 +74,11 @@ class AnalyticalDatabase:
         self.db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
 
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """Convenience property for active connection."""
+        return self.get_connection()
+
     def get_connection(self) -> sqlite3.Connection:
         """Get or create connection with verified foreign keys."""
         if self._conn is None:
@@ -461,6 +466,19 @@ class AnalyticalDatabase:
             results.append(self.ingest_single_event(ev, validator=val))
 
         return results
+
+    def get_current_teacher_decisions(self) -> List[Dict[str, Any]]:
+        """Returns all current teacher decision projection rows."""
+        conn = self.get_connection()
+        cur = conn.execute(
+            """
+            SELECT analysis_run_id, target_type, target_id, teacher_decision,
+                   notes, updated_at, last_event_id
+            FROM current_teacher_decisions
+            ORDER BY analysis_run_id, target_type, target_id;
+            """
+        )
+        return [dict(row) for row in cur.fetchall()]
 
     def compute_metrics(self) -> Any:
         """Computes metrics via the authoritative SQL queries."""

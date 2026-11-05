@@ -46,7 +46,7 @@
 ### R7: Partial Transactional State on Failure (Severity: P0)
 - Risk: Process crash or error during intermediate projection writes could leave partial relational state (run written but findings missing, or cluster written without student links).
 - Control: Atomic transaction boundaries enclosing both the envelope and all derived relational projections. Injected failures trigger complete rollback.
-- Evidence: pipelines/tests/test_retry_and_faults.py::test_fault_injection_rollback_after_run_insert and test_fault_injection_rollback_after_projection verify complete atomicity under injected crashes.
+- Evidence: pipelines/tests/test_retry_and_faults.py::test_fault_injection_rollback_after_run_insert and test_fault_injection_rollback_after_projection_insert verify complete atomicity under injected crashes.
 - Status: CLOSED
 
 ### R8: Cross-Database Semantic Drift (Severity: P1)

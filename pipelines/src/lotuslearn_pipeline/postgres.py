@@ -280,6 +280,20 @@ class PostgresAnalyticalDatabase:
             cur.execute("SELECT event_id FROM analytical_events;")
             return {row["event_id"] for row in cur.fetchall()}
 
+    def get_current_teacher_decisions(self) -> List[Dict[str, Any]]:
+        """Returns all current teacher decision projection rows."""
+        conn = self.get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT analysis_run_id, target_type, target_id, teacher_decision,
+                       notes, updated_at, last_event_id
+                FROM current_teacher_decisions
+                ORDER BY analysis_run_id, target_type, target_id;
+                """
+            )
+            return [dict(row) for row in cur.fetchall()]
+
     def record_audit_log(self, results: List[IngestionResult]) -> None:
         """Appends ingestion results to ingestion_audit_log table."""
         conn = self.get_connection()
@@ -669,7 +683,7 @@ class PostgresAnalyticalDatabase:
                     )
 
                 if self.fault_hook:
-                    self.fault_hook("after_projection")
+                    self.fault_hook("after_projection_insert")
 
                 # Append audit log
                 conn.execute(

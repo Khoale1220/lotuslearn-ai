@@ -117,7 +117,11 @@ def test_retry_exhaustion_raises():
 
 
 def test_non_transient_error_not_retried():
-    """Non-transient constraint errors or application conflicts must NOT be retried."""
+    """Non-transient constraint errors, validation failures, or conflicts must NOT be retried."""
+    from jsonschema.exceptions import ValidationError
+
+    from lotuslearn_pipeline.postgres import MigrationDriftError
+
     sleeps: List[float] = []
     attempts = 0
 
@@ -146,6 +150,42 @@ def test_non_transient_error_not_retried():
     with pytest.raises(AnalysisRunConflictError):
         execute_with_retry(
             fails_with_run_conflict,
+            max_attempts=3,
+            sleep_fn=sleeps.append,
+        )
+
+    assert attempts == 1
+    assert len(sleeps) == 0
+
+    # Schema validation failures must not be retried
+    attempts = 0
+
+    def fails_with_validation_error():
+        nonlocal attempts
+        attempts += 1
+        raise ValidationError("Schema contract mismatch")
+
+    with pytest.raises(ValidationError):
+        execute_with_retry(
+            fails_with_validation_error,
+            max_attempts=3,
+            sleep_fn=sleeps.append,
+        )
+
+    assert attempts == 1
+    assert len(sleeps) == 0
+
+    # Migration drift must not be retried
+    attempts = 0
+
+    def fails_with_migration_drift():
+        nonlocal attempts
+        attempts += 1
+        raise MigrationDriftError("Checksum drift")
+
+    with pytest.raises(MigrationDriftError):
+        execute_with_retry(
+            fails_with_migration_drift,
             max_attempts=3,
             sleep_fn=sleeps.append,
         )
@@ -219,9 +259,9 @@ def test_fault_injection_rollback_after_run_insert(clean_pg_db):
         assert cur.fetchone()["c"] == 0
 
 
-def test_fault_injection_rollback_after_projection(clean_pg_db):
+def test_fault_injection_rollback_after_projection_insert(clean_pg_db):
     """
-    Fault injection at 'after_projection' point must trigger complete transaction rollback.
+    Fault injection at 'after_projection_insert' point must trigger complete transaction rollback.
     Zero rows in misconception_clusters, zero rows in analytical_events.
     """
     # First ingest parent run successfully without fault
@@ -243,10 +283,10 @@ def test_fault_injection_rollback_after_projection(clean_pg_db):
     res_run = clean_pg_db.ingest_single_event(run_event)
     assert res_run.outcome == IngestionOutcome.ACCEPTED
 
-    # Now inject fault at after_projection
+    # Now inject fault at canonical after_projection_insert hook
     def inject_crash(point: str):
-        if point == "after_projection":
-            raise RuntimeError("CRASH_INJECTED_AFTER_PROJECTION")
+        if point == "after_projection_insert":
+            raise RuntimeError("CRASH_INJECTED_AFTER_PROJECTION_INSERT")
 
     clean_pg_db.fault_hook = inject_crash
 
@@ -268,7 +308,7 @@ def test_fault_injection_rollback_after_projection(clean_pg_db):
     with pytest.raises(RuntimeError) as exc_info:
         clean_pg_db.ingest_single_event(finding_event)
 
-    assert "CRASH_INJECTED_AFTER_PROJECTION" in str(exc_info.value)
+    assert "CRASH_INJECTED_AFTER_PROJECTION_INSERT" in str(exc_info.value)
 
     # Verify atomic rollback: neither the finding nor the cluster exists
     conn = clean_pg_db.get_connection()
@@ -311,18 +351,6 @@ def test_postgres_full_transaction_retry_on_serialization_failure(clean_pg_db):
     Proves that a retryable error (SQLSTATE 40001 serialization_failure) injected after
     intermediate transactional writes causes complete rollback of attempt 1,
     and attempt 2 reruns the complete logical transaction to success.
-
-    Guarantees:
-      - Attempt 1 writes intermediate state (parent run, analytical_events, projection)
-      - Fault hook injects SerializationFailure (40001)
-      - Transaction 1 rolls back completely
-      - Attempt 2 reruns the full logical transaction from scratch
-      - Final outcome is IngestionOutcome.ACCEPTED
-      - Exactly 1 row in analytical_events
-      - Exactly 1 row in analysis_runs
-      - No duplicate projections or partial state
-      - Logical attempted-event count remains 1
-      - res.retry_attempts == 2
     """
     attempt_count = 0
     sleeps: List[float] = []
@@ -330,10 +358,9 @@ def test_postgres_full_transaction_retry_on_serialization_failure(clean_pg_db):
     # Ingest a new run event; inject 40001 on attempt 1 after intermediate writes
     def inject_40001_on_first_attempt(point: str):
         nonlocal attempt_count
-        if point == "after_projection":
+        if point == "after_projection_insert":
             attempt_count += 1
             if attempt_count == 1:
-                # In psycopg 3, SerializationFailure carries sqlstate 40001
                 raise SerializationFailure(
                     "40001: could not serialize access due to concurrent update"
                 )
@@ -379,6 +406,66 @@ def test_postgres_full_transaction_retry_on_serialization_failure(clean_pg_db):
         assert cur.fetchone()["c"] == 1
 
         # Exactly one audit entry for this event
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM ingestion_audit_log WHERE event_id = %s;",
+            (event["event_id"],),
+        )
+        assert cur.fetchone()["c"] == 1
+
+
+def test_postgres_full_transaction_retry_on_deadlock_detected(clean_pg_db):
+    """
+    Proves that SQLSTATE 40P01 (deadlock_detected) injected after intermediate transactional writes
+    causes complete rollback of attempt 1, and attempt 2 reruns the complete transaction to success.
+    """
+    attempt_count = 0
+    sleeps: List[float] = []
+
+    def inject_40p01_on_first_attempt(point: str):
+        nonlocal attempt_count
+        if point == "after_projection_insert":
+            attempt_count += 1
+            if attempt_count == 1:
+                raise DeadlockDetected("40P01: deadlock detected")
+
+    clean_pg_db.fault_hook = inject_40p01_on_first_attempt
+
+    event = {
+        "event_id": "f004000000000000000000000000000000000000000000000000000000000001",
+        "schema_version": "1.0.0",
+        "event_type": "ANALYSIS_INGESTED",
+        "occurred_at": "2026-11-02T10:00:00Z",
+        "analysis_run_id": "run-retry-40p01",
+        "dataset_fingerprint": "fp-retry-40p01",
+        "submission_count": 25,
+        "subject": "Algebra",
+        "grade_level": "9",
+        "total_duration_ms": 1200,
+        "execution_mode": "STANDARD",
+        "provenance": "deadlock-test",
+    }
+
+    res = clean_pg_db.ingest_single_event(event, sleep_fn=sleeps.append)
+
+    assert res.outcome == IngestionOutcome.ACCEPTED
+    assert attempt_count == 2
+    assert len(sleeps) == 1
+    assert res.retry_attempts == 2
+
+    # Verify final state in database
+    conn = clean_pg_db.get_connection()
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM analysis_runs WHERE run_id = 'run-retry-40p01';"
+        )
+        assert cur.fetchone()["c"] == 1
+
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM analytical_events WHERE event_id = %s;",
+            (event["event_id"],),
+        )
+        assert cur.fetchone()["c"] == 1
+
         cur.execute(
             "SELECT COUNT(*) AS c FROM ingestion_audit_log WHERE event_id = %s;",
             (event["event_id"],),
