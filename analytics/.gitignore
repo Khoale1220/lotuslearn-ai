@@ -1,6 +1,23 @@
+# dbt generated artifacts
 target/
 dbt_packages/
 logs/
+
+# Python generated artifacts
 __pycache__/
+*.py[cod]
+
+# Local environment files
 .env
+.env.*
+!.env.example
+
+# Local dbt configuration
 profiles.local.yml
+
+# Local dbt user metadata
+.user.yml
+
+# Editor and operating system artifacts
+.DS_Store
+Thumbs.db
