@@ -21,7 +21,11 @@
     "fixtures:reliability": "tsx scripts/export_reliability_fixtures.ts",
     "fixtures:verify": "tsx scripts/verify_reliability_fixtures.ts",
     "pipeline:run": "tsx scripts/run_pipeline_smoke.ts",
-    "pipeline:run:postgres": "tsx scripts/run_pipeline_postgres_smoke.ts"
+    "pipeline:run:postgres": "tsx scripts/run_pipeline_postgres_smoke.ts",
+    "dbt:parse": "dbt parse --project-dir analytics --profiles-dir analytics",
+    "dbt:test:unit": "dbt test --project-dir analytics --profiles-dir analytics --select test_type:unit",
+    "dbt:build": "dbt build --project-dir analytics --profiles-dir analytics",
+    "dbt:docs": "dbt docs generate --project-dir analytics --profiles-dir analytics"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

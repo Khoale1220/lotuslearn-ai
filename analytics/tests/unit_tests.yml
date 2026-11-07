@@ -1,0 +1,92 @@
+version: 2
+
+unit_tests:
+  - name: test_teacher_decision_tie_breaking
+    description: "Verifies that equal-timestamp decisions are deterministically resolved by event_id descending, and older late-arriving decisions are superseded."
+    model: int_teacher_decision_ranked
+    given:
+      - input: ref('stg_teacher_decisions')
+        rows:
+          - {event_id: 'ev-001', analysis_run_id: 'run-1', target_type: 'misconception_cluster', target_id: 'cluster-a', teacher_decision: 'accepted', notes: 'Initial confirmation', decision_recorded_at: '2026-10-26 12:00:00+00'}
+          - {event_id: 'ev-002', analysis_run_id: 'run-1', target_type: 'misconception_cluster', target_id: 'cluster-a', teacher_decision: 'edited', notes: 'Same-time modification', decision_recorded_at: '2026-10-26 12:00:00+00'}
+          - {event_id: 'ev-000', analysis_run_id: 'run-1', target_type: 'misconception_cluster', target_id: 'cluster-a', teacher_decision: 'dismissed', notes: 'Late arriving older decision', decision_recorded_at: '2026-10-26 11:00:00+00'}
+    expect:
+      rows:
+        - {event_id: 'ev-002', analysis_run_id: 'run-1', target_type: 'misconception_cluster', target_id: 'cluster-a', teacher_decision: 'edited', notes: 'Same-time modification', decision_recorded_at: '2026-10-26 12:00:00+00'}
+
+  - name: test_run_scoped_student_identity
+    description: "Verifies that identical student pseudonyms across different runs remain distinct run-scoped entities and never merge."
+    model: int_student_appearances
+    given:
+      - input: ref('stg_student_findings')
+        rows:
+          - {analysis_run_id: 'run-A', student_id: 'Student 01', run_scoped_student_key: 'run-A_Student 01'}
+          - {analysis_run_id: 'run-B', student_id: 'Student 01', run_scoped_student_key: 'run-B_Student 01'}
+      - input: ref('stg_group_memberships')
+        rows:
+          - {analysis_run_id: 'run-A', student_id: 'Student 01', run_scoped_student_key: 'run-A_Student 01'}
+    expect:
+      rows:
+        - {run_scoped_student_key: 'run-A_Student 01', analysis_run_id: 'run-A', student_id: 'Student 01'}
+        - {run_scoped_student_key: 'run-B_Student 01', analysis_run_id: 'run-B', student_id: 'Student 01'}
+
+  - name: test_concept_prevalence_zero_denominator
+    description: "Verifies prevalence calculation and safe handling of zero submission count."
+    model: int_concept_prevalence
+    given:
+      - input: ref('stg_misconception_clusters')
+        rows:
+          - {analysis_run_id: 'run-1', cluster_id: 'c-1', concept: 'Fractions', teaching_priority: 'urgent', affected_student_count: 6}
+          - {analysis_run_id: 'run-zero', cluster_id: 'c-zero', concept: 'Decimals', teaching_priority: 'high', affected_student_count: 0}
+      - input: ref('stg_analysis_runs')
+        rows:
+          - {run_id: 'run-1', submission_count: 24}
+          - {run_id: 'run-zero', submission_count: 0}
+    expect:
+      rows:
+        - {analysis_run_id: 'run-1', cluster_id: 'c-1', concept: 'Fractions', teaching_priority: 'urgent', affected_student_count: 6, submission_count: 24, prevalence_rate: 0.2500}
+        - {analysis_run_id: 'run-zero', cluster_id: 'c-zero', concept: 'Decimals', teaching_priority: 'high', affected_student_count: 0, submission_count: 0, prevalence_rate: null}
+
+  - name: test_ingestion_reconciliation_retries
+    description: "Verifies internal transaction retries do not inflate logical attempts count."
+    model: int_ingestion_reconciliation
+    given:
+      - input: ref('stg_ingestion_audit')
+        rows:
+          - {attempt_id: 1, event_id: 'ev-retry', event_type: 'ANALYSIS_INGESTED', outcome: 'rejected', rejection_reason: 'serialization_failure', processed_at: '2026-10-26 10:00:00+00'}
+          - {attempt_id: 2, event_id: 'ev-retry', event_type: 'ANALYSIS_INGESTED', outcome: 'accepted', rejection_reason: null, processed_at: '2026-10-26 10:00:01+00'}
+          - {attempt_id: 3, event_id: 'ev-dup', event_type: 'FINDING_IDENTIFIED', outcome: 'duplicate', rejection_reason: 'already exists', processed_at: '2026-10-26 10:00:02+00'}
+    expect:
+      rows:
+        - {event_id: 'ev-retry', event_type: 'ANALYSIS_INGESTED', final_outcome: 'accepted', rejection_reason: null, total_attempts: 2, first_attempt_at: '2026-10-26 10:00:00+00', last_attempt_at: '2026-10-26 10:00:01+00'}
+        - {event_id: 'ev-dup', event_type: 'FINDING_IDENTIFIED', final_outcome: 'duplicate', rejection_reason: 'already exists', total_attempts: 1, first_attempt_at: '2026-10-26 10:00:02+00', last_attempt_at: '2026-10-26 10:00:02+00'}
+
+  - name: test_educator_modification_rate
+    description: "Verifies educator modification rate excludes pending and calculates (edited + dismissed) / total_reviewed with zero denominator safeguard."
+    model: mart_run_quality
+    given:
+      - input: ref('stg_analysis_runs')
+        rows:
+          - {run_id: 'run-1', dataset_fingerprint: 'fp-1', subject: 'Math', grade_level: '8', submission_count: 24, occurred_at: '2026-10-26 10:00:00+00'}
+          - {run_id: 'run-empty', dataset_fingerprint: 'fp-2', subject: 'ELA', grade_level: '9', submission_count: 15, occurred_at: '2026-10-26 11:00:00+00'}
+      - input: ref('stg_misconception_clusters')
+        rows:
+          - {analysis_run_id: 'run-1'}
+          - {analysis_run_id: 'run-1'}
+      - input: ref('int_student_appearances')
+        rows:
+          - {analysis_run_id: 'run-1'}
+          - {analysis_run_id: 'run-1'}
+          - {analysis_run_id: 'run-1'}
+      - input: ref('int_teacher_decision_ranked')
+        rows:
+          - {analysis_run_id: 'run-1', teacher_decision: 'accepted'}
+          - {analysis_run_id: 'run-1', teacher_decision: 'edited'}
+          - {analysis_run_id: 'run-1', teacher_decision: 'dismissed'}
+      - input: ref('stg_verifications')
+        rows:
+          - {analysis_run_id: 'run-1', overall_status: 'verified', is_fully_verified: true, quotes_grounded_count: 12, quotes_flagged_count: 0}
+    expect:
+      rows:
+        - {run_id: 'run-1', finding_count: 2, student_appearances_count: 3, teacher_decisions_reviewed_count: 3, teacher_modifications_count: 2, educator_modification_rate: 0.6667, verification_status: 'verified', is_fully_verified: true}
+        - {run_id: 'run-empty', finding_count: 0, student_appearances_count: 0, teacher_decisions_reviewed_count: 0, teacher_modifications_count: 0, educator_modification_rate: null, verification_status: 'unverified', is_fully_verified: false}

@@ -1,0 +1,338 @@
+version: 2
+
+sources:
+  - name: lotuslearn_operational
+    description: "Authoritative operational PostgreSQL database tables populated by the LotusLearn Python ingestion pipeline."
+    database: "{{ env_var('LOTUSLEARN_DB_NAME', 'lotuslearn_test') }}"
+    schema: "{{ env_var('LOTUSLEARN_OPERATIONAL_SCHEMA', 'public') }}"
+    tables:
+      - name: analysis_runs
+        description: "Core educational analysis execution records with dataset fingerprint and immutable cohort parameters."
+        meta:
+          grain: "one row per analysis run"
+          primary_key: "run_id"
+          timestamp_meaning: "occurred_at represents the domain timestamp when the cohort analysis was initiated"
+        columns:
+          - name: run_id
+            description: "Unique identifier for the analysis run execution."
+            tests:
+              - unique
+              - not_null
+          - name: dataset_fingerprint
+            description: "SHA-256 fingerprint representing the sanitized submission payload."
+            tests:
+              - not_null
+          - name: submission_count
+            description: "Total number of student submissions in the analyzed cohort."
+            tests:
+              - not_null
+          - name: subject
+            description: "Academic subject (e.g. Mathematics, English Language Arts)."
+            tests:
+              - not_null
+          - name: grade_level
+            description: "Cohort grade level."
+            tests:
+              - not_null
+          - name: total_duration_ms
+            description: "Total end-to-end execution latency in milliseconds."
+          - name: execution_mode
+            description: "Execution mode of the analysis pipeline (e.g. live_gemini, standard)."
+          - name: occurred_at
+            description: "Domain timestamp when the analysis occurred."
+            tests:
+              - not_null
+
+      - name: analytical_events
+        description: "Immutable append-only envelope store containing canonical Draft 2020-12 event envelopes."
+        meta:
+          grain: "one row per committed analytical event envelope"
+          primary_key: "event_id"
+          timestamp_meaning: "occurred_at represents domain event generation time; envelope committed at transaction time"
+        columns:
+          - name: event_id
+            description: "Deterministic 64-character SHA-256 event identifier."
+            tests:
+              - unique
+              - not_null
+          - name: schema_version
+            description: "Semantic version of the event schema contract (e.g. 1.0.0)."
+            tests:
+              - not_null
+          - name: event_type
+            description: "Canonical domain event type."
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values:
+                      - 'ANALYSIS_INGESTED'
+                      - 'FINDING_IDENTIFIED'
+                      - 'GROUP_FORMED'
+                      - 'VERIFICATION_AUDITED'
+                      - 'DECISION_RECORDED'
+          - name: occurred_at
+            description: "Domain timestamp when the analytical event was generated."
+            tests:
+              - not_null
+          - name: analysis_run_id
+            description: "Foreign key referencing the parent analysis run."
+            tests:
+              - not_null
+          - name: provenance
+            description: "Provenance generator tag (e.g. source, gemini, deterministic_code, human)."
+            tests:
+              - not_null
+          - name: payload_json
+            description: "Complete canonical JSON payload of the event."
+            tests:
+              - not_null
+
+      - name: misconception_clusters
+        description: "Relational projection of diagnosed misconception patterns identified across student submissions."
+        meta:
+          grain: "one row per misconception cluster within an analysis run"
+          primary_key: "composite(analysis_run_id, cluster_id)"
+          timestamp_meaning: "No dedicated timestamp; lifespan bound to parent analysis_runs.occurred_at"
+        columns:
+          - name: analysis_run_id
+            description: "Foreign key to the parent analysis run."
+            tests:
+              - not_null
+          - name: cluster_id
+            description: "Identifier of the misconception cluster within the run."
+            tests:
+              - not_null
+          - name: concept
+            description: "Pedagogical concept or breakdown identified."
+            tests:
+              - not_null
+          - name: teaching_priority
+            description: "Urgency of intervention (e.g. urgent, high, medium, low)."
+            tests:
+              - not_null
+          - name: affected_student_count
+            description: "Number of students in the cohort exhibiting this misconception."
+            tests:
+              - not_null
+          - name: percentage_affected
+            description: "Percentage of cohort submissions exhibiting this misconception."
+          - name: explanation
+            description: "Pedagogical explanation of the cognitive breakdown."
+
+      - name: student_findings
+        description: "Join table mapping students to diagnosed misconception clusters with run-scoped pseudonymity."
+        meta:
+          grain: "one row per student membership within a misconception cluster within an analysis run"
+          primary_key: "composite(analysis_run_id, cluster_id, student_id)"
+          timestamp_meaning: "No dedicated timestamp; inherits run-level analysis timeline"
+        columns:
+          - name: analysis_run_id
+            description: "Foreign key to the parent analysis run."
+            tests:
+              - not_null
+          - name: cluster_id
+            description: "Foreign key to the misconception cluster."
+            tests:
+              - not_null
+          - name: student_id
+            description: "Run-scoped student pseudonym (e.g. stu-01, Student 01)."
+            tests:
+              - not_null
+
+      - name: instructional_groups
+        description: "Relational projection of differentiated instructional small groups synthesized by the teaching strategist."
+        meta:
+          grain: "one row per instructional group within an analysis run"
+          primary_key: "composite(analysis_run_id, group_id)"
+          timestamp_meaning: "No dedicated timestamp; bound to parent analysis_runs timeline"
+        columns:
+          - name: analysis_run_id
+            description: "Foreign key to the parent analysis run."
+            tests:
+              - not_null
+          - name: group_id
+            description: "Identifier of the instructional group within the run."
+            tests:
+              - not_null
+          - name: group_name
+            description: "Pedagogical label for the small group intervention."
+            tests:
+              - not_null
+          - name: student_count
+            description: "Number of students assigned to this differentiated group."
+            tests:
+              - not_null
+          - name: suggested_activity
+            description: "Recommended targeted lesson activity."
+            tests:
+              - not_null
+          - name: estimated_duration
+            description: "Estimated activity duration."
+
+      - name: group_memberships
+        description: "Join table mapping students to differentiated instructional groups with run-scoped pseudonymity."
+        meta:
+          grain: "one row per student membership within an instructional group within an analysis run"
+          primary_key: "composite(analysis_run_id, group_id, student_id)"
+          timestamp_meaning: "No dedicated timestamp; bound to parent analysis run"
+        columns:
+          - name: analysis_run_id
+            description: "Foreign key to the parent analysis run."
+            tests:
+              - not_null
+          - name: group_id
+            description: "Foreign key to the instructional group."
+            tests:
+              - not_null
+          - name: student_id
+            description: "Run-scoped student pseudonym."
+            tests:
+              - not_null
+
+      - name: verifications
+        description: "Relational projection of fail-closed verification audit results per analysis run."
+        meta:
+          grain: "one row per analysis run verification audit"
+          primary_key: "analysis_run_id"
+          timestamp_meaning: "No dedicated timestamp; represents verification pass at end of run"
+        columns:
+          - name: analysis_run_id
+            description: "Primary key and foreign key to analysis_runs."
+            tests:
+              - unique
+              - not_null
+          - name: overall_status
+            description: "Composite verification outcome (verified, partially_verified, needs_review)."
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['verified', 'partially_verified', 'needs_review']
+          - name: coverage_passed
+            description: "True if all submitted student IDs were observed."
+            tests:
+              - not_null
+          - name: cluster_math_passed
+            description: "True if all cluster student counts equal exact roster arithmetic."
+            tests:
+              - not_null
+          - name: group_partition_passed
+            description: "True if instructional groups form a valid non-overlapping partition."
+            tests:
+              - not_null
+          - name: quotes_grounded_count
+            description: "Count of verified verbatim citations grounded in student work."
+            tests:
+              - not_null
+          - name: quotes_flagged_count
+            description: "Count of unverified or hallucinated evidence citations."
+            tests:
+              - not_null
+
+      - name: teacher_decisions
+        description: "Immutable event stream of human educator review actions (accept, edit, dismiss)."
+        meta:
+          grain: "one row per immutable teacher decision action"
+          primary_key: "event_id"
+          timestamp_meaning: "recorded_at represents the exact domain timestamp when the teacher submitted the decision"
+        columns:
+          - name: event_id
+            description: "Primary key referencing the analytical event identifier."
+            tests:
+              - unique
+              - not_null
+          - name: analysis_run_id
+            description: "Foreign key to the analysis run."
+            tests:
+              - not_null
+          - name: target_type
+            description: "Type of entity reviewed (e.g. misconception_cluster, differentiated_intervention)."
+            tests:
+              - not_null
+          - name: target_id
+            description: "Identifier of the target entity reviewed."
+            tests:
+              - not_null
+          - name: teacher_decision
+            description: "Action taken by the educator (accepted, edited, dismissed)."
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['accepted', 'edited', 'dismissed']
+          - name: notes
+            description: "Optional pedagogical notes provided by the educator."
+          - name: recorded_at
+            description: "Domain timestamp when the educator decision was finalized."
+            tests:
+              - not_null
+
+      - name: current_teacher_decisions
+        description: "Operational projection of the latest educator review state per target, updated with deterministic tie-breaking."
+        meta:
+          grain: "one row per target entity per analysis run"
+          primary_key: "composite(analysis_run_id, target_type, target_id)"
+          timestamp_meaning: "updated_at represents the timestamp of the winning decision"
+        columns:
+          - name: analysis_run_id
+            description: "Foreign key to the analysis run."
+            tests:
+              - not_null
+          - name: target_type
+            description: "Type of entity reviewed."
+            tests:
+              - not_null
+          - name: target_id
+            description: "Identifier of the reviewed entity."
+            tests:
+              - not_null
+          - name: teacher_decision
+            description: "Current active decision for this target."
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['accepted', 'edited', 'dismissed']
+          - name: notes
+            description: "Current notes recorded for this target."
+          - name: updated_at
+            description: "Timestamp of the winning decision."
+            tests:
+              - not_null
+          - name: last_event_id
+            description: "Deterministic event ID of the winning decision."
+            tests:
+              - not_null
+
+      - name: ingestion_audit_log
+        description: "Append-only operational audit log recording every ingestion attempt, outcome, and rejection reason."
+        meta:
+          grain: "one row per physical ingestion attempt"
+          primary_key: "attempt_id"
+          timestamp_meaning: "processed_at represents the database server timestamp when the attempt was processed"
+        columns:
+          - name: attempt_id
+            description: "Bigserial primary key for the ingestion attempt."
+            tests:
+              - unique
+              - not_null
+          - name: event_id
+            description: "Event ID of the attempted ingestion."
+            tests:
+              - not_null
+          - name: event_type
+            description: "Domain event type attempted."
+          - name: outcome
+            description: "Outcome classification of the attempt (accepted, duplicate, conflict, rejected)."
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['accepted', 'duplicate', 'conflict', 'rejected']
+          - name: rejection_reason
+            description: "Diagnostic error message if the attempt was rejected or conflicted."
+          - name: processed_at
+            description: "Operational timestamp when the attempt was evaluated."
+            tests:
+              - not_null

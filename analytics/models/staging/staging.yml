@@ -1,0 +1,208 @@
+version: 2
+
+models:
+  - name: stg_analysis_runs
+    description: "Staging view for analysis runs with typed columns and preserved domain timestamp."
+    meta:
+      grain: "one row per analysis run"
+    columns:
+      - name: run_id
+        tests:
+          - unique
+          - not_null
+      - name: dataset_fingerprint
+        tests:
+          - not_null
+      - name: submission_count
+        tests:
+          - not_null
+      - name: subject
+        tests:
+          - not_null
+      - name: grade_level
+        tests:
+          - not_null
+      - name: occurred_at
+        tests:
+          - not_null
+
+  - name: stg_analytical_events
+    description: "Staging view for analytical event envelopes with canonical Draft 2020-12 event identity."
+    meta:
+      grain: "one row per committed analytical event envelope"
+    columns:
+      - name: event_id
+        tests:
+          - unique
+          - not_null
+      - name: schema_version
+        tests:
+          - not_null
+      - name: event_type
+        tests:
+          - not_null
+      - name: occurred_at
+        tests:
+          - not_null
+      - name: analysis_run_id
+        tests:
+          - not_null
+
+  - name: stg_misconception_clusters
+    description: "Staging view for diagnosed misconception clusters."
+    meta:
+      grain: "one row per misconception cluster within an analysis run"
+    columns:
+      - name: analysis_run_id
+        tests:
+          - not_null
+      - name: cluster_id
+        tests:
+          - not_null
+      - name: concept
+        tests:
+          - not_null
+      - name: teaching_priority
+        tests:
+          - not_null
+      - name: affected_student_count
+        tests:
+          - not_null
+
+  - name: stg_student_findings
+    description: "Staging view for student findings with explicit run-scoped learner key."
+    meta:
+      grain: "one student finding within a cluster within an analysis run"
+    columns:
+      - name: analysis_run_id
+        tests:
+          - not_null
+      - name: cluster_id
+        tests:
+          - not_null
+      - name: student_id
+        tests:
+          - not_null
+      - name: run_scoped_student_key
+        tests:
+          - not_null
+
+  - name: stg_instructional_groups
+    description: "Staging view for instructional small group interventions."
+    meta:
+      grain: "one row per instructional group within an analysis run"
+    columns:
+      - name: analysis_run_id
+        tests:
+          - not_null
+      - name: group_id
+        tests:
+          - not_null
+      - name: group_name
+        tests:
+          - not_null
+      - name: student_count
+        tests:
+          - not_null
+
+  - name: stg_group_memberships
+    description: "Staging view for instructional group student memberships with run-scoped learner key."
+    meta:
+      grain: "one student membership within an instructional group within an analysis run"
+    columns:
+      - name: analysis_run_id
+        tests:
+          - not_null
+      - name: group_id
+        tests:
+          - not_null
+      - name: student_id
+        tests:
+          - not_null
+      - name: run_scoped_student_key
+        tests:
+          - not_null
+
+  - name: stg_verifications
+    description: "Staging view for analysis run verification audit."
+    meta:
+      grain: "one verification audit per analysis run"
+    columns:
+      - name: analysis_run_id
+        tests:
+          - unique
+          - not_null
+      - name: overall_status
+        tests:
+          - not_null
+      - name: is_fully_verified
+        tests:
+          - not_null
+
+  - name: stg_teacher_decisions
+    description: "Staging view for immutable stream of educator decision actions."
+    meta:
+      grain: "one row per immutable teacher decision action"
+    columns:
+      - name: event_id
+        tests:
+          - unique
+          - not_null
+      - name: analysis_run_id
+        tests:
+          - not_null
+      - name: target_type
+        tests:
+          - not_null
+      - name: target_id
+        tests:
+          - not_null
+      - name: teacher_decision
+        tests:
+          - not_null
+      - name: decision_recorded_at
+        tests:
+          - not_null
+
+  - name: stg_current_teacher_decisions
+    description: "Staging view for operational latest-state projection per target."
+    meta:
+      grain: "one operational current teacher decision per target within an analysis run"
+    columns:
+      - name: analysis_run_id
+        tests:
+          - not_null
+      - name: target_type
+        tests:
+          - not_null
+      - name: target_id
+        tests:
+          - not_null
+      - name: teacher_decision
+        tests:
+          - not_null
+      - name: updated_at
+        tests:
+          - not_null
+      - name: last_event_id
+        tests:
+          - not_null
+
+  - name: stg_ingestion_audit
+    description: "Staging view for ingestion attempts in audit log."
+    meta:
+      grain: "one physical ingestion attempt"
+    columns:
+      - name: attempt_id
+        tests:
+          - unique
+          - not_null
+      - name: event_id
+        tests:
+          - not_null
+      - name: outcome
+        tests:
+          - not_null
+      - name: processed_at
+        tests:
+          - not_null

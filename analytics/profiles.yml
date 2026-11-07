@@ -1,0 +1,13 @@
+lotuslearn:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('LOTUSLEARN_DB_HOST', 'localhost') }}"
+      user: "{{ env_var('LOTUSLEARN_DB_USER', 'postgres') }}"
+      password: "{{ env_var('LOTUSLEARN_DB_PASSWORD', 'postgres_ci_password') }}"
+      port: "{{ env_var('LOTUSLEARN_DB_PORT', '5432') | int }}"
+      dbname: "{{ env_var('LOTUSLEARN_DB_NAME', 'lotuslearn_test') }}"
+      schema: "{{ env_var('LOTUSLEARN_ANALYTICS_SCHEMA', 'analytics') }}"
+      threads: 4
+      keepalives_idle: 0

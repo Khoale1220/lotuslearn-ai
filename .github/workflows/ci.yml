@@ -113,4 +113,91 @@ jobs:
       - name: Run PostgreSQL End-to-End Pipeline Smoke Test
         run: npm run pipeline:run:postgres
 
+  analytics_transformation:
+    name: Analytics Transformation (dbt Core v1.12, Contracts, Data Tests, Parity)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_ci_password
+          POSTGRES_DB: lotuslearn_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lotuslearn_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LOTUSLEARN_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
+      LOTUSLEARN_TEST_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
+      LOTUSLEARN_DB_HOST: localhost
+      LOTUSLEARN_DB_PORT: 5432
+      LOTUSLEARN_DB_USER: postgres
+      LOTUSLEARN_DB_PASSWORD: postgres_ci_password
+      LOTUSLEARN_DB_NAME: lotuslearn_test
+      LOTUSLEARN_ANALYTICS_SCHEMA: analytics
+      LOTUSLEARN_OPERATIONAL_SCHEMA: public
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Ingestion Pipeline
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "./pipelines[dev]"
+
+      - name: Ingest Deterministic Synthetic Reliability Fixtures into PostgreSQL 18
+        run: |
+          python analytics/scripts/load_reliability_fixtures_to_postgres.py
+
+      - name: Install Pinned dbt Analytics Dependencies
+        run: |
+          pip install -r analytics/requirements.txt
+
+      - name: dbt Debug
+        run: |
+          dbt debug --project-dir analytics --profiles-dir analytics
+
+      - name: dbt Parse and Compile Validation
+        run: |
+          dbt parse --project-dir analytics --profiles-dir analytics --warn-error
+          dbt compile --project-dir analytics --profiles-dir analytics --warn-error
+
+      - name: dbt Unit Tests
+        run: |
+          dbt test --project-dir analytics --profiles-dir analytics --select "test_type:unit" --warn-error
+
+      - name: dbt Build (Models, Enforced Contracts, Data Tests)
+        run: |
+          dbt build --project-dir analytics --profiles-dir analytics --warn-error
+
+      - name: Verify Operational vs dbt Mart Metric Parity
+        run: |
+          python analytics/scripts/verify_dbt_parity.py
+
+      - name: dbt Docs Generate
+        run: |
+          dbt docs generate --project-dir analytics --profiles-dir analytics --warn-error
+
 

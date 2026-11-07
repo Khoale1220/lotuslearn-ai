@@ -1,0 +1,330 @@
+version: 2
+
+models:
+  - name: dim_analysis_run
+    description: "Dimension table representing stable analysis run execution attributes."
+    config:
+      contract:
+        enforced: true
+      access: public
+    meta:
+      grain: "one row per analysis run"
+    columns:
+      - name: run_id
+        data_type: text
+        description: "Primary key identifier of the analysis run."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: dataset_fingerprint
+        data_type: text
+        description: "SHA-256 fingerprint representing the sanitized submission payload."
+        constraints:
+          - type: not_null
+      - name: submission_count
+        data_type: integer
+        description: "Total submissions analyzed."
+        constraints:
+          - type: not_null
+      - name: subject
+        data_type: text
+        description: "Academic subject."
+        constraints:
+          - type: not_null
+      - name: grade_level
+        data_type: text
+        description: "Cohort grade level."
+        constraints:
+          - type: not_null
+      - name: total_duration_ms
+        data_type: integer
+        description: "Execution latency in ms."
+      - name: execution_mode
+        data_type: text
+        description: "Pipeline execution mode."
+      - name: occurred_at
+        data_type: timestamp with time zone
+        description: "Domain analysis timestamp."
+        constraints:
+          - type: not_null
+
+  - name: fct_teacher_decisions
+    description: "Fact table preserving the immutable event stream of educator review actions."
+    config:
+      contract:
+        enforced: true
+      access: public
+    meta:
+      grain: "one row per immutable teacher decision event"
+    columns:
+      - name: event_id
+        data_type: text
+        description: "Deterministic SHA-256 analytical event ID."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: analysis_run_id
+        data_type: text
+        description: "Foreign key to analysis run."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_analysis_run')
+                field: run_id
+      - name: target_type
+        data_type: text
+        description: "Type of entity reviewed."
+        constraints:
+          - type: not_null
+      - name: target_id
+        data_type: text
+        description: "Identifier of the target entity reviewed."
+        constraints:
+          - type: not_null
+      - name: teacher_decision
+        data_type: text
+        description: "Teacher decision action (accepted, edited, dismissed)."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['accepted', 'edited', 'dismissed']
+      - name: notes
+        data_type: text
+        description: "Educator notes."
+      - name: decision_recorded_at
+        data_type: timestamp with time zone
+        description: "Timestamp when decision was recorded."
+        constraints:
+          - type: not_null
+
+  - name: fct_student_findings
+    description: "Fact table recording student observations within diagnosed misconception clusters using run-scoped learner identities."
+    config:
+      contract:
+        enforced: true
+      access: public
+    meta:
+      grain: "one student finding within a misconception cluster within an analysis run"
+    columns:
+      - name: analysis_run_id
+        data_type: text
+        description: "Foreign key to analysis run."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_analysis_run')
+                field: run_id
+      - name: cluster_id
+        data_type: text
+        description: "Misconception cluster identifier."
+        constraints:
+          - type: not_null
+      - name: student_id
+        data_type: text
+        description: "Run-scoped student pseudonym."
+        constraints:
+          - type: not_null
+      - name: run_scoped_student_key
+        data_type: text
+        description: "Composite key (analysis_run_id_student_id) enforcing run-scoped pseudonymity."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+
+  - name: fct_ingestion_attempts
+    description: "Fact table capturing logical ingestion outcomes reconciled across internal transaction retries."
+    config:
+      contract:
+        enforced: true
+      access: public
+    meta:
+      grain: "one logical ingestion attempt per event_id"
+    columns:
+      - name: event_id
+        data_type: text
+        description: "Unique event identifier."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: event_type
+        data_type: text
+        description: "Event type."
+      - name: final_outcome
+        data_type: text
+        description: "Final outcome (accepted, duplicate, conflict, rejected)."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['accepted', 'duplicate', 'conflict', 'rejected']
+      - name: rejection_reason
+        data_type: text
+        description: "Diagnostic error message if rejected or conflicted."
+      - name: total_attempts
+        data_type: integer
+        description: "Total physical transactional attempts made."
+        constraints:
+          - type: not_null
+      - name: first_attempt_at
+        data_type: timestamp with time zone
+        description: "Timestamp of initial attempt."
+        constraints:
+          - type: not_null
+      - name: last_attempt_at
+        data_type: timestamp with time zone
+        description: "Timestamp of final attempt."
+        constraints:
+          - type: not_null
+
+  - name: mart_run_quality
+    description: "Analytical mart exposing aggregated run-level health, verification, and educator review measures."
+    config:
+      contract:
+        enforced: true
+      access: public
+    meta:
+      grain: "one row per analysis run"
+    columns:
+      - name: run_id
+        data_type: text
+        description: "Primary key identifier of the analysis run."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: dataset_fingerprint
+        data_type: text
+        description: "SHA-256 fingerprint."
+        constraints:
+          - type: not_null
+      - name: subject
+        data_type: text
+        description: "Academic subject."
+        constraints:
+          - type: not_null
+      - name: grade_level
+        data_type: text
+        description: "Grade level."
+        constraints:
+          - type: not_null
+      - name: submission_count
+        data_type: integer
+        description: "Cohort submission count."
+        constraints:
+          - type: not_null
+      - name: finding_count
+        data_type: integer
+        description: "Misconception cluster count."
+        constraints:
+          - type: not_null
+      - name: student_appearances_count
+        data_type: integer
+        description: "Count of distinct run-scoped students."
+        constraints:
+          - type: not_null
+      - name: teacher_decisions_reviewed_count
+        data_type: integer
+        description: "Count of teacher decisions reviewed."
+        constraints:
+          - type: not_null
+      - name: teacher_modifications_count
+        data_type: integer
+        description: "Count of decisions edited or dismissed."
+        constraints:
+          - type: not_null
+      - name: educator_modification_rate
+        data_type: numeric
+        description: "Ratio of modifications to total decisions reviewed."
+      - name: verification_status
+        data_type: text
+        description: "Verification status (verified, partially_verified, needs_review, unverified)."
+        constraints:
+          - type: not_null
+      - name: is_fully_verified
+        data_type: boolean
+        description: "True if all verification atomic checks passed fail-closed."
+        constraints:
+          - type: not_null
+      - name: quotes_grounded_count
+        data_type: integer
+        description: "Grounded quotes count."
+        constraints:
+          - type: not_null
+      - name: quotes_flagged_count
+        data_type: integer
+        description: "Flagged quotes count."
+        constraints:
+          - type: not_null
+      - name: occurred_at
+        data_type: timestamp with time zone
+        description: "Domain analysis timestamp."
+        constraints:
+          - type: not_null
+
+  - name: mart_concept_prevalence
+    description: "Analytical mart calculating prevalence rates at misconception cluster grain."
+    config:
+      contract:
+        enforced: true
+      access: public
+    meta:
+      grain: "one row per misconception cluster within an analysis run"
+    columns:
+      - name: analysis_run_id
+        data_type: text
+        description: "Foreign key to analysis run."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_analysis_run')
+                field: run_id
+      - name: cluster_id
+        data_type: text
+        description: "Cluster identifier."
+        constraints:
+          - type: not_null
+      - name: concept
+        data_type: text
+        description: "Pedagogical concept name."
+        constraints:
+          - type: not_null
+      - name: teaching_priority
+        data_type: text
+        description: "Priority tier."
+        constraints:
+          - type: not_null
+      - name: affected_student_count
+        data_type: integer
+        description: "Number of students affected."
+        constraints:
+          - type: not_null
+      - name: submission_count
+        data_type: integer
+        description: "Total submissions analyzed."
+        constraints:
+          - type: not_null
+      - name: prevalence_rate
+        data_type: numeric
+        description: "Prevalence ratio (affected / submission_count)."

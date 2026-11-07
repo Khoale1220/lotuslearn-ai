@@ -132,8 +132,11 @@ npm run build
 # Python pipeline linting (ruff)
 npm run lint:python
 
-# Python pipeline unit & integration tests (57 pytest tests)
+# Python pipeline unit & integration tests (58 pytest tests)
 npm run test:python
+
+# dbt analytical transformation parsing and contract verification
+npm run dbt:parse
 
 # End-to-end cross-language analytical pipeline execution
 npm run pipeline:run
