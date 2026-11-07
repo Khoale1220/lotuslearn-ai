@@ -1,22 +1,34 @@
 {{ config(materialized='view') }}
 
--- Grain: one row per misconception cluster within an analysis run
--- Documented prevalence calculation: affected_student_count / submission_count
+-- Grain: one misconception cluster within one analysis run.
+--
+-- Prevalence uses submission_count as the denominator.
+-- A zero denominator produces NULL instead of zero because prevalence is
+-- undefined when no submissions exist.
+
 SELECT
-    c.analysis_run_id,
-    c.cluster_id,
-    c.concept,
-    c.teaching_priority,
-    c.affected_student_count,
-    r.submission_count,
+    clusters.analysis_run_id,
+    clusters.cluster_id,
+    clusters.concept,
+    clusters.teaching_priority,
+    clusters.affected_student_count,
+    runs.submission_count,
+
     CASE
-        WHEN r.submission_count > 0 THEN
-            ROUND(
-                CAST(CAST(c.affected_student_count AS NUMERIC) / CAST(r.submission_count AS NUMERIC) AS NUMERIC),
-                4
+        WHEN runs.submission_count > 0 THEN
+            CAST(
+                ROUND(
+                    clusters.affected_student_count::NUMERIC
+                    / runs.submission_count::NUMERIC,
+                    4
+                )
+                AS NUMERIC(12, 4)
             )
-        ELSE NULL
+
+        ELSE CAST(NULL AS NUMERIC(12, 4))
     END AS prevalence_rate
-FROM {{ ref('stg_misconception_clusters') }} c
-INNER JOIN {{ ref('stg_analysis_runs') }} r
-    ON c.analysis_run_id = r.run_id
+
+FROM {{ ref('stg_misconception_clusters') }} AS clusters
+
+INNER JOIN {{ ref('stg_analysis_runs') }} AS runs
+    ON runs.run_id = clusters.analysis_run_id

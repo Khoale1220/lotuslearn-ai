@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: dim_analysis_run
-    description: "Dimension table representing stable analysis run execution attributes."
+    description: "Dimension representing stable analysis run attributes."
     config:
       contract:
         enforced: true
@@ -12,7 +12,7 @@ models:
     columns:
       - name: run_id
         data_type: text
-        description: "Primary key identifier of the analysis run."
+        description: "Primary identifier of the analysis run."
         constraints:
           - type: not_null
         tests:
@@ -21,7 +21,7 @@ models:
 
       - name: dataset_fingerprint
         data_type: text
-        description: "Deterministic fingerprint of the privacy-safe normalized dataset used for analysis reproducibility."
+        description: "Fingerprint representing the sanitized submission payload."
         constraints:
           - type: not_null
 
@@ -45,7 +45,7 @@ models:
 
       - name: total_duration_ms
         data_type: integer
-        description: "Execution latency in milliseconds."
+        description: "Execution duration in milliseconds."
 
       - name: execution_mode
         data_type: text
@@ -58,7 +58,7 @@ models:
           - type: not_null
 
   - name: fct_teacher_decisions
-    description: "Fact table preserving the immutable event stream of educator review actions."
+    description: "Immutable educator review actions."
     config:
       contract:
         enforced: true
@@ -68,7 +68,7 @@ models:
     columns:
       - name: event_id
         data_type: text
-        description: "Deterministic analytical event ID."
+        description: "Deterministic analytical event identifier."
         constraints:
           - type: not_null
         tests:
@@ -77,7 +77,7 @@ models:
 
       - name: analysis_run_id
         data_type: text
-        description: "Foreign key to analysis run."
+        description: "Analysis run identifier."
         constraints:
           - type: not_null
         tests:
@@ -89,30 +89,33 @@ models:
 
       - name: target_type
         data_type: text
-        description: "Type of entity reviewed."
+        description: "Type of reviewed entity."
         constraints:
           - type: not_null
 
       - name: target_id
         data_type: text
-        description: "Identifier of the target entity reviewed."
+        description: "Identifier of the reviewed entity."
         constraints:
           - type: not_null
 
       - name: teacher_decision
         data_type: text
-        description: "Teacher decision action."
+        description: "Recorded educator action."
         constraints:
           - type: not_null
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['accepted', 'edited', 'dismissed']
+                values:
+                  - accepted
+                  - edited
+                  - dismissed
 
       - name: notes
         data_type: text
-        description: "Educator notes."
+        description: "Optional educator notes."
 
       - name: decision_recorded_at
         data_type: timestamp with time zone
@@ -121,17 +124,17 @@ models:
           - type: not_null
 
   - name: fct_student_findings
-    description: "Fact table recording student observations within diagnosed misconception clusters using run-scoped learner identities."
+    description: "Student observations within diagnosed misconception clusters."
     config:
       contract:
         enforced: true
       access: public
     meta:
-      grain: "one student finding within a misconception cluster within an analysis run"
+      grain: "one student finding within one misconception cluster and analysis run"
     columns:
       - name: analysis_run_id
         data_type: text
-        description: "Foreign key to analysis run."
+        description: "Analysis run identifier."
         constraints:
           - type: not_null
         tests:
@@ -155,24 +158,24 @@ models:
 
       - name: run_scoped_student_key
         data_type: text
-        description: "Composite learner key derived from analysis_run_id and student_id to preserve run-scoped identity."
+        description: "Identity key scoped to one analysis run."
         constraints:
           - type: not_null
         tests:
           - not_null
 
   - name: fct_ingestion_attempts
-    description: "Fact table preserving every durable logical ingestion attempt recorded by the operational audit layer. Accepted ingestion, duplicate replay, conflict, rejection, and failure remain separate facts even when they share the same event_id."
+    description: "Durable logical ingestion attempts recorded by the operational audit log."
     config:
       contract:
         enforced: true
       access: public
     meta:
-      grain: "one row per durable ingestion audit attempt"
+      grain: "one row per durable ingestion attempt_id"
     columns:
       - name: attempt_id
         data_type: bigint
-        description: "Immutable identifier of the durable ingestion audit attempt."
+        description: "Durable ingestion audit attempt identifier."
         constraints:
           - type: not_null
         tests:
@@ -181,7 +184,7 @@ models:
 
       - name: event_id
         data_type: text
-        description: "Analytical event identity associated with this attempt. Multiple attempts may legitimately reference the same event_id."
+        description: "Analytical event identifier."
         constraints:
           - type: not_null
         tests:
@@ -189,7 +192,7 @@ models:
 
       - name: event_type
         data_type: text
-        description: "Analytical event type associated with this ingestion attempt."
+        description: "Analytical event type."
         constraints:
           - type: not_null
         tests:
@@ -197,29 +200,33 @@ models:
 
       - name: outcome
         data_type: text
-        description: "Outcome of this specific durable logical ingestion attempt."
+        description: "Durable logical ingestion outcome."
         constraints:
           - type: not_null
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['accepted', 'duplicate', 'conflict', 'rejected', 'failed']
+                values:
+                  - accepted
+                  - duplicate
+                  - conflict
+                  - rejected
 
       - name: rejection_reason
         data_type: text
-        description: "Reason associated with a rejected, conflicted, or failed attempt when applicable."
+        description: "Diagnostic reason associated with a non-accepted attempt."
 
       - name: processed_at
         data_type: timestamp with time zone
-        description: "Timestamp when this durable ingestion attempt was processed."
+        description: "Timestamp when the logical ingestion attempt completed."
         constraints:
           - type: not_null
         tests:
           - not_null
 
   - name: mart_run_quality
-    description: "Analytical mart exposing aggregated run-level health, verification, and educator review measures."
+    description: "Run-level analytical health, verification, and educator review measures."
     config:
       contract:
         enforced: true
@@ -229,7 +236,7 @@ models:
     columns:
       - name: run_id
         data_type: text
-        description: "Primary key identifier of the analysis run."
+        description: "Analysis run identifier."
         constraints:
           - type: not_null
         tests:
@@ -238,7 +245,7 @@ models:
 
       - name: dataset_fingerprint
         data_type: text
-        description: "Deterministic fingerprint of the privacy-safe normalized dataset used for analysis reproducibility."
+        description: "Dataset fingerprint."
         constraints:
           - type: not_null
 
@@ -256,7 +263,7 @@ models:
 
       - name: submission_count
         data_type: integer
-        description: "Cohort submission count."
+        description: "Submission count."
         constraints:
           - type: not_null
 
@@ -268,25 +275,25 @@ models:
 
       - name: student_appearances_count
         data_type: integer
-        description: "Count of distinct run-scoped student appearances."
+        description: "Distinct run-scoped student count."
         constraints:
           - type: not_null
 
       - name: teacher_decisions_reviewed_count
         data_type: integer
-        description: "Count of teacher decisions reviewed."
+        description: "Current educator decisions reviewed."
         constraints:
           - type: not_null
 
       - name: teacher_modifications_count
         data_type: integer
-        description: "Count of decisions edited or dismissed."
+        description: "Current decisions edited or dismissed."
         constraints:
           - type: not_null
 
       - name: educator_modification_rate
-        data_type: numeric
-        description: "Ratio of modifications to total reviewed teacher decisions."
+        data_type: numeric(12,4)
+        description: "Ratio of edited or dismissed decisions to reviewed decisions."
 
       - name: verification_status
         data_type: text
@@ -296,19 +303,19 @@ models:
 
       - name: is_fully_verified
         data_type: boolean
-        description: "True when all required verification checks passed."
+        description: "Whether all verification checks passed."
         constraints:
           - type: not_null
 
       - name: quotes_grounded_count
         data_type: integer
-        description: "Grounded quotes count."
+        description: "Grounded quote count."
         constraints:
           - type: not_null
 
       - name: quotes_flagged_count
         data_type: integer
-        description: "Flagged quotes count."
+        description: "Flagged quote count."
         constraints:
           - type: not_null
 
@@ -319,7 +326,7 @@ models:
           - type: not_null
 
   - name: mart_concept_prevalence
-    description: "Analytical mart calculating prevalence rates at misconception-cluster grain."
+    description: "Concept prevalence by misconception cluster within an analysis run."
     config:
       contract:
         enforced: true
@@ -329,7 +336,7 @@ models:
     columns:
       - name: analysis_run_id
         data_type: text
-        description: "Foreign key to analysis run."
+        description: "Analysis run identifier."
         constraints:
           - type: not_null
         tests:
@@ -341,34 +348,34 @@ models:
 
       - name: cluster_id
         data_type: text
-        description: "Cluster identifier."
+        description: "Misconception cluster identifier."
         constraints:
           - type: not_null
 
       - name: concept
         data_type: text
-        description: "Pedagogical concept name."
+        description: "Concept name."
         constraints:
           - type: not_null
 
       - name: teaching_priority
         data_type: text
-        description: "Priority tier."
+        description: "Teaching priority."
         constraints:
           - type: not_null
 
       - name: affected_student_count
         data_type: integer
-        description: "Number of run-scoped student appearances associated with the cluster."
+        description: "Number of affected students."
         constraints:
           - type: not_null
 
       - name: submission_count
         data_type: integer
-        description: "Total submissions analyzed in the run."
+        description: "Total submissions in the analysis run."
         constraints:
           - type: not_null
 
       - name: prevalence_rate
-        data_type: numeric
-        description: "Prevalence ratio calculated from affected_student_count and submission_count."
+        data_type: numeric(12,4)
+        description: "Affected student count divided by submission count."

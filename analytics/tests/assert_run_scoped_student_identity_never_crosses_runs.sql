@@ -122,4 +122,4 @@ ORDER BY
     violation_type,
     analysis_run_id,
     student_id,
-    run_scoped_student_key;
+    run_scoped_student_key
