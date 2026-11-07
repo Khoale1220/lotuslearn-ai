@@ -72,7 +72,7 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Verify deterministic reliability fixture
+      - name: Verify deterministic reliability fixtures
         run: npm run fixtures:verify
 
       - name: Set up Python
@@ -161,7 +161,7 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Verify deterministic reliability fixture
+      - name: Verify deterministic reliability fixtures
         run: npm run fixtures:verify
 
       - name: Set up Python
@@ -204,20 +204,11 @@ jobs:
             --profiles-dir analytics \
             --warn-error
 
-      - name: Run discovered dbt unit tests
-        run: |
-          dbt test \
-            --project-dir analytics \
-            --profiles-dir analytics \
-            --select "test_type:unit" \
-            --warn-error
-
-      - name: Build analytical models and run data-quality tests
+      - name: Build analytical DAG and run unit and data tests
         run: |
           dbt build \
             --project-dir analytics \
             --profiles-dir analytics \
-            --exclude "test_type:unit" \
             --warn-error
 
       - name: Verify operational to analytical parity
