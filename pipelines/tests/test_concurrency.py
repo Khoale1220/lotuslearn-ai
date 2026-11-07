@@ -1,7 +1,8 @@
 """
 Concurrency integration tests for LotusLearn PostgreSQL persistence.
-Tests multi-threaded concurrent ingestion, atomic arbitration,
-advisory locking for migrations, and race condition guarantees.
+
+Tests multi-threaded concurrent ingestion, atomic event arbitration,
+advisory locking for migrations, and race-condition guarantees.
 """
 
 import os
@@ -28,6 +29,7 @@ TEST_PG_URL = os.environ.get(
 def fresh_pg_db():
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
+
     try:
         with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
             with conn.cursor() as cur:
@@ -37,45 +39,49 @@ def fresh_pg_db():
                     CREATE SCHEMA public;
                     """
                 )
-    except Exception as e:
-        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {e}")
+    except Exception as exc:
+        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {exc}")
 
     db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
     db.initialize_schema()
-    yield db
-    db.close()
+
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def test_concurrent_identical_event_ingestion(fresh_pg_db):
     """
-    8 simultaneous workers attempt to ingest the exact same event.
+    Eight workers ingest the same valid event concurrently.
+
     Guarantees:
-      - Exactly 1 worker receives IngestionOutcome.ACCEPTED.
-      - Exactly 7 workers receive IngestionOutcome.DUPLICATE.
-      - Exactly 0 workers receive IngestionOutcome.REJECTED or error.
-      - Exactly 1 row in analytical_events.
-      - Exactly 8 rows recorded in ingestion_audit_log.
+      - Exactly one worker receives ACCEPTED.
+      - Exactly seven workers receive DUPLICATE.
+      - No worker receives CONFLICT or REJECTED.
+      - Exactly one analytical event is committed.
+      - Exactly one analysis run is committed.
+      - Exactly eight durable ingestion audit attempts are recorded.
     """
     event = {
-        "event_id": "c001000000000000000000000000000000000000000000000000000000000001",
+        "event_id": "1" * 64,
         "schema_version": "1.0.0",
         "event_type": "ANALYSIS_INGESTED",
         "occurred_at": "2026-11-02T10:00:00Z",
         "analysis_run_id": "run-conc-001",
-        "dataset_fingerprint": "fp-conc-001",
+        "dataset_fingerprint": "a" * 64,
         "submission_count": 25,
         "subject": "Algebra I",
         "grade_level": "9",
         "total_duration_ms": 1200,
-        "execution_mode": "STANDARD",
-        "provenance": "concurrent-test-worker",
+        "execution_mode": "demo_resilience",
+        "provenance": "deterministic_code",
     }
 
-    num_workers = 8
-    barrier = threading.Barrier(num_workers)
+    worker_count = 8
+    barrier = threading.Barrier(worker_count)
 
-    def _worker(worker_id: int):
-        # Each worker creates its own independent database instance / connection
+    def _worker(_worker_id: int):
         worker_db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
         try:
             barrier.wait(timeout=10.0)
@@ -83,22 +89,30 @@ def test_concurrent_identical_event_ingestion(fresh_pg_db):
         finally:
             worker_db.close()
 
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = [executor.submit(_worker, i) for i in range(num_workers)]
-        results = [f.result() for f in as_completed(futures)]
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        futures = [executor.submit(_worker, i) for i in range(worker_count)]
+        results = [future.result() for future in as_completed(futures)]
 
-    accepted_count = sum(1 for r in results if r.outcome == IngestionOutcome.ACCEPTED)
-    duplicate_count = sum(1 for r in results if r.outcome == IngestionOutcome.DUPLICATE)
-    conflict_count = sum(1 for r in results if r.outcome == IngestionOutcome.CONFLICT)
-    rejected_count = sum(1 for r in results if r.outcome == IngestionOutcome.REJECTED)
+    accepted_count = sum(
+        1 for result in results if result.outcome == IngestionOutcome.ACCEPTED
+    )
+    duplicate_count = sum(
+        1 for result in results if result.outcome == IngestionOutcome.DUPLICATE
+    )
+    conflict_count = sum(
+        1 for result in results if result.outcome == IngestionOutcome.CONFLICT
+    )
+    rejected_count = sum(
+        1 for result in results if result.outcome == IngestionOutcome.REJECTED
+    )
 
     assert accepted_count == 1, f"Expected exactly 1 accepted, got {accepted_count}"
-    assert duplicate_count == num_workers - 1
+    assert duplicate_count == worker_count - 1
     assert conflict_count == 0
     assert rejected_count == 0
 
-    # Verify database state
     conn = fresh_pg_db.get_connection()
+
     with conn.cursor() as cur:
         cur.execute(
             "SELECT COUNT(*) AS c FROM analytical_events WHERE event_id = %s;",
@@ -116,115 +130,240 @@ def test_concurrent_identical_event_ingestion(fresh_pg_db):
             "SELECT COUNT(*) AS c FROM ingestion_audit_log WHERE event_id = %s;",
             (event["event_id"],),
         )
-        assert cur.fetchone()["c"] == num_workers
+        assert cur.fetchone()["c"] == worker_count
+
+        cur.execute(
+            """
+            SELECT outcome, COUNT(*) AS c
+            FROM ingestion_audit_log
+            WHERE event_id = %s
+            GROUP BY outcome;
+            """,
+            (event["event_id"],),
+        )
+        audit_counts = {row["outcome"]: row["c"] for row in cur.fetchall()}
+
+    assert audit_counts == {
+        IngestionOutcome.ACCEPTED.value: 1,
+        IngestionOutcome.DUPLICATE.value: worker_count - 1,
+    }
 
 
 def test_concurrent_payload_conflict_arbitration(fresh_pg_db):
     """
-    2 workers simultaneously ingest events with the SAME event_id but DIFFERENT payloads.
+    Two workers ingest the same event_id with different valid payloads.
+
+    The analysis-run metadata remains identical so this test isolates event-id
+    arbitration rather than analysis-run conflict detection.
+
     Guarantees:
-      - Exactly 1 worker wins and receives ACCEPTED.
-      - Exactly 1 worker loses and receives CONFLICT (IDENTITY_CONFLICT_PAYLOAD_MISMATCH).
-      - No corrupted or half-written projections exist.
+      - Exactly one worker receives ACCEPTED.
+      - Exactly one worker receives CONFLICT.
+      - The losing result reports payload identity conflict.
+      - Exactly one analytical event is committed.
+      - Exactly two durable audit attempts are recorded.
     """
     base_event = {
-        "event_id": "c002000000000000000000000000000000000000000000000000000000000002",
+        "event_id": "2" * 64,
         "schema_version": "1.0.0",
         "event_type": "ANALYSIS_INGESTED",
         "occurred_at": "2026-11-02T10:00:00Z",
         "analysis_run_id": "run-conc-002",
-        "dataset_fingerprint": "fp-conc-002",
+        "dataset_fingerprint": "b" * 64,
         "submission_count": 30,
         "subject": "Algebra I",
         "grade_level": "9",
         "total_duration_ms": 1500,
-        "execution_mode": "STANDARD",
-        "provenance": "worker-a",
+        "execution_mode": "demo_resilience",
+        "provenance": "deterministic_code",
     }
 
-    tampered_event = dict(base_event)
-    tampered_event["subject"] = "Geometry"
-    tampered_event["provenance"] = "worker-b"
+    conflicting_event = dict(base_event)
+    conflicting_event["provenance"] = "human"
 
-    barrier_payload = threading.Barrier(2)
+    barrier = threading.Barrier(2)
 
-    def _worker(ev):
+    def _worker(event):
         worker_db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
         try:
-            barrier_payload.wait(timeout=10.0)
-            return worker_db.ingest_single_event(ev)
+            barrier.wait(timeout=10.0)
+            return worker_db.ingest_single_event(event)
         finally:
             worker_db.close()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        f1 = executor.submit(_worker, base_event)
-        f2 = executor.submit(_worker, tampered_event)
-        r1 = f1.result()
-        r2 = f2.result()
+        first_future = executor.submit(_worker, base_event)
+        second_future = executor.submit(_worker, conflicting_event)
+        first_result = first_future.result()
+        second_result = second_future.result()
 
-    outcomes = sorted([r1.outcome, r2.outcome], key=lambda x: x.value)
-    assert outcomes == [IngestionOutcome.ACCEPTED, IngestionOutcome.CONFLICT]
+    outcomes = sorted(
+        [first_result.outcome, second_result.outcome],
+        key=lambda outcome: outcome.value,
+    )
 
-    loser_res = r2 if r1.outcome == IngestionOutcome.ACCEPTED else r1
-    err = str(loser_res.rejection_reason)
-    assert "IDENTITY_CONFLICT_PAYLOAD_MISMATCH" in err or "ANALYSIS_RUN_CONFLICT" in err
+    assert outcomes == [
+        IngestionOutcome.ACCEPTED,
+        IngestionOutcome.CONFLICT,
+    ]
+
+    losing_result = (
+        second_result
+        if first_result.outcome == IngestionOutcome.ACCEPTED
+        else first_result
+    )
+
+    assert losing_result.rejection_reason is not None
+    assert "IDENTITY_CONFLICT_PAYLOAD_MISMATCH" in losing_result.rejection_reason
+
+    conn = fresh_pg_db.get_connection()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM analytical_events WHERE event_id = %s;",
+            (base_event["event_id"],),
+        )
+        assert cur.fetchone()["c"] == 1
+
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM ingestion_audit_log WHERE event_id = %s;",
+            (base_event["event_id"],),
+        )
+        assert cur.fetchone()["c"] == 2
 
 
 def test_concurrent_analysis_run_conflict_arbitration(fresh_pg_db):
     """
-    2 workers simultaneously ingest different run events for the SAME analysis_run_id
-    with conflicting metadata (differing total_duration_ms).
+    Two workers ingest different valid events for the same analysis_run_id
+    with conflicting immutable run metadata.
+
     Guarantees:
-      - 1 worker succeeds (ACCEPTED).
-      - 1 worker detects conflict (CONFLICT), rolls back, and leaves zero partial data.
+      - Exactly one worker receives ACCEPTED.
+      - Exactly one worker receives CONFLICT.
+      - Only the winning analytical event is committed.
+      - The stored run metadata matches the winning event.
     """
     event_a = {
-        "event_id": "c00300000000000000000000000000000000000000000000000000000000000a",
+        "event_id": "3" * 64,
         "schema_version": "1.0.0",
         "event_type": "ANALYSIS_INGESTED",
         "occurred_at": "2026-11-02T10:00:00Z",
         "analysis_run_id": "run-conc-003",
-        "dataset_fingerprint": "fp-conc-003",
+        "dataset_fingerprint": "c" * 64,
         "submission_count": 28,
         "subject": "Physics",
         "grade_level": "11",
         "total_duration_ms": 2000,
-        "execution_mode": "STANDARD",
-        "provenance": "worker-run-a",
+        "execution_mode": "demo_resilience",
+        "provenance": "deterministic_code",
     }
 
     event_b = dict(event_a)
-    event_b["event_id"] = "c00300000000000000000000000000000000000000000000000000000000000b"
-    event_b["total_duration_ms"] = 9999  # Conflicting duration!
-    event_b["provenance"] = "worker-run-b"
+    event_b["event_id"] = "4" * 64
+    event_b["total_duration_ms"] = 9999
 
-    barrier_run = threading.Barrier(2)
+    barrier = threading.Barrier(2)
 
-    def _worker(ev):
+    def _worker(event):
         worker_db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
         try:
-            barrier_run.wait(timeout=10.0)
-            return worker_db.ingest_single_event(ev)
+            barrier.wait(timeout=10.0)
+            return worker_db.ingest_single_event(event)
         finally:
             worker_db.close()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        f1 = executor.submit(_worker, event_a)
-        f2 = executor.submit(_worker, event_b)
-        r1 = f1.result()
-        r2 = f2.result()
+        first_future = executor.submit(_worker, event_a)
+        second_future = executor.submit(_worker, event_b)
+        first_result = first_future.result()
+        second_result = second_future.result()
 
-    outcomes = sorted([r1.outcome, r2.outcome], key=lambda x: x.value)
-    assert outcomes == [IngestionOutcome.ACCEPTED, IngestionOutcome.CONFLICT]
+    outcomes = sorted(
+        [first_result.outcome, second_result.outcome],
+        key=lambda outcome: outcome.value,
+    )
+
+    assert outcomes == [
+        IngestionOutcome.ACCEPTED,
+        IngestionOutcome.CONFLICT,
+    ]
+
+    winning_event = (
+        event_a
+        if first_result.outcome == IngestionOutcome.ACCEPTED
+        else event_b
+    )
+    losing_result = (
+        second_result
+        if first_result.outcome == IngestionOutcome.ACCEPTED
+        else first_result
+    )
+
+    assert losing_result.rejection_reason is not None
+    assert "ANALYSIS_RUN_CONFLICT" in losing_result.rejection_reason
+
+    conn = fresh_pg_db.get_connection()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                dataset_fingerprint,
+                submission_count,
+                subject,
+                grade_level,
+                total_duration_ms,
+                execution_mode
+            FROM analysis_runs
+            WHERE run_id = %s;
+            """,
+            (event_a["analysis_run_id"],),
+        )
+        stored_run = cur.fetchone()
+
+        assert stored_run is not None
+        assert stored_run["dataset_fingerprint"] == winning_event["dataset_fingerprint"]
+        assert stored_run["submission_count"] == winning_event["submission_count"]
+        assert stored_run["subject"] == winning_event["subject"]
+        assert stored_run["grade_level"] == winning_event["grade_level"]
+        assert stored_run["total_duration_ms"] == winning_event["total_duration_ms"]
+        assert stored_run["execution_mode"] == winning_event["execution_mode"]
+
+        cur.execute(
+            """
+            SELECT COUNT(*) AS c
+            FROM analytical_events
+            WHERE analysis_run_id = %s;
+            """,
+            (event_a["analysis_run_id"],),
+        )
+        assert cur.fetchone()["c"] == 1
+
+        cur.execute(
+            """
+            SELECT outcome, COUNT(*) AS c
+            FROM ingestion_audit_log
+            WHERE event_id IN (%s, %s)
+            GROUP BY outcome;
+            """,
+            (event_a["event_id"], event_b["event_id"]),
+        )
+        audit_counts = {row["outcome"]: row["c"] for row in cur.fetchall()}
+
+    assert audit_counts == {
+        IngestionOutcome.ACCEPTED.value: 1,
+        IngestionOutcome.CONFLICT.value: 1,
+    }
 
 
 def test_concurrent_schema_migrations_under_advisory_lock():
     """
-    4 concurrent threads attempt to apply migrations simultaneously on the same database.
+    Four threads apply migrations concurrently to the same database.
+
     Guarantees:
-      - pg_advisory_xact_lock serializes DDL execution.
-      - Zero duplicate key violations on schema_migrations.
-      - Exactly 2 migrations recorded in schema_migrations.
+      - pg_advisory_xact_lock serializes migration execution.
+      - No duplicate migration-history rows are created.
+      - Exactly the packaged 0001 and 0002 migrations are recorded.
     """
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
@@ -238,28 +377,41 @@ def test_concurrent_schema_migrations_under_advisory_lock():
                     CREATE SCHEMA public;
                     """
                 )
-    except Exception as e:
-        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {e}")
+    except Exception as exc:
+        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {exc}")
 
-    num_threads = 4
-    barrier_mig = threading.Barrier(num_threads)
+    thread_count = 4
+    barrier = threading.Barrier(thread_count)
 
-    def _run_migrations(thread_id: int):
-        barrier_mig.wait(timeout=10.0)
-        with psycopg.connect(TEST_PG_URL, row_factory=dict_row) as conn:
+    def _run_migrations(_thread_id: int):
+        barrier.wait(timeout=10.0)
+
+        with psycopg.connect(
+            TEST_PG_URL,
+            row_factory=dict_row,
+            autocommit=True,
+        ) as conn:
             return apply_postgres_migrations(conn)
 
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [executor.submit(_run_migrations, i) for i in range(num_threads)]
-        results = [f.result() for f in as_completed(futures)]
+    with ThreadPoolExecutor(max_workers=thread_count) as executor:
+        futures = [executor.submit(_run_migrations, i) for i in range(thread_count)]
+        results = [future.result() for future in as_completed(futures)]
 
-    # Exactly one thread should have applied the migrations, others applied 0
-    all_applied = [m for sublist in results for m in sublist]
-    assert len(set(all_applied)) == 2  # 0001 and 0002
-    assert "0001_initial.sql" in all_applied
-    assert "0002_reliability_hardening.sql" in all_applied
+    all_applied = [migration for result in results for migration in result]
 
-    with psycopg.connect(TEST_PG_URL, row_factory=dict_row) as conn:
+    assert len(all_applied) == 2
+    assert set(all_applied) == {
+        "0001_initial.sql",
+        "0002_reliability_hardening.sql",
+    }
+
+    with psycopg.connect(
+        TEST_PG_URL,
+        row_factory=dict_row,
+        autocommit=True,
+    ) as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) AS c FROM schema_migrations;")
+            cur.execute(
+                "SELECT COUNT(*) AS c FROM schema_migrations;"
+            )
             assert cur.fetchone()["c"] == 2
