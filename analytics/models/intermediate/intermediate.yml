@@ -11,82 +11,105 @@ models:
         tests:
           - unique
           - not_null
+
       - name: analysis_run_id
         tests:
           - not_null
+
       - name: target_type
         tests:
           - not_null
+
       - name: target_id
         tests:
           - not_null
+
       - name: teacher_decision
         tests:
           - not_null
           - accepted_values:
               arguments:
                 values: ['accepted', 'edited', 'dismissed']
+
       - name: decision_recorded_at
         tests:
           - not_null
 
   - name: int_student_appearances
-    description: "Run-scoped distinct learner appearances combining findings and group memberships. Never joins student IDs across runs without analysis_run_id."
+    description: "Run-scoped distinct learner appearances combining findings and group memberships. Student pseudonyms are never joined across runs without analysis_run_id."
     meta:
       grain: "one row per distinct student appearance within an analysis run"
     columns:
       - name: run_scoped_student_key
-        description: "Composite key (analysis_run_id_student_id) enforcing run-scoped pseudonymity."
+        description: "Composite run-scoped learner key derived from analysis_run_id and student_id."
         tests:
           - unique
           - not_null
+
       - name: analysis_run_id
         tests:
           - not_null
+
       - name: student_id
         tests:
           - not_null
 
   - name: int_concept_prevalence
-    description: "Prevalence calculations at misconception cluster grain with explicit numerator and denominator."
+    description: "Prevalence calculation at misconception-cluster grain with explicit numerator and denominator."
     meta:
       grain: "one row per misconception cluster within an analysis run"
     columns:
       - name: analysis_run_id
         tests:
           - not_null
+
       - name: cluster_id
         tests:
           - not_null
+
       - name: affected_student_count
         tests:
           - not_null
+
       - name: submission_count
         tests:
           - not_null
+
       - name: prevalence_rate
 
   - name: int_ingestion_reconciliation
-    description: "Logical ingestion attempts reconciling internal transaction retries into a single logical outcome per event_id."
+    description: "Canonical durable ingestion attempts used for analytical reconciliation. Each audit attempt remains a separate fact even when multiple attempts share the same event_id. Internal PostgreSQL transaction retries are not inferred from durable audit history."
     meta:
-      grain: "one row per unique event_id in ingestion audit log"
+      grain: "one row per durable ingestion audit attempt"
     columns:
-      - name: event_id
+      - name: attempt_id
+        description: "Immutable identifier of the durable ingestion audit attempt."
         tests:
           - unique
           - not_null
-      - name: final_outcome
+
+      - name: event_id
+        description: "Analytical event identity associated with the attempt. Multiple attempts may legitimately share the same event_id."
+        tests:
+          - not_null
+
+      - name: event_type
+        description: "Analytical event type associated with the ingestion attempt."
+        tests:
+          - not_null
+
+      - name: outcome
+        description: "Outcome of this specific durable logical ingestion attempt."
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['accepted', 'duplicate', 'conflict', 'rejected']
-      - name: total_attempts
-        tests:
-          - not_null
-      - name: first_attempt_at
-        tests:
-          - not_null
-      - name: last_attempt_at
+                values: ['accepted', 'duplicate', 'conflict', 'rejected', 'failed']
+
+      - name: rejection_reason
+        description: "Failure or rejection reason when applicable. Null for outcomes that do not require a reason."
+
+      - name: processed_at
+        description: "Timestamp when this durable ingestion attempt was processed."
         tests:
           - not_null
