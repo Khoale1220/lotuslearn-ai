@@ -87,6 +87,27 @@ jobs:
           python -m pip install -e "./pipelines[dev]"
           python -m pip check
 
+      - name: Install pinned dbt analytics dependencies
+        run: |
+          python -m pip install -r analytics/requirements.txt
+          python -m pip check
+
+      - name: Generate dbt metadata manifest
+        env:
+          LOTUSLEARN_DB_HOST: localhost
+          LOTUSLEARN_DB_PORT: "5432"
+          LOTUSLEARN_DB_USER: postgres
+          LOTUSLEARN_DB_PASSWORD: postgres_ci_password
+          LOTUSLEARN_DB_NAME: lotuslearn_dev
+          LOTUSLEARN_ANALYTICS_SCHEMA: analytics
+        run: |
+          dbt parse \
+            --project-dir analytics \
+            --profiles-dir analytics \
+            --warn-error \
+            --no-partial-parse
+          test -s analytics/target/manifest.json
+
       - name: Python lint
         run: ruff check pipelines
 
