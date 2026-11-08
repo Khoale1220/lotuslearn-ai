@@ -191,7 +191,7 @@ Return a strictly valid JSON object adhering to this schema.`;
   let rawJson: any;
   try {
     rawJson = JSON.parse(genResult.text);
-  } catch (err) {
+  } catch {
     const cleaned = genResult.text.replace(/```json\n?|\n?```/g, '').trim();
     try {
       rawJson = JSON.parse(cleaned);

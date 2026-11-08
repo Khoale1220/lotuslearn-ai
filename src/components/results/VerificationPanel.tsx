@@ -8,11 +8,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
-  Info,
   Calculator,
   UserCheck,
-  Check,
-  Clock,
 } from 'lucide-react';
 import {
   isAnalysisFullyVerified,
@@ -51,7 +48,10 @@ export const VerificationPanel: React.FC<VerificationPanelProps> = ({
   const editedCount = allTeacherDecisions.filter((d) => d === 'edited').length;
   const dismissedCount = allTeacherDecisions.filter((d) => d === 'dismissed').length;
   const pendingCount = allTeacherDecisions.filter((d) => d === 'pending').length;
-  const totalItems = allTeacherDecisions.length;
+  void acceptedCount;
+  void editedCount;
+  void dismissedCount;
+  void pendingCount;
 
   const technicalFullyVerified = isAnalysisFullyVerified({
     deterministicAuditPassed: isDetVerified,

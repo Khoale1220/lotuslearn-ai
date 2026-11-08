@@ -3,7 +3,6 @@ import {
   LearningContext,
   StudentSubmission,
 } from '../../src/types';
-import { DEMO_SUBMISSIONS } from '../../src/data/demoClassroom';
 import { observeSubmissions } from './observerService';
 import { diagnoseClassPatterns } from './diagnosisService';
 import { planTeachingStrategy } from './strategyService';
@@ -92,7 +91,7 @@ export async function runFullAnalysisPipeline(
     enforceDeadline(currentStageName);
     onProgress?.(4, 'Deterministic Validation', 'Verifying student ID coverage, cluster math, and exact quotes');
     const valStart = Date.now();
-    const deterministicAudit = runDeterministicValidation({
+    runDeterministicValidation({
       submissions: sanitizedSubmissions,
       normalizedEvidence,
       observations,

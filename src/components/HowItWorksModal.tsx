@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { X, ShieldCheck, Eye, Brain, CheckCheck, BookOpen, UserCheck, Cpu, ArrowRight } from 'lucide-react';
+import { X, ShieldCheck, Eye, Brain, CheckCheck, BookOpen, UserCheck, Cpu } from 'lucide-react';
 import { useModalFocus } from '../utils/useModalFocus';
 
 interface HowItWorksModalProps {
@@ -112,9 +112,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
 
         {/* 6 Stages Grid */}
         <div className="space-y-3">
-          {stages.map((stage) => {
-            const Icon = stage.icon;
-            return (
+          {stages.map((stage) => (
               <div
                 key={stage.num}
                 className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-2 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition"
@@ -136,8 +134,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ onClose }) => 
                   {stage.desc}
                 </p>
               </div>
-            );
-          })}
+            ))}
         </div>
 
         {/* Close Button */}

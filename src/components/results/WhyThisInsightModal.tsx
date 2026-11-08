@@ -14,7 +14,7 @@ interface WhyThisInsightModalProps {
 
 export const WhyThisInsightModal: React.FC<WhyThisInsightModalProps> = ({
   cluster,
-  context,
+  context: _context,
   totalStudents,
   onClose,
   onInspectStudent,
