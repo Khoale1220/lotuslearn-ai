@@ -9,7 +9,7 @@ for (const target of targets) {
     if (fs.existsSync(fullPath)) {
       fs.rmSync(fullPath, { recursive: true, force: true });
     }
-  } catch (err) {
+  } catch {
     // Ignore if not found
   }
 }

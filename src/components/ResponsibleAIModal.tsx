@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { X, ShieldCheck, UserCheck, Lock } from 'lucide-react';
-import { LotusIcon } from './icons/LotusIcon';
 import { useModalFocus } from '../utils/useModalFocus';
 
 interface ResponsibleAIModalProps {

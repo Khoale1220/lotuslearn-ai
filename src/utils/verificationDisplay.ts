@@ -65,7 +65,7 @@ export interface CrossDimensionTrustDisplay {
 
 export function getEvidenceDisplay(
   deterministicMatch?: string,
-  sourceType?: string
+  _sourceType?: string
 ): EvidenceDisplayInfo {
   switch (deterministicMatch) {
     case 'exact_match':

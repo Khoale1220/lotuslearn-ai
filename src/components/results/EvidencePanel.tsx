@@ -1,7 +1,7 @@
 import React from 'react';
 import { MisconceptionCluster, StudentObservation } from '../../types';
-import { Quote, User, AlertCircle, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { getEvidenceDisplay, getDeterministicMatchDisplay } from '../../utils/verificationDisplay';
+import { Quote, User, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { getEvidenceDisplay } from '../../utils/verificationDisplay';
 
 interface EvidencePanelProps {
   clusters: MisconceptionCluster[];
@@ -113,7 +113,6 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {activeCluster.evidenceExamples.map((item, idx) => {
               const display = getEvidenceDisplay(item.deterministicMatch, item.sourceType);
-              const legacyDisplay = getDeterministicMatchDisplay(item.deterministicMatch, item.sourceType);
 
               return (
                 <div
