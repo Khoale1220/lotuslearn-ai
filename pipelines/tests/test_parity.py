@@ -11,11 +11,14 @@ from lotuslearn_pipeline.storage import AnalyticalDatabase
 
 
 def get_test_pg_url() -> str:
+    """Require an explicit PostgreSQL test database URL.
+
+    This test suite never falls back to a hidden local database or default
+    development credentials.
+    """
     candidates = [
         os.environ.get("LOTUSLEARN_TEST_DATABASE_URL"),
         os.environ.get("LOTUSLEARN_DATABASE_URL"),
-        "postgresql://postgres@localhost/lotuslearn_test?host=/tmp",
-        "postgresql://postgres:postgres@localhost:5432/lotuslearn_test",
     ]
     for url in candidates:
         if not url:

@@ -23,9 +23,10 @@ from lotuslearn_pipeline.retry import (
     is_transient_postgres_error,
 )
 
-TEST_PG_URL = os.environ.get(
-    "LOTUSLEARN_DATABASE_URL",
-    "postgresql://postgres@127.0.0.1:5432/lotuslearn_test",
+TEST_PG_URL = (
+    os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
+    or os.environ.get("LOTUSLEARN_DATABASE_URL")
+    or ""
 )
 
 

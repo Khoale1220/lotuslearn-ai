@@ -44,8 +44,13 @@ def load_reliability_fixtures(database_url: str) -> None:
 
 
 if __name__ == "__main__":
-    url = os.environ.get(
-        "LOTUSLEARN_DATABASE_URL",
-        os.environ.get("LOTUSLEARN_TEST_DATABASE_URL", "postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test")
+    url = (
+        os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
+        or os.environ.get("LOTUSLEARN_DATABASE_URL")
     )
+    if not url:
+        raise RuntimeError(
+            "No PostgreSQL database configured. Set LOTUSLEARN_TEST_DATABASE_URL "
+            "or LOTUSLEARN_DATABASE_URL to an explicit disposable test database."
+        )
     load_reliability_fixtures(url)

@@ -130,6 +130,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Optional command: ingest, migrate, migration-status, verify",
     )
     parser.add_argument(
+        "--command",
+        dest="command_flag",
+        choices=["ingest", "migrate", "migration-status", "verify"],
+        help="Optional command alias: ingest, migrate, migration-status, verify",
+    )
+    parser.add_argument(
         "--input",
         "-i",
         type=Path,
@@ -172,26 +178,27 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
 
     args = parser.parse_args(argv)
+    command = args.command_flag or args.command
 
     db = get_database(args.db)
 
     # Handle verify command
-    if args.command == "verify":
+    if command == "verify":
         res = handle_verify(db)
         db.close()
         return res
 
     # Handle migration-status command
-    if args.command == "migration-status" or args.migration_status:
+    if command == "migration-status" or args.migration_status:
         res = handle_migration_status(db)
         db.close()
         return res
 
     # Handle migrate command or flag
-    if args.command == "migrate" or args.migrate:
+    if command == "migrate" or args.migrate:
         applied = db.initialize_schema()
         print(f"Applied {len(applied)} migrations: {applied}")
-        if args.command == "migrate" and not args.input:
+        if command == "migrate" and not args.input:
             db.close()
             return 0
     else:
