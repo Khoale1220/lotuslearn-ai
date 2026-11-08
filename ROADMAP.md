@@ -12,9 +12,10 @@
 - **Production Server & Hygiene**: Compiled production server running Node 22 with ESM static asset delivery, `/healthz` liveness check, and strictly npm package management (zero `bun.lock`).
 - **Durable Relational Persistence (DE-02A & DE-02B Completed)**: Production PostgreSQL 18 persistence via Psycopg 3 with strict foreign keys, native `JSONB`, `TIMESTAMPTZ`, versioned SQL migrations (`0001_initial.sql`, `0002_reliability_hardening.sql`), advisory lock concurrency controls (`pg_advisory_xact_lock`), SHA-256 migration checksum verification, bounded exponential backoff retries, fault injection rollback atomicity, and dual-backend SQLite/PostgreSQL parity.
 
-## Next (Data Engineering & Pipeline Scaling)
+## Next (Data Engineering & Metadata Governance)
 
-- **Analytical Transformation and Data Quality Layer (DE-03 Active)**: Governed dbt Core analytical modeling over PostgreSQL with staging, intermediate, and dimensional marts, automated data quality assertions, deterministic metric reconciliation, and CI lineage generation.
+- **Analytical Transformation and Data Quality Layer (DE-03 Completed)**: Governed dbt Core analytical modeling over PostgreSQL with staging, intermediate, and dimensional marts, deterministic metric reconciliation, automated data quality assertions, Zero-PII analytical validation, and CI-backed metadata artifact generation.
+- **Metadata Catalog and Lineage Foundation (DE-04)**: Extract and normalize technical metadata from PostgreSQL and dbt, including schemas, tables, columns, data types, keys, model dependencies, lineage, ownership, descriptions, ingestion status, validation, retry, and monitoring behavior.
 - **Structured Analytics Event Stream**: Schema-validated audit events emitted at each pipeline stage for analytical transformation and quality auditing.
 - **Asynchronous Batch Processing**: Background queue architecture (e.g. BullMQ / Cloud Tasks) to support cohorts larger than 35 submissions without encountering HTTP client timeouts.
 - **Standardized Ingestion Adapters**: Batch import modules for standard educational export formats (CSV roster imports, Google Classroom assignment submissions).

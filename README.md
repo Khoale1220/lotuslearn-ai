@@ -63,9 +63,9 @@ Student Submissions (Text / Images)
 - Validation: Zod and JSON Schema Draft 2020-12
 - Data Engineering (DE-01): Python 3.10+, SQLite 3 with enforced foreign keys, pytest, ruff, jsonschema
 
-## Data Engineering Foundation (DE-01, DE-01.1, and DE-02A)
+## Data Engineering Foundation (DE-01, DE-01.1, DE-02A, DE-02B, and DE-03)
 
-The data engineering milestones establish a verifiable analytical event contract, transactional idempotency, and dual-backend persistence for the LotusLearn analytical pipeline:
+The data engineering milestones establish a verifiable analytical event contract, transactional idempotency, dual-backend persistence, and a governed dbt transformation layer for the LotusLearn analytical pipeline:
 
 1. Canonical Analytical Contract (`contracts/analytical_event.schema.json`): Authored in JSON Schema Draft 2020-12. Specifies strictly typed event envelopes for `ANALYSIS_INGESTED`, `FINDING_IDENTIFIED`, `GROUP_FORMED`, `VERIFICATION_AUDITED`, and `DECISION_RECORDED`. Zero student text, raw names, emails, phone numbers, or credentials can enter the schema.
 2. TypeScript Analytical Producer (`server/services/analyticalEventProducer.ts`): Transforms domain analysis results into deterministic, idempotent events using SHA-256 event IDs and authentic domain timestamps without fabricated defaults.
