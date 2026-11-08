@@ -4,6 +4,20 @@ __version__ = "0.1.0"
 
 from lotuslearn_pipeline.contracts import get_schema_validator, load_canonical_schema
 from lotuslearn_pipeline.ingestion import AnalyticalEventValidator, validate_event_batch
+from lotuslearn_pipeline.metadata import (
+    Asset,
+    Constraint,
+    ExtractionRun,
+    Field,
+    LineageEdge,
+    MetadataSnapshot,
+    MetadataValidationResult,
+    build_metadata_snapshot,
+    extract_dbt_metadata,
+    extract_metadata_snapshot,
+    extract_postgres_metadata,
+    validate_metadata_snapshot,
+)
 from lotuslearn_pipeline.metrics import compute_pipeline_metrics
 from lotuslearn_pipeline.models import (
     IngestionBatchSummary,
@@ -55,4 +69,16 @@ __all__ = [
     "get_database",
     "load_sql_resource",
     "compute_pipeline_metrics",
+    "Asset",
+    "Field",
+    "Constraint",
+    "LineageEdge",
+    "ExtractionRun",
+    "MetadataSnapshot",
+    "MetadataValidationResult",
+    "build_metadata_snapshot",
+    "extract_dbt_metadata",
+    "extract_metadata_snapshot",
+    "extract_postgres_metadata",
+    "validate_metadata_snapshot",
 ]

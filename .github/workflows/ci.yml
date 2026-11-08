@@ -90,6 +90,9 @@ jobs:
       - name: Python lint
         run: ruff check pipelines
 
+      - name: Run DE-04A metadata regression gate
+        run: python -m pytest pipelines/tests/test_metadata.py -v -rs
+
       - name: Run Data Engineering test suite
         run: python -m pytest pipelines/tests
 
