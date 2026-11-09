@@ -36,6 +36,39 @@ jobs:
       - name: Build production bundle
         run: npm run build
 
+  metadata_governance:
+    name: Metadata Governance Policy Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python package and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./pipelines[dev]"
+          python -m pip check
+
+      - name: Lint metadata governance policy
+        run: |
+          ruff check \
+            pipelines/src/lotuslearn_pipeline/metadata_policy.py \
+            pipelines/tests/test_metadata_policy.py
+
+      - name: Run metadata governance policy gate
+        run: |
+          python -m pytest \
+            pipelines/tests/test_metadata_policy.py \
+            -v \
+            -rs
+
   python_pipeline:
     name: Data Engineering Pipeline
     runs-on: ubuntu-latest
@@ -160,16 +193,13 @@ jobs:
     env:
       LOTUSLEARN_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
       LOTUSLEARN_TEST_DATABASE_URL: postgresql://postgres:postgres_ci_password@localhost:5432/lotuslearn_test
-
       LOTUSLEARN_DB_HOST: localhost
       LOTUSLEARN_DB_PORT: "5432"
       LOTUSLEARN_DB_USER: postgres
       LOTUSLEARN_DB_PASSWORD: postgres_ci_password
       LOTUSLEARN_DB_NAME: lotuslearn_test
-
       LOTUSLEARN_ANALYTICS_SCHEMA: analytics
       LOTUSLEARN_OPERATIONAL_SCHEMA: public
-
       DBT_MANIFEST_PATH: analytics/target/manifest.json
 
     steps:
