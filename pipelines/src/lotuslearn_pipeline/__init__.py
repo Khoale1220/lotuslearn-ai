@@ -19,6 +19,15 @@ from lotuslearn_pipeline.metadata import (
     extract_postgres_metadata,
     validate_metadata_snapshot,
 )
+from lotuslearn_pipeline.metadata_drift import (
+    MetadataChange,
+    MetadataChangeKind,
+    MetadataChangeSeverity,
+    MetadataDiff,
+    MetadataEntityType,
+    classify_metadata_change_severity,
+    compare_metadata_snapshots,
+)
 from lotuslearn_pipeline.metrics import compute_pipeline_metrics
 from lotuslearn_pipeline.models import (
     IngestionBatchSummary,
@@ -83,4 +92,11 @@ __all__ = [
     "extract_metadata_snapshot",
     "extract_postgres_metadata",
     "validate_metadata_snapshot",
+    "MetadataChange",
+    "MetadataChangeKind",
+    "MetadataChangeSeverity",
+    "MetadataDiff",
+    "MetadataEntityType",
+    "classify_metadata_change_severity",
+    "compare_metadata_snapshots",
 ]
