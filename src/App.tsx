@@ -43,7 +43,7 @@ export default function App() {
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [initialDemoLoad, setInitialDemoLoad] = useState(false);
-  const [statusAnnouncement, setStatusAnnouncement] = useState<string>('');
+  const [statusAnnouncement] = useState<string>('');
 
   // Load saved sessions from localStorage on mount
   useEffect(() => {
@@ -444,7 +444,7 @@ export default function App() {
             <StudentsView
               analysis={activeAnalysis}
               onTryDemo={handleQuickDemo}
-              onInspectStudent={(studentId) => {
+              onInspectStudent={(_studentId) => {
                 if (activeAnalysis) {
                   setCurrentView('results');
                 }

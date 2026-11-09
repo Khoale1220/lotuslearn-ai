@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DifferentiatedIntervention, MisconceptionCluster, TeacherDecision } from '../../types';
-import { Copy, Check, X, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Copy, Check, X } from 'lucide-react';
 import { getTeacherStatusLabel, getCanonicalTeacherDecision } from '../../utils/verificationDisplay';
 
 interface DifferentiatedInterventionsProps {
@@ -18,8 +18,8 @@ interface DifferentiatedInterventionsProps {
 export const DifferentiatedInterventions: React.FC<DifferentiatedInterventionsProps> = ({
   interventions,
   misconceptions = [],
-  totalStudents = 12,
-  verificationStatus = 'verified',
+  totalStudents: _totalStudents = 12,
+  verificationStatus: _verificationStatus = 'verified',
   onAdjustIntervention,
   onUpdateStatus,
 }) => {

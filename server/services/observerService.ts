@@ -196,7 +196,7 @@ Return a strictly valid JSON array of objects matching this schema.`;
   let rawJson: any;
   try {
     rawJson = JSON.parse(genResult.text);
-  } catch (err) {
+  } catch {
     // Attempt markdown strip repair
     const cleaned = genResult.text.replace(/```json\n?|\n?```/g, '').trim();
     try {
