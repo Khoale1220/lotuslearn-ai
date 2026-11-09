@@ -11,25 +11,8 @@ from lotuslearn_pipeline.postgres import PostgresAnalyticalDatabase, apply_postg
 
 
 def get_test_pg_url() -> str:
-    """Return an explicitly configured PostgreSQL test URL only.
-
-    Missing configuration is treated as no PostgreSQL integration environment,
-    never as a silent fallback to an arbitrary local database.
-    """
-    candidates = [
-        os.environ.get("LOTUSLEARN_TEST_DATABASE_URL"),
-        os.environ.get("LOTUSLEARN_DATABASE_URL"),
-    ]
-    for url in candidates:
-        if not url:
-            continue
-        try:
-            conn = psycopg.connect(url, connect_timeout=2)
-            conn.close()
-            return url
-        except Exception:
-            continue
-    return ""
+    """Return only the dedicated destructive-test database URL."""
+    return os.environ.get("LOTUSLEARN_TEST_DATABASE_URL", "").strip()
 
 
 TEST_PG_URL = get_test_pg_url()
@@ -38,9 +21,23 @@ TEST_PG_URL = get_test_pg_url()
 def clean_postgres_db(url: str) -> None:
     """Drops all tables and views in public schema for a clean test slate."""
     with psycopg.connect(url, autocommit=True) as conn:
+        database_name = conn.execute("SELECT current_database();").fetchone()[0]
+        if database_name != "lotuslearn_test":
+            raise RuntimeError(
+                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
+            )
         conn.execute("DROP SCHEMA public CASCADE;")
         conn.execute("CREATE SCHEMA public;")
         conn.execute("GRANT ALL ON SCHEMA public TO PUBLIC;")
+
+
+def test_get_test_pg_url_never_falls_back_to_database_url(monkeypatch):
+    monkeypatch.delenv("LOTUSLEARN_TEST_DATABASE_URL", raising=False)
+    monkeypatch.setenv(
+        "LOTUSLEARN_DATABASE_URL",
+        "postgresql://user:pass@localhost:5432/lotuslearn_dev",
+    )
+    assert get_test_pg_url() == ""
 
 
 @pytest.fixture

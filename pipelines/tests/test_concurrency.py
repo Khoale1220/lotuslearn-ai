@@ -21,7 +21,6 @@ from lotuslearn_pipeline.postgres import (
 
 TEST_PG_URL = (
     os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
-    or os.environ.get("LOTUSLEARN_DATABASE_URL")
     or ""
 )
 
@@ -31,17 +30,13 @@ def fresh_pg_db():
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
 
-    try:
-        with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    DROP SCHEMA public CASCADE;
-                    CREATE SCHEMA public;
-                    """
-                )
-    except Exception as exc:
-        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {exc}")
+    with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
+        database_name = conn.execute("SELECT current_database();").fetchone()[0]
+        if database_name != "lotuslearn_test":
+            raise RuntimeError(
+                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
+            )
+        conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
     db.initialize_schema()
@@ -364,22 +359,18 @@ def test_concurrent_schema_migrations_under_advisory_lock():
     Guarantees:
       - pg_advisory_xact_lock serializes migration execution.
       - No duplicate migration-history rows are created.
-      - Exactly the packaged 0001 and 0002 migrations are recorded.
+    - Exactly the packaged 0001, 0002, and 0003 migrations are recorded.
     """
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
 
-    try:
-        with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    DROP SCHEMA public CASCADE;
-                    CREATE SCHEMA public;
-                    """
-                )
-    except Exception as exc:
-        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {exc}")
+    with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
+        database_name = conn.execute("SELECT current_database();").fetchone()[0]
+        if database_name != "lotuslearn_test":
+            raise RuntimeError(
+                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
+            )
+        conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     thread_count = 4
     barrier = threading.Barrier(thread_count)
@@ -400,10 +391,11 @@ def test_concurrent_schema_migrations_under_advisory_lock():
 
     all_applied = [migration for result in results for migration in result]
 
-    assert len(all_applied) == 2
+    assert len(all_applied) == 3
     assert set(all_applied) == {
         "0001_initial.sql",
         "0002_reliability_hardening.sql",
+        "0003_metadata_history.sql",
     }
 
     with psycopg.connect(
@@ -415,4 +407,4 @@ def test_concurrent_schema_migrations_under_advisory_lock():
             cur.execute(
                 "SELECT COUNT(*) AS c FROM schema_migrations;"
             )
-            assert cur.fetchone()["c"] == 2
+            assert cur.fetchone()["c"] == 3

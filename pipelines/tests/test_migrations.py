@@ -23,7 +23,6 @@ from lotuslearn_pipeline.postgres import (
 
 TEST_PG_URL = (
     os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
-    or os.environ.get("LOTUSLEARN_DATABASE_URL")
     or ""
 )
 
@@ -34,17 +33,13 @@ def empty_pg_conn():
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
 
-    try:
-        with psycopg.connect(TEST_PG_URL, autocommit=True) as reset_conn:
-            with reset_conn.cursor() as cur:
-                cur.execute(
-                    """
-                    DROP SCHEMA public CASCADE;
-                    CREATE SCHEMA public;
-                    """
-                )
-    except Exception as exc:
-        pytest.skip(f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {exc}")
+    with psycopg.connect(TEST_PG_URL, autocommit=True) as reset_conn:
+        database_name = reset_conn.execute("SELECT current_database();").fetchone()[0]
+        if database_name != "lotuslearn_test":
+            raise RuntimeError(
+                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
+            )
+        reset_conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     conn = psycopg.connect(
         TEST_PG_URL,
@@ -59,16 +54,17 @@ def empty_pg_conn():
 
 
 def test_migrations_fresh_apply(empty_pg_conn):
-    """Fresh database applies 0001 and 0002 with valid checksums."""
+    """Fresh database applies packaged migrations with valid checksums."""
     applied = apply_postgres_migrations(empty_pg_conn)
 
     assert applied == [
         "0001_initial.sql",
         "0002_reliability_hardening.sql",
+        "0003_metadata_history.sql",
     ]
 
     status = get_migration_status(empty_pg_conn)
-    assert len(status) == 2
+    assert len(status) == 3
 
     for migration in status:
         assert migration["applied"] is True
@@ -99,7 +95,10 @@ def test_legacy_checksum_adoption(empty_pg_conn):
 
     applied = apply_postgres_migrations(empty_pg_conn)
 
-    assert applied == ["0002_reliability_hardening.sql"]
+    assert applied == [
+        "0002_reliability_hardening.sql",
+        "0003_metadata_history.sql",
+    ]
 
     with empty_pg_conn.cursor() as cur:
         cur.execute(
@@ -337,7 +336,10 @@ def test_realistic_0001_to_0002_upgrade(empty_pg_conn):
 
     applied = apply_postgres_migrations(empty_pg_conn)
 
-    assert applied == ["0002_reliability_hardening.sql"]
+    assert applied == [
+        "0002_reliability_hardening.sql",
+        "0003_metadata_history.sql",
+    ]
 
     with empty_pg_conn.cursor() as cur:
         cur.execute(
