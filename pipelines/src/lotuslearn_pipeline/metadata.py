@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -24,6 +25,11 @@ SUPPORTED_DBT_ARTIFACT_SCHEMAS = {
     "https://schemas.getdbt.com/dbt/manifest/v11.json",
     "https://schemas.getdbt.com/dbt/manifest/v10.json",
 }
+
+
+class MetadataIntegrityError(ValueError):
+    """Raised when metadata snapshot integrity verification fails."""
+
 PROHIBITED_METADATA_TOKENS = (
     "password",
     "passwd",
@@ -480,6 +486,42 @@ class MetadataSnapshot:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MetadataSnapshot":
+        if not isinstance(data, dict):
+            raise MetadataIntegrityError("Serialized metadata snapshot must be a dictionary")
+
+        raw_checksum = data.get("content_checksum")
+        if raw_checksum is None or not str(raw_checksum).strip():
+            raise MetadataIntegrityError(
+                "Missing or empty content_checksum in serialized metadata snapshot"
+            )
+        if not isinstance(raw_checksum, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", raw_checksum):
+            raise MetadataIntegrityError(
+                "Malformed content_checksum in serialized metadata snapshot"
+            )
+
+        assets = [Asset.from_dict(item) for item in data.get("assets") or []]
+        fields = [Field.from_dict(item) for item in data.get("fields") or []]
+        constraints = [Constraint.from_dict(item) for item in data.get("constraints") or []]
+        lineage_edges = [LineageEdge.from_dict(item) for item in data.get("lineage_edges") or []]
+        warnings = list(data.get("warnings") or [])
+        errors = list(data.get("errors") or [])
+
+        count_validations = [
+            ("asset_count", len(assets)),
+            ("field_count", len(fields)),
+            ("constraint_count", len(constraints)),
+            ("lineage_edge_count", len(lineage_edges)),
+            ("warning_count", len(warnings)),
+            ("error_count", len(errors)),
+        ]
+        for count_key, expected_count in count_validations:
+            if count_key in data and data[count_key] is not None:
+                val = data[count_key]
+                if not isinstance(val, int) or isinstance(val, bool) or val != expected_count:
+                    raise MetadataIntegrityError(
+                        f"Contradictory {count_key} in serialized metadata snapshot"
+                    )
+
         run = data.get("run")
         snapshot = cls(
             schema_version=str(data.get("schema_version") or "1.0.0"),
@@ -493,23 +535,19 @@ class MetadataSnapshot:
             dbt_version=data.get("dbt_version"),
             dbt_artifact_schema_version=data.get("dbt_artifact_schema_version"),
             extraction_sources=list(data.get("extraction_sources") or []),
-            assets=[Asset.from_dict(item) for item in data.get("assets") or []],
-            fields=[Field.from_dict(item) for item in data.get("fields") or []],
-            constraints=[Constraint.from_dict(item) for item in data.get("constraints") or []],
-            lineage_edges=[LineageEdge.from_dict(item) for item in data.get("lineage_edges") or []],
-            warnings=list(data.get("warnings") or []),
-            errors=list(data.get("errors") or []),
+            assets=assets,
+            fields=fields,
+            constraints=constraints,
+            lineage_edges=lineage_edges,
+            warnings=warnings,
+            errors=errors,
             run=ExtractionRun.from_dict(run) if run else None,
-            content_checksum=str(data.get("content_checksum") or ""),
-            asset_count=int(data.get("asset_count") or 0),
-            field_count=int(data.get("field_count") or 0),
-            constraint_count=int(data.get("constraint_count") or 0),
-            lineage_edge_count=int(data.get("lineage_edge_count") or 0),
-            warning_count=int(data.get("warning_count") or 0),
-            error_count=int(data.get("error_count") or 0),
         )
-        if not snapshot.content_checksum:
-            snapshot.content_checksum = snapshot.compute_checksum()
+
+        if not hmac.compare_digest(raw_checksum.lower(), snapshot.content_checksum):
+            raise MetadataIntegrityError(
+                "Content checksum mismatch in serialized metadata snapshot"
+            )
         return snapshot
 
     def to_dict(self) -> Dict[str, Any]:
@@ -1014,12 +1052,27 @@ def extract_dbt_metadata(
 def build_metadata_snapshot(
     *,
     database_url: Optional[str] = None,
-    manifest_path: Optional[Path] = None,
-    catalog_path: Optional[Path] = None,
-    repo_root: Optional[Path] = None,
+    manifest_path: Optional[Path | str] = None,
+    catalog_path: Optional[Path | str] = None,
+    repo_root: Optional[Path | str] = None,
     conn: Optional[psycopg.Connection] = None,
 ) -> MetadataSnapshot:
     """Construct a deterministic metadata snapshot for PostgreSQL plus dbt artifacts."""
+    manifest_file: Optional[Path] = None
+    if manifest_path is not None:
+        manifest_file = Path(manifest_path)
+        if not manifest_file.exists():
+            raise FileNotFoundError(f"dbt manifest file not found: {manifest_path}")
+        if not manifest_file.is_file():
+            raise ValueError(
+                f"dbt manifest path points to a directory or non-regular file: {manifest_path}"
+            )
+        try:
+            with open(manifest_file, "r", encoding="utf-8") as f:
+                json.load(f)
+        except json.JSONDecodeError as err:
+            raise ValueError("dbt manifest contains malformed JSON") from err
+
     started_at = datetime.now(timezone.utc)
     warnings: List[str] = []
     errors: List[str] = []
@@ -1064,25 +1117,25 @@ def build_metadata_snapshot(
             if conn is not None and database_url is not None:
                 conn.close()
 
-    if manifest_path is not None:
-        manifest_file = Path(manifest_path)
-        if manifest_file.exists():
-            catalog_file = (
-                catalog_path if catalog_path is not None else manifest_file.parent / "catalog.json"
+    if manifest_file is not None:
+        catalog_file = (
+            Path(catalog_path)
+            if catalog_path is not None
+            else manifest_file.parent / "catalog.json"
+        )
+        dbt_assets, dbt_fields, dbt_constraints, dbt_edges, _, dbt_warnings, dbt_errors = (
+            extract_dbt_metadata(
+                manifest_file,
+                catalog_file,
             )
-            dbt_assets, dbt_fields, dbt_constraints, dbt_edges, _, dbt_warnings, dbt_errors = (
-                extract_dbt_metadata(
-                    manifest_file,
-                    catalog_file,
-                )
-            )
-            assets.extend(dbt_assets)
-            fields.extend(dbt_fields)
-            constraints.extend(dbt_constraints)
-            lineage_edges.extend(dbt_edges)
-            warnings.extend(dbt_warnings)
-            errors.extend(dbt_errors)
-            extraction_sources.append(str(manifest_file))
+        )
+        assets.extend(dbt_assets)
+        fields.extend(dbt_fields)
+        constraints.extend(dbt_constraints)
+        lineage_edges.extend(dbt_edges)
+        warnings.extend(dbt_warnings)
+        errors.extend(dbt_errors)
+        extraction_sources.append(str(manifest_file))
 
     if not assets and manifest_path is None and conn is None:
         warnings.append(
@@ -1283,6 +1336,7 @@ __all__ = [
     "Field",
     "ExtractionRun",
     "LineageEdge",
+    "MetadataIntegrityError",
     "MetadataSnapshot",
     "MetadataValidationResult",
     "build_metadata_snapshot",
