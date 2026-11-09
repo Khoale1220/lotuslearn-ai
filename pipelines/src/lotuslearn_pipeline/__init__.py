@@ -28,6 +28,15 @@ from lotuslearn_pipeline.metadata_drift import (
     classify_metadata_change_severity,
     compare_metadata_snapshots,
 )
+from lotuslearn_pipeline.metadata_history import (
+    MetadataComparisonWriteResult,
+    MetadataHistoryConflictError,
+    MetadataHistoryError,
+    MetadataHistoryIntegrityError,
+    MetadataHistoryWriteOutcome,
+    MetadataSnapshotWriteResult,
+    PostgresMetadataHistoryStore,
+)
 from lotuslearn_pipeline.metrics import compute_pipeline_metrics
 from lotuslearn_pipeline.models import (
     IngestionBatchSummary,
@@ -99,4 +108,11 @@ __all__ = [
     "MetadataEntityType",
     "classify_metadata_change_severity",
     "compare_metadata_snapshots",
+    "MetadataComparisonWriteResult",
+    "MetadataHistoryConflictError",
+    "MetadataHistoryError",
+    "MetadataHistoryIntegrityError",
+    "MetadataHistoryWriteOutcome",
+    "MetadataSnapshotWriteResult",
+    "PostgresMetadataHistoryStore",
 ]

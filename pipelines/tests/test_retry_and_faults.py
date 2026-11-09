@@ -25,7 +25,6 @@ from lotuslearn_pipeline.retry import (
 
 TEST_PG_URL = (
     os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
-    or os.environ.get("LOTUSLEARN_DATABASE_URL")
     or ""
 )
 
@@ -158,19 +157,13 @@ def clean_pg_db():
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
 
-    try:
-        with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    DROP SCHEMA public CASCADE;
-                    CREATE SCHEMA public;
-                    """
-                )
-    except Exception as exc:
-        pytest.skip(
-            f"Cannot connect to PostgreSQL at {TEST_PG_URL}: {exc}"
-        )
+    with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
+        database_name = conn.execute("SELECT current_database();").fetchone()[0]
+        if database_name != "lotuslearn_test":
+            raise RuntimeError(
+                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
+            )
+        conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
     db.initialize_schema()
