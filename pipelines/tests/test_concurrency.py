@@ -391,13 +391,28 @@ def test_concurrent_schema_migrations_under_advisory_lock():
 
     all_applied = [migration for result in results for migration in result]
 
-    assert len(all_applied) == 4
-    assert set(all_applied) == {
+    from lotuslearn_pipeline.postgres import get_postgres_migration_files
+
+    migrations = get_postgres_migration_files()
+    expected = {
+        name: checksum
+        for _, name, _, checksum in migrations
+    }
+
+    required = {
         "0001_initial.sql",
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
         "0004_metadata_governance_history.sql",
+        "0005_pipeline_executions.sql",
+        "0006_pipeline_execution_invariants.sql",
+        "0007_pipeline_execution_temporal_integrity.sql",
     }
+
+    assert required.issubset(expected)
+    assert len(migrations) == len(expected)
+    assert len(all_applied) == len(expected)
+    assert set(all_applied) == set(expected)
 
     with psycopg.connect(
         TEST_PG_URL,
@@ -408,4 +423,18 @@ def test_concurrent_schema_migrations_under_advisory_lock():
             cur.execute(
                 "SELECT COUNT(*) AS c FROM schema_migrations;"
             )
-            assert cur.fetchone()["c"] == 4
+            assert cur.fetchone()["c"] == len(expected)
+
+            cur.execute(
+                "SELECT version, name, checksum FROM schema_migrations"
+            )
+            stored = cur.fetchall()
+
+            assert len(stored) == len(expected)
+            assert {
+                row["version"]: (row["name"], row["checksum"])
+                for row in stored
+            } == {
+                name: (name, checksum)
+                for name, checksum in expected.items()
+            }

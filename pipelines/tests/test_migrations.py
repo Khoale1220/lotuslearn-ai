@@ -62,10 +62,13 @@ def test_migrations_fresh_apply(empty_pg_conn):
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
         "0004_metadata_governance_history.sql",
+        "0005_pipeline_executions.sql",
+        "0006_pipeline_execution_invariants.sql",
+        "0007_pipeline_execution_temporal_integrity.sql",
     ]
 
     status = get_migration_status(empty_pg_conn)
-    assert len(status) == 4
+    assert len(status) == 7
 
     for migration in status:
         assert migration["applied"] is True
@@ -100,6 +103,9 @@ def test_legacy_checksum_adoption(empty_pg_conn):
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
         "0004_metadata_governance_history.sql",
+        "0005_pipeline_executions.sql",
+        "0006_pipeline_execution_invariants.sql",
+        "0007_pipeline_execution_temporal_integrity.sql",
     ]
 
     with empty_pg_conn.cursor() as cur:
@@ -342,6 +348,9 @@ def test_realistic_0001_to_0002_upgrade(empty_pg_conn):
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
         "0004_metadata_governance_history.sql",
+        "0005_pipeline_executions.sql",
+        "0006_pipeline_execution_invariants.sql",
+        "0007_pipeline_execution_temporal_integrity.sql",
     ]
 
     with empty_pg_conn.cursor() as cur:
@@ -497,3 +506,201 @@ def test_access_path_indexes_exist(empty_pg_conn):
         found_indexes = {row["indexname"] for row in cur.fetchall()}
 
     assert expected_indexes.issubset(found_indexes)
+
+
+def _stage_ops01_schema_through_0005(conn, monkeypatch):
+    """Exercise the real migration runner against a five-file release."""
+    from lotuslearn_pipeline import postgres as migration_module
+
+    packaged = migration_module.get_postgres_migration_files()
+    names = [entry[1] for entry in packaged]
+
+    assert names == [
+        "0001_initial.sql",
+        "0002_reliability_hardening.sql",
+        "0003_metadata_history.sql",
+        "0004_metadata_governance_history.sql",
+        "0005_pipeline_executions.sql",
+        "0006_pipeline_execution_invariants.sql",
+        "0007_pipeline_execution_temporal_integrity.sql",
+    ]
+
+    first_five = packaged[:5]
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            migration_module,
+            "get_postgres_migration_files",
+            lambda: first_five,
+        )
+        applied = migration_module.apply_postgres_migrations(conn)
+
+    assert applied == names[:5]
+
+
+def test_upgrade_0005_to_0006_preserves_existing_executions(
+    empty_pg_conn,
+    monkeypatch,
+):
+    """Upgrade populated execution history without modifying any row."""
+    from uuid import uuid4
+
+    from lotuslearn_pipeline.postgres import (
+        apply_postgres_migrations,
+        get_migration_status,
+    )
+
+    _stage_ops01_schema_through_0005(empty_pg_conn, monkeypatch)
+
+    running_id, success_id = uuid4(), uuid4()
+
+    empty_pg_conn.execute(
+        """
+        INSERT INTO pipeline_executions (
+            execution_id, batch_id, attempt_number, status
+        )
+        VALUES (%s, %s, 1, 'RUNNING')
+        """,
+        (running_id, uuid4()),
+    )
+
+    empty_pg_conn.execute(
+        """
+        INSERT INTO pipeline_executions (
+            execution_id, batch_id, attempt_number, status,
+            finished_at, total_attempted, accepted_count,
+            duplicate_count, conflict_count, rejected_count,
+            failed_count, internal_retry_count
+        )
+        VALUES (
+            %s, %s, 1, 'SUCCEEDED',
+            CURRENT_TIMESTAMP, 1, 1,
+            0, 0, 0, 0, 0
+        )
+        """,
+        (success_id, uuid4()),
+    )
+
+    before = empty_pg_conn.execute(
+        "SELECT * FROM pipeline_executions ORDER BY execution_id"
+    ).fetchall()
+
+    assert len(before) == 2
+
+    applied = apply_postgres_migrations(empty_pg_conn)
+    assert applied == [
+        "0006_pipeline_execution_invariants.sql",
+        "0007_pipeline_execution_temporal_integrity.sql",
+    ]
+
+    after = empty_pg_conn.execute(
+        "SELECT * FROM pipeline_executions ORDER BY execution_id"
+    ).fetchall()
+
+    assert after == before
+
+    status = get_migration_status(empty_pg_conn)
+    assert len(status) == 7
+    assert all(row["applied"] and row["match"] for row in status)
+
+    assert apply_postgres_migrations(empty_pg_conn) == []
+
+    with pytest.raises(psycopg.errors.CheckViolation):
+        empty_pg_conn.execute(
+            """
+            UPDATE pipeline_executions
+            SET status = 'RUNNING', finished_at = NULL
+            WHERE execution_id = %s
+            """,
+            (success_id,),
+        )
+
+    persisted = empty_pg_conn.execute(
+        "SELECT * FROM pipeline_executions ORDER BY execution_id"
+    ).fetchall()
+
+    assert persisted == before
+
+
+def test_upgrade_0005_to_0006_fails_atomically_on_dirty_history(
+    empty_pg_conn,
+    monkeypatch,
+):
+    """A failed migration must retain 0005 state and allow recovery."""
+    from uuid import uuid4
+
+    from lotuslearn_pipeline.postgres import apply_postgres_migrations
+
+    _stage_ops01_schema_through_0005(empty_pg_conn, monkeypatch)
+
+    execution_id = uuid4()
+
+    empty_pg_conn.execute(
+        """
+        INSERT INTO pipeline_executions (
+            execution_id, batch_id, attempt_number, status,
+            finished_at, total_attempted, accepted_count,
+            duplicate_count, conflict_count, rejected_count,
+            failed_count, internal_retry_count
+        )
+        VALUES (
+            %s, %s, 1, 'SUCCEEDED',
+            CURRENT_TIMESTAMP, 1, 0,
+            0, 0, 0, 1, 0
+        )
+        """,
+        (execution_id, uuid4()),
+    )
+
+    with pytest.raises(psycopg.errors.CheckViolation):
+        apply_postgres_migrations(empty_pg_conn)
+
+    migration_count = empty_pg_conn.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM schema_migrations
+        WHERE version = '0006_pipeline_execution_invariants.sql'
+        """
+    ).fetchone()["total"]
+
+    assert migration_count == 0
+
+    constraint_count = empty_pg_conn.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM pg_constraint
+        WHERE conrelid = 'pipeline_executions'::regclass
+          AND conname = 'pipeline_execution_success_failed_zero'
+        """
+    ).fetchone()["total"]
+
+    assert constraint_count == 0
+
+    original = empty_pg_conn.execute(
+        """
+        SELECT status, failed_count
+        FROM pipeline_executions
+        WHERE execution_id = %s
+        """,
+        (execution_id,),
+    ).fetchone()
+
+    assert original["status"] == "SUCCEEDED"
+    assert original["failed_count"] == 1
+
+    # Repair only the synthetic invalid test record.
+    empty_pg_conn.execute(
+        """
+        UPDATE pipeline_executions
+        SET failed_count = 0, accepted_count = 1
+        WHERE execution_id = %s
+        """,
+        (execution_id,),
+    )
+
+    assert apply_postgres_migrations(empty_pg_conn) == [
+        "0006_pipeline_execution_invariants.sql",
+        "0007_pipeline_execution_temporal_integrity.sql",
+    ]
+
+    assert apply_postgres_migrations(empty_pg_conn) == []
