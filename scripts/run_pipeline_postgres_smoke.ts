@@ -19,7 +19,9 @@ function runPostgresPipelineSmoke(): void {
     const events = produceAnalyticalEvents(demoResult);
     fs.writeFileSync(tmpJsonPath, JSON.stringify(events, null, 2), 'utf-8');
 
-    const pythonCmd = process.env.PYTHON || 'python';
+    const pythonCmd =
+      process.env.PYTHON ||
+      (spawnSync('python3', ['--version']).status === 0 ? 'python3' : 'python');
     console.log(`Running PostgreSQL analytical pipeline smoke test against: ${pgUrl.split('@')[0]}...`);
 
     const result = spawnSync(

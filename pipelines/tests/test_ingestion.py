@@ -118,7 +118,7 @@ def test_untrusted_event_id_with_email_is_sanitized_and_never_leaked(
     assert res.outcome == IngestionOutcome.REJECTED
     assert sensitive_email not in res.event_id
     assert sensitive_email not in (res.rejection_reason or "")
-    assert res.event_id.startswith("unvalidated_")
+    assert res.event_id == "invalid_event_id"
 
 
 def test_untrusted_event_id_with_phone_is_sanitized(
@@ -132,7 +132,32 @@ def test_untrusted_event_id_with_phone_is_sanitized(
     assert res.outcome == IngestionOutcome.REJECTED
     assert sensitive_phone not in res.event_id
     assert sensitive_phone not in (res.rejection_reason or "")
-    assert res.event_id.startswith("unvalidated_")
+    assert res.event_id == "invalid_event_id"
+
+
+def test_sanitize_event_id_is_strictly_idempotent():
+    from lotuslearn_pipeline.ingestion import sanitize_event_id
+
+    test_inputs = [
+        "student.john.doe@district.k12.us",
+        "+84901234567",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "invalid_event_id",
+        "missing_id",
+        "unknown",
+        "",
+        None,
+        "some-random-uuid-1234",
+    ]
+
+    for inp in test_inputs:
+        first = sanitize_event_id(inp)
+        second = sanitize_event_id(first)
+        third = sanitize_event_id(second)
+        assert first == second == third, f"Non-idempotent sanitization for input {inp!r}"
+        # Guarantee no PII is echoed or unsalted-hashed
+        assert "@" not in first
+        assert "+" not in first
 
 
 @pytest.mark.parametrize(
@@ -165,6 +190,7 @@ def test_unsupported_schema_version_rejected(
     res = validator.validate_event(bad_future_event)
     assert res.outcome == IngestionOutcome.REJECTED
     assert "UNSUPPORTED_SCHEMA_VERSION" in (res.rejection_reason or "")
+    assert "2.0.0" not in (res.rejection_reason or "")
 
     bad_minor_event = dict(sample_ingested_event)
     bad_minor_event["schema_version"] = "1.99.0"
@@ -172,6 +198,31 @@ def test_unsupported_schema_version_rejected(
     res2 = validator.validate_event(bad_minor_event)
     assert res2.outcome == IngestionOutcome.REJECTED
     assert "UNSUPPORTED_SCHEMA_VERSION" in (res2.rejection_reason or "")
+    assert "1.99.0" not in (res2.rejection_reason or "")
+
+
+@pytest.mark.parametrize(
+    "unhashable_version",
+    [
+        [],
+        ["1.0.0"],
+        {},
+        {"version": "1.0.0"},
+        True,
+        42,
+    ],
+)
+def test_unhashable_schema_version_returns_structured_rejection(
+    validator, sample_ingested_event, unhashable_version
+):
+    """Unhashable types must not raise TypeError; must return structured REJECTED."""
+    bad_event = dict(sample_ingested_event)
+    bad_event["schema_version"] = unhashable_version
+
+    res = validator.validate_event(bad_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    assert "UNSUPPORTED_SCHEMA_VERSION" in (res.rejection_reason or "")
+    assert str(unhashable_version) not in (res.rejection_reason or "")
 
 
 def test_untrusted_event_type_sanitized(

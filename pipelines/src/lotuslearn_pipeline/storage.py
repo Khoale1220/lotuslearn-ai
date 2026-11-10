@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from lotuslearn_pipeline.ingestion import (
+    EMAIL_REGEX,
+    PHONE_REGEX,
     AnalyticalEventValidator,
     sanitize_event_id,
     sanitize_event_type,
@@ -228,8 +230,8 @@ class AnalyticalDatabase:
                         )
                         if not is_same_metadata:
                             conflict_reason = (
-                                f"ANALYSIS_RUN_CONFLICT: analysis_run_id '{run_id}' "
-                                "already exists with differing immutable metadata"
+                                "ANALYSIS_RUN_CONFLICT: analysis run already exists "
+                                "with differing immutable metadata"
                             )
                             res = IngestionResult(
                                 event_id=event_id,
@@ -443,8 +445,17 @@ class AnalyticalDatabase:
             )
         except Exception as exc:
             # Entire transaction rolled back by with conn context manager
-            # Audit rejection or error
-            err_reason = f"INGESTION_TRANSACTION_FAILED: {type(exc).__name__}: {str(exc)}"
+            # Audit rejection or error without leaking database parameters or PII
+            if isinstance(exc, (sqlite3.Error, sqlite3.DatabaseError)):
+                err_reason = f"INGESTION_TRANSACTION_FAILED: {type(exc).__name__}"
+            else:
+                exc_msg = str(exc)
+                safe_msg = (
+                    exc_msg
+                    if not (EMAIL_REGEX.search(exc_msg) or PHONE_REGEX.search(exc_msg))
+                    else "REDACTED"
+                )
+                err_reason = f"INGESTION_TRANSACTION_FAILED: {type(exc).__name__}: {safe_msg}"
             conn.rollback()
             res = IngestionResult(
                 event_id=event_id,

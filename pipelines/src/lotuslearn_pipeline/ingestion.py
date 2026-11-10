@@ -1,6 +1,5 @@
 """Ingestion gate and zero-PII validation for LotusLearn analytical events."""
 
-import hashlib
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -46,20 +45,33 @@ FORBIDDEN_KEYS = {
 }
 
 
+SENTINEL_EVENT_IDS = frozenset({"missing_id", "invalid_event_id", "unknown"})
+
+
+def is_valid_canonical_event_id(value: Any) -> bool:
+    """Return True if value is a canonical 64-character lowercase hex SHA-256 digest."""
+    return isinstance(value, str) and HEX_64_REGEX.fullmatch(value) is not None
+
+
 def sanitize_event_id(raw_event_id: Any) -> str:
     """
-    Ensure event_id is safe to persist in audit logs and diagnostics.
+    Sanitizes candidate event_id to guarantee zero PII persistence.
 
-    If raw_event_id is a valid canonical 64-hex SHA-256 digest, it is returned as-is.
-    If it is missing, non-string, or malformed/untrusted, it is transformed into a
-    deterministic, non-reversible synthetic identifier to prevent PII leakage.
+    Contract:
+    1. Canonical 64-character lowercase hex SHA-256 digests are preserved as-is.
+    2. Known safe sentinels ('missing_id', 'invalid_event_id', 'unknown') are preserved.
+    3. Missing/None/empty inputs become 'missing_id'.
+    4. Any untrusted, malformed, non-canonical, or PII input becomes 'invalid_event_id'.
+    5. Fully idempotent: sanitize_event_id(sanitize_event_id(x)) == sanitize_event_id(x).
+    6. Never hashes raw untrusted text (avoids rainbow table / dictionary attacks on PII).
     """
-    if isinstance(raw_event_id, str) and HEX_64_REGEX.fullmatch(raw_event_id):
+    if is_valid_canonical_event_id(raw_event_id):
+        return raw_event_id
+    if raw_event_id in SENTINEL_EVENT_IDS:
         return raw_event_id
     if raw_event_id is None or raw_event_id == "":
         return "missing_id"
-    digest = hashlib.sha256(str(raw_event_id).encode("utf-8")).hexdigest()
-    return f"unvalidated_{digest[:16]}"
+    return "invalid_event_id"
 
 
 def sanitize_event_type(raw_event_type: Any) -> Optional[str]:
@@ -78,12 +90,11 @@ class AnalyticalEventValidator:
     def validate_schema(self, event_dict: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
         """Validate structure and formats (including date-time) against Draft 2020-12 schema."""
         schema_version = event_dict.get("schema_version")
-        if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
-            safe_reason = (
-                f"UNSUPPORTED_SCHEMA_VERSION: version '{schema_version}' is not supported "
-                f"(supported: {', '.join(sorted(SUPPORTED_SCHEMA_VERSIONS))})"
+        if not isinstance(schema_version, str) or schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+            return (
+                False,
+                "UNSUPPORTED_SCHEMA_VERSION: schema version is not supported (supported: 1.0.0)",
             )
-            return False, safe_reason
 
         errors = list(self._validator.iter_errors(event_dict))
         if not errors:

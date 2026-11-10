@@ -16,7 +16,9 @@ function runPipelineSmoke(): void {
     fs.writeFileSync(tmpJsonPath, JSON.stringify(events, null, 2), 'utf-8');
 
     // Target database URL or default to in-memory database (:memory:)
-    const pythonCmd = process.env.PYTHON || 'python';
+    const pythonCmd =
+      process.env.PYTHON ||
+      (spawnSync('python3', ['--version']).status === 0 ? 'python3' : 'python');
     const dbTarget = process.env.LOTUSLEARN_DATABASE_URL || ':memory:';
     const result = spawnSync(
       pythonCmd,

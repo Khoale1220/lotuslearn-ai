@@ -485,6 +485,7 @@ def test_sqlite_audit_log_never_persists_raw_pii_in_event_id_or_event_type(db, r
     res = db.ingest_single_event(malicious_event)
     assert res.outcome == IngestionOutcome.REJECTED
     assert sensitive_email not in res.event_id
+    assert res.event_id == "invalid_event_id"
 
     conn = db.get_connection()
     audit_rows = conn.execute(
@@ -493,6 +494,23 @@ def test_sqlite_audit_log_never_persists_raw_pii_in_event_id_or_event_type(db, r
     assert len(audit_rows) == 1
     row = audit_rows[0]
     assert sensitive_email not in row["event_id"]
-    assert row["event_id"].startswith("unvalidated_")
+    assert row["event_id"] == "invalid_event_id"
     assert row["event_type"] is None
     assert sensitive_email not in (row["rejection_reason"] or "")
+
+
+def test_analysis_run_conflict_does_not_echo_run_id_or_untrusted_input(db, run_event):
+    """ANALYSIS_RUN_CONFLICT must use structured message without echoing analysis_run_id."""
+    untrusted_run_id = "run-confidential-student-alex"
+    first_event = dict(run_event)
+    first_event["analysis_run_id"] = untrusted_run_id
+    db.ingest_single_event(first_event)
+
+    conflicting_event = dict(first_event)
+    conflicting_event["event_id"] = "e" * 64
+    conflicting_event["submission_count"] = 99
+
+    res = db.ingest_single_event(conflicting_event)
+    assert res.outcome == IngestionOutcome.CONFLICT
+    assert "ANALYSIS_RUN_CONFLICT" in (res.rejection_reason or "")
+    assert untrusted_run_id not in (res.rejection_reason or "")

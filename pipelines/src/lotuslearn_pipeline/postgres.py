@@ -19,6 +19,8 @@ import psycopg
 from psycopg.rows import dict_row
 
 from lotuslearn_pipeline.ingestion import (
+    EMAIL_REGEX,
+    PHONE_REGEX,
     AnalyticalEventValidator,
     sanitize_event_id,
     sanitize_event_type,
@@ -829,8 +831,7 @@ class PostgresAnalyticalDatabase:
                         if not same_metadata:
                             conflict_reason = (
                                 "ANALYSIS_RUN_CONFLICT: "
-                                "analysis_run_id "
-                                f"'{run_id}' already exists "
+                                "analysis run already exists "
                                 "with differing immutable metadata"
                             )
 
@@ -1539,16 +1540,30 @@ class PostgresAnalyticalDatabase:
             return result
 
         except Exception as exc:
+            if isinstance(exc, (psycopg.Error,)):
+                err_reason = (
+                    "INGESTION_TRANSACTION_FAILED: "
+                    f"{type(exc).__name__}"
+                )
+            else:
+                exc_msg = str(exc)
+                safe_msg = (
+                    exc_msg
+                    if not (EMAIL_REGEX.search(exc_msg) or PHONE_REGEX.search(exc_msg))
+                    else "REDACTED"
+                )
+                err_reason = (
+                    "INGESTION_TRANSACTION_FAILED: "
+                    f"{type(exc).__name__}: "
+                    f"{safe_msg}"
+                )
+
             result = IngestionResult(
                 event_id=event_id,
                 outcome=(
                     IngestionOutcome.REJECTED
                 ),
-                rejection_reason=(
-                    "INGESTION_TRANSACTION_FAILED: "
-                    f"{type(exc).__name__}: "
-                    f"{exc}"
-                ),
+                rejection_reason=err_reason,
                 event_type=event_type,
             )
 
