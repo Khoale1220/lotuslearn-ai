@@ -67,7 +67,7 @@ def sanitize_event_id(raw_event_id: Any) -> str:
     """
     if is_valid_canonical_event_id(raw_event_id):
         return raw_event_id
-    if raw_event_id in SENTINEL_EVENT_IDS:
+    if isinstance(raw_event_id, str) and raw_event_id in SENTINEL_EVENT_IDS:
         return raw_event_id
     if raw_event_id is None or raw_event_id == "":
         return "missing_id"

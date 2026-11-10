@@ -247,3 +247,21 @@ def test_valid_64_hex_event_id_preserved_when_schema_fails(
     assert res.outcome == IngestionOutcome.REJECTED
     # Valid canonical 64-hex SHA-256 event_id is preserved for operational correlation
     assert res.event_id == sample_ingested_event["event_id"]
+
+
+@pytest.mark.parametrize(
+    "raw_event_id",
+    [
+        [],
+        ["invalid"],
+        {},
+        {"id": "student@example.com"},
+    ],
+)
+def test_sanitize_event_id_rejects_unhashable_json_values(raw_event_id):
+    from lotuslearn_pipeline.ingestion import sanitize_event_id
+
+    sanitized = sanitize_event_id(raw_event_id)
+
+    assert sanitized == "invalid_event_id"
+    assert sanitize_event_id(sanitized) == sanitized
