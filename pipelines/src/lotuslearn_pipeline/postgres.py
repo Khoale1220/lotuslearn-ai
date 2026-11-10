@@ -18,7 +18,11 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 import psycopg
 from psycopg.rows import dict_row
 
-from lotuslearn_pipeline.ingestion import AnalyticalEventValidator
+from lotuslearn_pipeline.ingestion import (
+    AnalyticalEventValidator,
+    sanitize_event_id,
+    sanitize_event_type,
+)
 from lotuslearn_pipeline.models import IngestionOutcome, IngestionResult
 from lotuslearn_pipeline.retry import execute_with_retry
 from lotuslearn_pipeline.storage import canonical_json_string
@@ -517,6 +521,8 @@ class PostgresAnalyticalDatabase:
 
         with conn.transaction():
             for result in results:
+                safe_id = sanitize_event_id(result.event_id)
+                safe_type = sanitize_event_type(result.event_type)
                 conn.execute(
                     """
                     INSERT INTO ingestion_audit_log (
@@ -529,8 +535,8 @@ class PostgresAnalyticalDatabase:
                     VALUES (%s, %s, %s, %s, %s);
                     """,
                     (
-                        result.event_id,
-                        result.event_type,
+                        safe_id,
+                        safe_type,
                         result.outcome.value,
                         result.rejection_reason,
                         processed_at,

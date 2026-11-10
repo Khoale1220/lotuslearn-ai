@@ -9,7 +9,11 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from lotuslearn_pipeline.ingestion import AnalyticalEventValidator
+from lotuslearn_pipeline.ingestion import (
+    AnalyticalEventValidator,
+    sanitize_event_id,
+    sanitize_event_type,
+)
 from lotuslearn_pipeline.models import IngestionOutcome, IngestionResult
 
 
@@ -114,13 +118,15 @@ class AnalyticalDatabase:
         now_iso = datetime.now(timezone.utc).isoformat()
         with conn:
             for r in results:
+                safe_id = sanitize_event_id(r.event_id)
+                safe_type = sanitize_event_type(r.event_type)
                 conn.execute(
                     """
                     INSERT INTO ingestion_audit_log (
                         event_id, event_type, outcome, rejection_reason, processed_at
                     ) VALUES (?, ?, ?, ?, ?)
                     """,
-                    (r.event_id, r.event_type, r.outcome.value, r.rejection_reason, now_iso),
+                    (safe_id, safe_type, r.outcome.value, r.rejection_reason, now_iso),
                 )
 
     def ingest_single_event(

@@ -474,3 +474,25 @@ def test_analysis_run_conflict_changed_execution_mode(db, run_event, finding_eve
         (run_event["analysis_run_id"],),
     ).fetchone()
     assert row["execution_mode"] == run_event["execution_mode"]
+
+
+def test_sqlite_audit_log_never_persists_raw_pii_in_event_id_or_event_type(db, run_event):
+    sensitive_email = "student.private@district.k12.us"
+    malicious_event = dict(run_event)
+    malicious_event["event_id"] = sensitive_email
+    malicious_event["event_type"] = "MALICIOUS_UNTRUSTED_TYPE"
+
+    res = db.ingest_single_event(malicious_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    assert sensitive_email not in res.event_id
+
+    conn = db.get_connection()
+    audit_rows = conn.execute(
+        "SELECT event_id, event_type, rejection_reason FROM ingestion_audit_log"
+    ).fetchall()
+    assert len(audit_rows) == 1
+    row = audit_rows[0]
+    assert sensitive_email not in row["event_id"]
+    assert row["event_id"].startswith("unvalidated_")
+    assert row["event_type"] is None
+    assert sensitive_email not in (row["rejection_reason"] or "")

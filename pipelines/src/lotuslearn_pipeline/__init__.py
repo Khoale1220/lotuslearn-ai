@@ -3,7 +3,14 @@
 __version__ = "0.1.0"
 
 from lotuslearn_pipeline.contracts import get_schema_validator, load_canonical_schema
-from lotuslearn_pipeline.ingestion import AnalyticalEventValidator, validate_event_batch
+from lotuslearn_pipeline.ingestion import (
+    ALLOWED_EVENT_TYPES,
+    SUPPORTED_SCHEMA_VERSIONS,
+    AnalyticalEventValidator,
+    sanitize_event_id,
+    sanitize_event_type,
+    validate_event_batch,
+)
 from lotuslearn_pipeline.metadata import (
     Asset,
     Constraint,
@@ -69,6 +76,10 @@ __all__ = [
     "get_schema_validator",
     "AnalyticalEventValidator",
     "validate_event_batch",
+    "sanitize_event_id",
+    "sanitize_event_type",
+    "ALLOWED_EVENT_TYPES",
+    "SUPPORTED_SCHEMA_VERSIONS",
     "IngestionOutcome",
     "IngestionResult",
     "IngestionBatchSummary",

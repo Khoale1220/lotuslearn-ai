@@ -105,3 +105,94 @@ def test_duplicate_classification_in_batch(validator, sample_ingested_event):
     assert results[0].outcome == IngestionOutcome.ACCEPTED
     assert results[1].outcome == IngestionOutcome.DUPLICATE
     assert len(accepted) == 1
+
+
+def test_untrusted_event_id_with_email_is_sanitized_and_never_leaked(
+    validator, sample_ingested_event
+):
+    sensitive_email = "student.john.doe@district.k12.us"
+    bad_event = dict(sample_ingested_event)
+    bad_event["event_id"] = sensitive_email
+
+    res = validator.validate_event(bad_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    assert sensitive_email not in res.event_id
+    assert sensitive_email not in (res.rejection_reason or "")
+    assert res.event_id.startswith("unvalidated_")
+
+
+def test_untrusted_event_id_with_phone_is_sanitized(
+    validator, sample_ingested_event
+):
+    sensitive_phone = "+84901234567"
+    bad_event = dict(sample_ingested_event)
+    bad_event["event_id"] = sensitive_phone
+
+    res = validator.validate_event(bad_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    assert sensitive_phone not in res.event_id
+    assert sensitive_phone not in (res.rejection_reason or "")
+    assert res.event_id.startswith("unvalidated_")
+
+
+@pytest.mark.parametrize(
+    "vn_phone",
+    [
+        "0901234567",
+        "+84987654321",
+        "098 765 4321",
+        "091-234-5678",
+    ],
+)
+def test_vietnamese_phone_formats_detected_in_payload(
+    validator, sample_finding_event, vn_phone
+):
+    leaked_event = dict(sample_finding_event)
+    leaked_event["explanation"] = f"Teacher notes with contact {vn_phone}"
+
+    res = validator.validate_event(leaked_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    assert "PII_PHONE_DETECTED" in (res.rejection_reason or "")
+    assert vn_phone not in (res.rejection_reason or "")
+
+
+def test_unsupported_schema_version_rejected(
+    validator, sample_ingested_event
+):
+    bad_future_event = dict(sample_ingested_event)
+    bad_future_event["schema_version"] = "2.0.0"
+
+    res = validator.validate_event(bad_future_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    assert "UNSUPPORTED_SCHEMA_VERSION" in (res.rejection_reason or "")
+
+    bad_minor_event = dict(sample_ingested_event)
+    bad_minor_event["schema_version"] = "1.99.0"
+
+    res2 = validator.validate_event(bad_minor_event)
+    assert res2.outcome == IngestionOutcome.REJECTED
+    assert "UNSUPPORTED_SCHEMA_VERSION" in (res2.rejection_reason or "")
+
+
+def test_untrusted_event_type_sanitized(
+    validator, sample_ingested_event
+):
+    bad_event = dict(sample_ingested_event)
+    bad_event["event_type"] = "MALICIOUS_TYPE_student.name@district.k12.us"
+
+    res = validator.validate_event(bad_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    assert res.event_type is None
+    assert "student.name@district.k12.us" not in (res.rejection_reason or "")
+
+
+def test_valid_64_hex_event_id_preserved_when_schema_fails(
+    validator, sample_ingested_event
+):
+    bad_event = dict(sample_ingested_event)
+    del bad_event["subject"]  # Missing required field
+
+    res = validator.validate_event(bad_event)
+    assert res.outcome == IngestionOutcome.REJECTED
+    # Valid canonical 64-hex SHA-256 event_id is preserved for operational correlation
+    assert res.event_id == sample_ingested_event["event_id"]
