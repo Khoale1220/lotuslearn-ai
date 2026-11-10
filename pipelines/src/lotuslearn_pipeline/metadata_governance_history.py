@@ -753,11 +753,7 @@ class PostgresMetadataGovernanceHistoryStore:
                 %(violation_count)s,
                 %(payload_json)s
             )
-            ON CONFLICT (
-                comparison_id,
-                policy_id,
-                policy_version
-            ) DO NOTHING
+            ON CONFLICT DO NOTHING
             RETURNING decision_id;
             """,
             {
