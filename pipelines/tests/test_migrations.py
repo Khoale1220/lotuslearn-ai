@@ -61,10 +61,11 @@ def test_migrations_fresh_apply(empty_pg_conn):
         "0001_initial.sql",
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
+        "0004_metadata_governance_history.sql",
     ]
 
     status = get_migration_status(empty_pg_conn)
-    assert len(status) == 3
+    assert len(status) == 4
 
     for migration in status:
         assert migration["applied"] is True
@@ -98,6 +99,7 @@ def test_legacy_checksum_adoption(empty_pg_conn):
     assert applied == [
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
+        "0004_metadata_governance_history.sql",
     ]
 
     with empty_pg_conn.cursor() as cur:
@@ -339,6 +341,7 @@ def test_realistic_0001_to_0002_upgrade(empty_pg_conn):
     assert applied == [
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
+        "0004_metadata_governance_history.sql",
     ]
 
     with empty_pg_conn.cursor() as cur:
