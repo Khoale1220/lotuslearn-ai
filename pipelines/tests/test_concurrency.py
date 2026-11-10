@@ -359,7 +359,7 @@ def test_concurrent_schema_migrations_under_advisory_lock():
     Guarantees:
       - pg_advisory_xact_lock serializes migration execution.
       - No duplicate migration-history rows are created.
-    - Exactly the packaged 0001, 0002, and 0003 migrations are recorded.
+    - Exactly the packaged 0001, 0002, 0003, and 0004 migrations are recorded.
     """
     if not TEST_PG_URL:
         pytest.skip("No PostgreSQL URL configured")
@@ -391,11 +391,12 @@ def test_concurrent_schema_migrations_under_advisory_lock():
 
     all_applied = [migration for result in results for migration in result]
 
-    assert len(all_applied) == 3
+    assert len(all_applied) == 4
     assert set(all_applied) == {
         "0001_initial.sql",
         "0002_reliability_hardening.sql",
         "0003_metadata_history.sql",
+        "0004_metadata_governance_history.sql",
     }
 
     with psycopg.connect(
@@ -407,4 +408,4 @@ def test_concurrent_schema_migrations_under_advisory_lock():
             cur.execute(
                 "SELECT COUNT(*) AS c FROM schema_migrations;"
             )
-            assert cur.fetchone()["c"] == 3
+            assert cur.fetchone()["c"] == 4
