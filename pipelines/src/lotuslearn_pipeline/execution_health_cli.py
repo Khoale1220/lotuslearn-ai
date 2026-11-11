@@ -14,20 +14,17 @@ from lotuslearn_pipeline.execution_health import (
     RunningExecutionHealth,
     list_running_execution_health,
 )
+from lotuslearn_pipeline.execution_metrics import render_prometheus
 
 
 def _positive_int(value: str) -> int:
     try:
         number = int(value)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError(
-            "Expected a positive integer"
-        ) from exc
+        raise argparse.ArgumentTypeError("Expected a positive integer") from exc
 
     if number <= 0:
-        raise argparse.ArgumentTypeError(
-            "Expected a positive integer"
-        )
+        raise argparse.ArgumentTypeError("Expected a positive integer")
 
     return number
 
@@ -36,9 +33,7 @@ def _bounded_limit(value: str) -> int:
     number = _positive_int(value)
 
     if number > 1000:
-        raise argparse.ArgumentTypeError(
-            "Limit cannot exceed 1000"
-        )
+        raise argparse.ArgumentTypeError("Limit cannot exceed 1000")
 
     return number
 
@@ -67,10 +62,7 @@ def _build_report(
     if len(rows) > limit:
         raise ValueError("Health query exceeded its result limit")
 
-    counts = {
-        state.value: 0
-        for state in ExecutionHealthState
-    }
+    counts = {state.value: 0 for state in ExecutionHealthState}
 
     for row in rows:
         if not isinstance(row.health, ExecutionHealthState):
@@ -102,10 +94,7 @@ def _build_report(
         "sample_limit": limit,
         "sample_limit_reached": limit_reached,
         "counts": counts,
-        "executions": [
-            _serialize_execution(row)
-            for row in rows
-        ],
+        "executions": [_serialize_execution(row) for row in rows],
     }
 
     return report, exit_code
@@ -114,8 +103,7 @@ def _build_report(
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Inspect PostgreSQL execution heartbeat health "
-            "without modifying execution state"
+            "Inspect PostgreSQL execution heartbeat health without modifying execution state"
         )
     )
 
@@ -138,29 +126,23 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser.add_argument(
         "--format",
-        choices=("json", "text"),
+        choices=("json", "text", "prometheus"),
         default="json",
     )
 
     args = parser.parse_args(argv)
 
     database_url = (
-        args.db
-        if args.db is not None
-        else os.environ.get("LOTUSLEARN_DATABASE_URL", "")
+        args.db if args.db is not None else os.environ.get("LOTUSLEARN_DATABASE_URL", "")
     ).strip()
 
-    if not database_url.startswith(
-        ("postgresql://", "postgres://")
-    ):
+    if not database_url.startswith(("postgresql://", "postgres://")):
         parser.error("A PostgreSQL database URL is required")
 
     try:
         rows = list_running_execution_health(
             database_url,
-            stale_after=timedelta(
-                seconds=args.stale_after_seconds
-            ),
+            stale_after=timedelta(seconds=args.stale_after_seconds),
             limit=args.limit,
         )
 
@@ -180,6 +162,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.format == "json":
         print(json.dumps(report, sort_keys=True))
+    elif args.format == "prometheus":
+        print(render_prometheus(report), end="")
     else:
         print(f"Status: {report['status']}")
         print(f"Running sampled: {report['running_sampled']}")
@@ -191,11 +175,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"{state.value}: {counts[state.value]}")
 
         for row in report["executions"]:
-            print(
-                f"{row['execution_id']} "
-                f"{row['health']} "
-                f"age={row['heartbeat_age_seconds']}s"
-            )
+            print(f"{row['execution_id']} {row['health']} age={row['heartbeat_age_seconds']}s")
 
     return exit_code
 
