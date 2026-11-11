@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from lotuslearn_pipeline.models import IngestionOutcome
 from lotuslearn_pipeline.reconciliation import reconcile_batch
@@ -177,8 +179,47 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Exit with error code 1 if any event fails validation or produces conflict",
     )
 
+    parser.add_argument(
+        "--track-execution",
+        action="store_true",
+        help="Persist a uniquely identified PostgreSQL ingest attempt",
+    )
+    parser.add_argument("--batch-id", help="Operational batch UUID")
+    parser.add_argument("--execution-id", help="Unique execution UUID")
+    parser.add_argument(
+        "--attempt-number", type=int, help="Positive batch attempt number"
+    )
     args = parser.parse_args(argv)
     command = args.command_flag or args.command
+
+    has_identity = any(
+        value is not None
+        for value in (args.batch_id, args.execution_id, args.attempt_number)
+    )
+    if has_identity and not args.track_execution:
+        parser.error("Execution identity options require --track-execution")
+
+    if args.track_execution:
+        if command not in (None, "ingest") or args.input is None:
+            parser.error("--track-execution requires ingest with --input")
+        if not all(
+            value is not None
+            for value in (args.batch_id, args.execution_id, args.attempt_number)
+        ):
+            parser.error("Tracked ingest requires all three identity options")
+        try:
+            batch_id = UUID(args.batch_id)
+            execution_id = UUID(args.execution_id)
+        except ValueError:
+            parser.error("--batch-id and --execution-id must be UUIDs")
+        if args.attempt_number <= 0:
+            parser.error("--attempt-number must be positive")
+
+        database_url = args.db or os.environ.get(
+            "LOTUSLEARN_DATABASE_URL", ""
+        ).strip()
+        if not database_url.startswith(("postgresql://", "postgres://")):
+            parser.error("Tracked execution requires a PostgreSQL --db or URL")
 
     db = get_database(args.db)
 
@@ -205,10 +246,41 @@ def main(argv: Optional[List[str]] = None) -> int:
         db.initialize_schema()
 
     if args.input:
-        events = load_events_from_file(args.input)
-        print(f"Loaded {len(events)} candidate events from {args.input}")
+        if args.track_execution:
+            from lotuslearn_pipeline.execution_ledger import ExecutionConflictError
+            from lotuslearn_pipeline.execution_runtime import run_tracked_batch
 
-        results = db.load_events(events)
+            try:
+                tracked = run_tracked_batch(
+                    db=db,
+                    database_url=database_url,
+                    input_path=args.input,
+                    load_events=load_events_from_file,
+                    batch_id=batch_id,
+                    execution_id=execution_id,
+                    attempt_number=args.attempt_number,
+                    fail_on_rejection=args.exit_on_rejection,
+                )
+            except ExecutionConflictError:
+                print(
+                    "ERROR: Execution attempt conflict; ingestion not restarted",
+                    file=sys.stderr,
+                )
+                db.close()
+                return 1
+            except Exception:
+                db.close()
+                raise
+
+            results = tracked.results
+            print(
+                f"Loaded {tracked.report.total_attempted} candidate events "
+                f"from {args.input}"
+            )
+        else:
+            events = load_events_from_file(args.input)
+            print(f"Loaded {len(events)} candidate events from {args.input}")
+            results = db.load_events(events)
 
         accepted_count = sum(1 for r in results if r.outcome == IngestionOutcome.ACCEPTED)
         duplicate_count = sum(1 for r in results if r.outcome == IngestionOutcome.DUPLICATE)
@@ -223,7 +295,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"Rejected:        {rejected_count}")
 
         if args.reconcile:
-            report = reconcile_batch(results)
+            report = (
+                tracked.report
+                if args.track_execution
+                else reconcile_batch(results)
+            )
             print("\n" + report.format_summary())
 
         if rejected_count > 0 or conflict_count > 0:
