@@ -1,0 +1,47 @@
+groups:
+  - name: lotuslearn.execution_health
+    interval: 1m
+    rules:
+      - alert: LotusLearnExecutionHeartbeatStale
+        expr: sum(lotuslearn_execution_health_state{job="lotuslearn-execution-health",state="SUSPECTED_STALE"}) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: lotuslearn
+          component: execution-health
+        annotations:
+          summary: "LotusLearn execution heartbeat is stale"
+          description: "At least one running execution has a suspected stale heartbeat."
+
+      - alert: LotusLearnExecutionFutureHeartbeat
+        expr: sum(lotuslearn_execution_health_state{job="lotuslearn-execution-health",state="FUTURE_HEARTBEAT"}) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: lotuslearn
+          component: execution-health
+        annotations:
+          summary: "LotusLearn execution heartbeat is in the future"
+          description: "At least one running execution has an invalid future heartbeat."
+
+      - alert: LotusLearnExecutionIncompleteSample
+        expr: max(lotuslearn_execution_health_sample_limit_reached{job="lotuslearn-execution-health"}) == 1
+        for: 0m
+        labels:
+          severity: critical
+          service: lotuslearn
+          component: execution-health
+        annotations:
+          summary: "LotusLearn execution health sample is incomplete"
+          description: "The running-execution sample reached its configured cap; health is not fully observed."
+
+      - alert: LotusLearnExecutionHealthMetricsAbsent
+        expr: sum(absent_over_time(lotuslearn_execution_health_running_sampled{job="lotuslearn-execution-health"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: critical
+          service: lotuslearn
+          component: execution-health
+        annotations:
+          summary: "LotusLearn execution health metrics are missing"
+          description: "No execution-health samples were collected for five minutes. Check the exporter, scrape target and database."

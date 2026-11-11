@@ -1,0 +1,42 @@
+name: Prometheus Alert Rules
+
+on:
+  pull_request:
+    paths:
+      - "monitoring/prometheus/**"
+      - ".github/workflows/ops01f-alert-rules.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "monitoring/prometheus/**"
+      - ".github/workflows/ops01f-alert-rules.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: PromQL Rule Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Prometheus rules
+        run: |
+          docker run --rm --network none \
+            -v "${PWD}/monitoring/prometheus:/work:ro" \
+            --workdir /work \
+            --entrypoint /bin/promtool \
+            prom/prometheus:v3.16.0 \
+            check rules execution-alerts.rules.yml
+
+      - name: Test alert behavior
+        run: |
+          docker run --rm --network none \
+            -v "${PWD}/monitoring/prometheus:/work:ro" \
+            --workdir /work \
+            --entrypoint /bin/promtool \
+            prom/prometheus:v3.16.0 \
+            test rules execution-alerts.test.yml

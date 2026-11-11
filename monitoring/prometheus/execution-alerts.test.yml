@@ -1,0 +1,118 @@
+rule_files:
+  - execution-alerts.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: healthy_metrics_do_not_alert
+    interval: 1m
+    input_series:
+      - series: 'lotuslearn_execution_health_running_sampled{job="lotuslearn-execution-health"}'
+        values: '0+0x6'
+      - series: 'lotuslearn_execution_health_state{job="lotuslearn-execution-health",state="SUSPECTED_STALE"}'
+        values: '0+0x6'
+      - series: 'lotuslearn_execution_health_state{job="lotuslearn-execution-health",state="FUTURE_HEARTBEAT"}'
+        values: '0+0x6'
+      - series: 'lotuslearn_execution_health_sample_limit_reached{job="lotuslearn-execution-health"}'
+        values: '0+0x6'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: LotusLearnExecutionHeartbeatStale
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: LotusLearnExecutionFutureHeartbeat
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: LotusLearnExecutionIncompleteSample
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: LotusLearnExecutionHealthMetricsAbsent
+        exp_alerts: []
+
+  - name: stale_and_future_fire_after_hold
+    interval: 1m
+    input_series:
+      - series: 'lotuslearn_execution_health_running_sampled{job="lotuslearn-execution-health"}'
+        values: '2+0x6'
+      - series: 'lotuslearn_execution_health_state{job="lotuslearn-execution-health",state="SUSPECTED_STALE"}'
+        values: '1+0x6'
+      - series: 'lotuslearn_execution_health_state{job="lotuslearn-execution-health",state="FUTURE_HEARTBEAT"}'
+        values: '1+0x6'
+      - series: 'lotuslearn_execution_health_sample_limit_reached{job="lotuslearn-execution-health"}'
+        values: '0+0x6'
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: LotusLearnExecutionHeartbeatStale
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: LotusLearnExecutionHeartbeatStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: lotuslearn
+              component: execution-health
+            exp_annotations:
+              summary: "LotusLearn execution heartbeat is stale"
+              description: "At least one running execution has a suspected stale heartbeat."
+      - eval_time: 1m
+        alertname: LotusLearnExecutionFutureHeartbeat
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: lotuslearn
+              component: execution-health
+            exp_annotations:
+              summary: "LotusLearn execution heartbeat is in the future"
+              description: "At least one running execution has an invalid future heartbeat."
+      - eval_time: 2m
+        alertname: LotusLearnExecutionIncompleteSample
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: LotusLearnExecutionHealthMetricsAbsent
+        exp_alerts: []
+
+  - name: incomplete_sample_fires_immediately
+    interval: 1m
+    input_series:
+      - series: 'lotuslearn_execution_health_running_sampled{job="lotuslearn-execution-health"}'
+        values: '1+0x3'
+      - series: 'lotuslearn_execution_health_sample_limit_reached{job="lotuslearn-execution-health"}'
+        values: '1+0x3'
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: LotusLearnExecutionIncompleteSample
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: lotuslearn
+              component: execution-health
+            exp_annotations:
+              summary: "LotusLearn execution health sample is incomplete"
+              description: "The running-execution sample reached its configured cap; health is not fully observed."
+      - eval_time: 2m
+        alertname: LotusLearnExecutionHealthMetricsAbsent
+        exp_alerts: []
+
+  - name: missing_metrics_fail_closed
+    interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: LotusLearnExecutionHealthMetricsAbsent
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: LotusLearnExecutionHealthMetricsAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: lotuslearn
+              component: execution-health
+            exp_annotations:
+              summary: "LotusLearn execution health metrics are missing"
+              description: "No execution-health samples were collected for five minutes. Check the exporter, scrape target and database."
+      - eval_time: 2m
+        alertname: LotusLearnExecutionHeartbeatStale
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: LotusLearnExecutionFutureHeartbeat
+        exp_alerts: []
