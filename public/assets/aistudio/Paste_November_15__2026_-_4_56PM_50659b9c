@@ -1,0 +1,1457 @@
+# LOTUSLEARN AI — MASTER PROMPT CONTINUATION
+## Senior Data Engineering Transformation
+### Complete Workstreams, Execution Protocol and Acceptance Criteria
+
+**Continuation point:** Section 5, P0-A — Implement a Real Metadata Governance CI Gate.
+
+---
+
+## 5. WORKSTREAM P0 — CI/CD AND GOVERNANCE CORRECTNESS (CONTINUED)
+
+### P0-A. Real metadata governance CI gate
+
+Use the existing metadata extraction, drift detection, history, graph, and policy implementations rather than replacing them.
+
+**Required implementation:**
+
+1. Establish a trustworthy metadata baseline from an explicitly identified protected Git revision or an independently maintained, version-controlled snapshot.
+2. Generate the candidate metadata using the current proposed code.
+3. Ensure baseline and candidate are generated in appropriately isolated environments.
+4. Normalize both representations deterministically.
+5. Compare real metadata changes, not hardcoded test examples.
+6. Classify additions, deletions, renames, incompatible type changes, constraint modifications, and dependency changes.
+7. Calculate the downstream impact using the existing dependency graph.
+8. Evaluate the existing governance policy.
+9. Produce a structured `PASS`, `REVIEW`, or `BLOCK` decision.
+10. Enforce that decision in CI and publish sanitized evidence.
+
+**Security and trust requirements:**
+
+- Never compare a candidate snapshot against itself.
+- Never automatically regenerate and approve the trusted baseline from an untrusted pull request.
+- Never silently create an empty snapshot when metadata extraction fails.
+- Never convert an extraction error into `PASS`.
+- Never consider a review record trustworthy merely because the pull-request author added it.
+- Never expose credentials, student information, sensitive SQL values, or unredacted production metadata in artifacts.
+
+`REVIEW` must remain blocking unless a trustworthy approval mechanism exists.
+
+Prefer integrating with existing branch protection and code-owner approval rules where available. Document external repository settings that cannot be established through source code alone.
+
+**Required tests:**
+
+- No metadata changes → PASS.
+- Compatible additive change → policy-dependent PASS or REVIEW.
+- Removed downstream dependency → REVIEW or BLOCK.
+- Breaking schema change → BLOCK where policy requires.
+- Missing manifest or baseline → controlled failure.
+- Malformed snapshot → controlled failure.
+- Unauthorized review exception → blocked.
+- Deterministic repeated extraction → identical canonical output.
+- Metadata containing forbidden sensitive information → sanitized or rejected.
+
+The final CI workflow must actually invoke the comparison and policy evaluation.
+
+### P0-B. Repair and strengthen CI
+
+Inspect every existing GitHub Actions workflow before editing.
+
+Determine:
+
+- Which branches trigger validation.
+- Which checks run on pull requests.
+- Whether tests require PostgreSQL.
+- Whether dbt artifacts are generated before use.
+- Whether migration checks are executed.
+- Whether integration tests are unintentionally skipped.
+- Whether tests can interfere with one another.
+- Whether lockfiles and dependency versions are respected.
+- Whether the configured checks are actually capable of blocking merges.
+
+Build a coherent CI system covering, where applicable:
+
+**Node.js / TypeScript**
+- Dependency installation.
+- Type checking.
+- Linting.
+- Existing automated tests.
+- Production build verification.
+
+**Python**
+- Reproducible dependency installation.
+- Linting and formatting validation.
+- Unit tests.
+- PostgreSQL integration tests.
+- Privacy and reconciliation tests.
+- Migration verification.
+
+**PostgreSQL**
+- Appropriate PostgreSQL version.
+- Fresh isolated test database.
+- Migration replay.
+- Constraint verification.
+- Migration checksum validation.
+- Concurrency and transaction tests.
+
+**dbt**
+- Version verification.
+- Dependency installation.
+- Parsing or compilation.
+- Artifact generation.
+- Model execution where a test database is available.
+- Data tests.
+- Governance metadata extraction.
+
+Do not assume a particular dbt command works across all versions.
+
+Inspect the installed version and use the documented command appropriate to that version.
+
+**GitHub Actions safety:**
+
+- Minimize token permissions.
+- Use supported stable action versions.
+- Protect secrets from untrusted pull-request execution.
+- Avoid unsafe shell interpolation.
+- Set reasonable timeouts.
+- Separate independent jobs when justified.
+- Ensure required checks cannot appear successful merely because critical jobs were skipped.
+- Preserve clear diagnostics.
+
+**Acceptance criteria:**
+
+A legitimate regression must cause a failing check.
+
+An intentionally introduced governance violation must cause a failing check.
+
+A missing required dbt artifact must not produce a false green result.
+
+All required checks must have reproducible local equivalents.
+
+### P0-C. Database test isolation and migration safety
+
+Audit existing test fixtures for destructive operations.
+
+Pay particular attention to schema drops, database recreation, global truncation, and shared state.
+
+**Requirements:**
+
+- Tests must never target a development or production database accidentally.
+- Validate database identity and intended test configuration before destructive test setup.
+- Use dedicated test databases or safely isolated schemas.
+- Support repeated execution without leftover state.
+- Support parallel execution only where isolation is demonstrably correct.
+- Never introduce unrestricted destructive operations into shared environments.
+- Preserve migration ordering and checksum history.
+- Never rewrite already-applied migrations to hide incompatibilities.
+- Introduce additive migrations for new changes.
+- Test upgrades from representative existing schema versions.
+
+If a migration cannot safely run inside a transaction, explicitly document its transactional boundary and recovery behavior.
+
+---
+
+## 6. WORKSTREAM P1 — EXECUTION LEDGER AND OPERATIONAL RELIABILITY
+
+### P1-A. Formalize the execution lifecycle
+
+Inspect the existing execution ledger and preserve its current working APIs.
+
+Document its actual lifecycle and transition rules.
+
+Potential lifecycle:
+
+`PENDING → RUNNING → SUCCEEDED / FAILED`
+
+Do not introduce `PENDING`, `TIMED_OUT`, `CANCELLED`, or any other state unless it solves a demonstrated problem and can be integrated compatibly.
+
+For every existing state, document:
+
+- Allowed predecessor states.
+- Allowed successor states.
+- Required timestamps.
+- Required reconciliation state.
+- Whether the state is terminal.
+- Whether an operator may retry it.
+- Whether terminal records are immutable.
+- How concurrent writers are handled.
+
+Implement missing invariants through the appropriate combination of database constraints, transactional SQL, and application validation.
+
+**Critical scenarios:**
+
+1. Same execution submitted twice.
+2. Concurrent attempts to start the same execution.
+3. Heartbeat after terminal completion.
+4. Worker failure before ingestion.
+5. Worker failure during ingestion.
+6. Worker failure after data persistence but before ledger finalization.
+7. Duplicate finalization.
+8. Clock skew and invalid timestamp ordering.
+9. Database connection interruption.
+10. Worker process termination.
+11. Reconciliation mismatch.
+12. Attempted illegal state transitions.
+
+A retry must not create duplicate accepted analytical events.
+
+Do not claim exactly-once distributed execution. Establish the narrower guarantee actually provided by transactions, idempotency keys, and durable storage.
+
+### P1-B. Stale execution detection and recovery
+
+Determine whether the existing system can detect runs whose workers have disappeared.
+
+If missing, design a bounded recovery mechanism using:
+
+- Heartbeat age.
+- Explicit stale-run thresholds.
+- Worker ownership or leases where justified.
+- Transactional claiming.
+- Race-safe transitions.
+- Recovery attempt identifiers.
+- Bounded retries.
+- Structured failure reasons.
+
+Prevent competing recovery workers from claiming the same execution in incompatible ways.
+
+Do not hold database transactions open while waiting for user input or external processes.
+
+Recovery must be demonstrated through controlled fault-injection tests.
+
+### P1-C. Retry and failure taxonomy
+
+Inspect the current error-code allowlist.
+
+Preserve compatible error codes.
+
+Classify failures based on actual behavior:
+
+- Transient infrastructure failures.
+- Permanent input-contract failures.
+- Privacy violations.
+- Reconciliation failures.
+- Lock contention.
+- Database constraint violations.
+- Schema incompatibilities.
+- Recoverable timeouts.
+
+Define explicit retry eligibility.
+
+Use bounded retries with an appropriate delay policy and jitter where necessary.
+
+Do not retry privacy violations or invalid data indefinitely.
+
+Every exhausted retry must have a durable, inspectable result.
+
+### P1-D. Operational execution evidence
+
+Provide a reliable way to inspect:
+
+- Recent pipeline executions.
+- Current execution state.
+- Last successful run.
+- Last heartbeat.
+- Execution duration.
+- Failed executions.
+- Error categories.
+- Reconciliation status.
+- Retry attempts, where supported.
+
+Reuse the current governance-query service or existing CLI patterns where practical.
+
+Do not create a new dashboard solely to display information that the existing system can already expose.
+
+---
+
+## 7. WORKSTREAM P1 — INGESTION, IDEMPOTENCY AND RECONCILIATION
+
+### P1-E. End-to-end ingestion correctness
+
+Trace one analytical event from its TypeScript producer through:
+
+1. Schema construction.
+2. Contract validation.
+3. Privacy validation.
+4. Serialization.
+5. Batch ingestion.
+6. Database persistence.
+7. Deduplication.
+8. Reconciliation.
+9. dbt transformation.
+10. Analytical query output.
+
+Record which identifiers are authoritative at each boundary.
+
+Preserve existing event schema versions and existing identifier semantics.
+
+Distinguish:
+
+- Duplicate transport delivery.
+- Duplicate event identifier.
+- Conflicting payload under an existing identifier.
+- Repeated batch execution.
+- Invalid contract.
+- Unauthorized or sensitive payload.
+- Late-arriving event.
+- Partial batch failure.
+
+Define the expected result for each case.
+
+### P1-F. Incremental processing
+
+Determine whether a genuine incremental-processing gap exists.
+
+If one exists, implement a mechanism compatible with the repository's existing database and pipeline design.
+
+Possible techniques include:
+
+- Stable watermarks.
+- Source event ordering.
+- Transactionally recorded checkpoints.
+- Idempotent upserts.
+- Bounded lookback windows.
+- Explicit handling of late arrivals.
+
+Do not assume event timestamps are unique or strictly ordered.
+
+Document watermark inclusivity, time zones, and replay behavior.
+
+A retry after interruption must never silently skip unprocessed records.
+
+### P1-G. Reconciliation guarantees
+
+Inspect and preserve existing reconciliation functionality.
+
+Strengthen it where evidence shows a gap.
+
+Reconciliation should explain the relationship between:
+
+- Input records.
+- Accepted records.
+- Rejected records.
+- Duplicates.
+- Persisted records.
+- Downstream processed records, where applicable.
+
+Avoid simplistic count comparisons where legitimate deduplication or filtering changes the expected count.
+
+**Required negative tests:**
+
+- Missing records.
+- Duplicate records.
+- Deliberately corrupted event.
+- Reconciliation imbalance.
+- Repeated batch.
+- Partial transaction failure.
+- Conflicting duplicate identifier.
+
+A reconciliation failure must not be labeled successful.
+
+---
+
+## 8. WORKSTREAM P1 — DBT ANALYTICS AND DATA QUALITY
+
+### P1-H. Audit dbt model architecture
+
+Inspect existing staging, intermediate, and mart layers.
+
+Determine whether models are:
+
+- Correctly dependent on upstream sources.
+- Incremental where justified.
+- Deterministic.
+- Consistent with event contracts.
+- Protected against double counting.
+- Documented.
+- Tested.
+- Privacy compliant.
+
+Do not reorganize models merely for naming aesthetics.
+
+Preserve existing analytical definitions unless a demonstrated correctness bug requires a change.
+
+### P1-I. Implement meaningful quality checks
+
+Add or strengthen tests for:
+
+- Required fields.
+- Unique business keys.
+- Accepted values.
+- Referential integrity.
+- Event timestamp validity.
+- Unexpected duplicates.
+- Count conservation where valid.
+- Reconciliation consistency.
+- Nonnegative metrics.
+- Invalid status combinations.
+- Privacy-sensitive columns.
+- Unexpected null propagation.
+- Model output contract compatibility.
+
+Use existing dbt testing mechanisms and project conventions.
+
+Do not add hundreds of repetitive tests that provide no meaningful failure detection.
+
+For every important test, explain which specific defect it catches.
+
+### P1-J. Source freshness
+
+Identify which sources contain trustworthy ingestion or update timestamps.
+
+For eligible sources, implement freshness checks using commands and configurations supported by the installed dbt version.
+
+Document:
+
+- Freshness timestamp.
+- Warning threshold.
+- Failure threshold.
+- Expected update cadence.
+- Clock and time-zone handling.
+- Limitations for irregular or demonstration data.
+
+A source that is not continuously updated must not be presented as a live production feed.
+
+### P1-K. Model contracts and compatibility
+
+Where supported by the installed dbt version, enforce contracts on appropriate stable models.
+
+Test:
+
+- Expected columns.
+- Expected types.
+- Breaking column removals.
+- Incompatible type changes.
+- Downstream model behavior.
+
+Do not enable contracts that the current adapter or materialization cannot support without justification.
+
+Ensure dbt model metadata feeds the existing governance graph rather than creating a disconnected contract system.
+
+---
+
+## 9. WORKSTREAM P1 — METADATA GOVERNANCE AND RUNTIME LINEAGE
+
+### P1-L. Integrate existing governance modules
+
+Map the current relationships among:
+
+- PostgreSQL schema metadata.
+- dbt manifest metadata.
+- Metadata graph.
+- Drift detection.
+- Metadata history.
+- Policy evaluation.
+- Governance-query service.
+- CI approval gates.
+
+Identify disconnected or duplicated operations.
+
+Prefer extending existing interfaces instead of replacing them.
+
+Introduce stable metadata identifiers and versioning where missing and technically necessary.
+
+### P1-M. Runtime lineage
+
+First determine whether the repository already records actual runtime lineage.
+
+Distinguish:
+
+**Static lineage:** a model or dataset depends on another model or dataset.
+
+**Runtime lineage:** a specific execution consumed particular datasets and produced particular outputs.
+
+If runtime lineage is incomplete, design the smallest interoperable extension that solves the gap.
+
+Evaluate OpenLineage as a possible interoperability format, not as a compulsory replacement for the current metadata graph.
+
+Where appropriate, represent:
+
+- Job identity.
+- Execution identity.
+- Start event.
+- Successful or failed completion event.
+- Input datasets.
+- Output datasets.
+- Parent-child run relationships.
+- Producer version.
+- Relevant execution metadata.
+
+Avoid embedding:
+
+- Student names.
+- Email addresses.
+- Student identifiers.
+- Raw event payloads.
+- Arbitrary SQL parameter values.
+- Secrets.
+
+Ensure failed lineage delivery does not silently corrupt execution state.
+
+Document whether lineage delivery is required for execution success or best-effort observability. The choice must be explicit and tested.
+
+### P1-N. Lineage-to-governance integration
+
+Make runtime lineage useful to the existing governance system.
+
+Demonstrate that a user can trace:
+
+`Pipeline execution → Input dataset → Database table → dbt model → Analytical output`
+
+Where actual runtime or dataset granularity does not support a specific relationship, label it as unknown rather than inventing it.
+
+**Acceptance scenarios:**
+
+- Successful pipeline produces expected lineage evidence.
+- Failed pipeline records an accurate failure outcome.
+- Replayed lineage event does not corrupt the graph.
+- Out-of-order lineage event is handled deterministically.
+- Removed upstream field is associated with affected downstream objects.
+- Forbidden information is rejected or sanitized.
+
+---
+
+## 10. WORKSTREAM P1 — OBSERVABILITY AND SRE
+
+### P1-O. Operational metrics
+
+Inspect existing monitoring configurations before adding anything.
+
+If appropriate, expose metrics such as:
+
+**Execution**
+- Started executions.
+- Succeeded executions.
+- Failed executions.
+- Execution duration.
+- Stale executions.
+- Retry counts.
+
+**Data**
+- Accepted records.
+- Rejected records.
+- Duplicate records.
+- Reconciliation failures.
+- Ingestion-to-availability latency.
+- Freshness violations.
+
+**Governance**
+- Detected metadata changes.
+- Governance PASS decisions.
+- Governance REVIEW decisions.
+- Governance BLOCK decisions.
+
+Use sensible metric types such as counters, gauges, and histograms.
+
+Do not use sensitive identifiers or high-cardinality values as metric labels.
+
+In particular, avoid student IDs, event IDs, individual execution IDs, and free-form error messages in metric dimensions.
+
+### P1-P. Structured logging
+
+Establish consistent structured logs for important pipeline events.
+
+Use safe operational correlation identifiers where already permitted by privacy contracts.
+
+Logs should support troubleshooting without exposing raw educational records.
+
+Ensure exceptions and database failures retain useful diagnostic context.
+
+Avoid logging complete SQL queries with potentially sensitive parameter values.
+
+### P1-Q. Monitoring and alert behavior
+
+Reuse existing Prometheus, Grafana, or other monitoring assets if present and justified.
+
+If alerting is supported, establish meaningful warning conditions for:
+
+- Repeated execution failures.
+- Stale running executions.
+- Reconciliation imbalance.
+- Freshness SLA violations.
+- Repeated governance blocks.
+- Pipeline inactivity when activity is actually expected.
+
+Avoid always-firing demonstration alerts.
+
+Provide controlled test scenarios demonstrating whether the alert expressions behave correctly.
+
+### P1-R. Operational service-level objectives
+
+Propose realistic local demonstration SLOs for:
+
+- Execution success rate.
+- Timely completion.
+- Data freshness.
+- Reconciliation correctness.
+- Recovery completion.
+
+Clearly distinguish demonstration objectives from measured production service levels.
+
+Never present invented production reliability statistics.
+
+---
+
+## 11. WORKSTREAM P1 — FAULT INJECTION AND RECOVERY
+
+### P1-S. Build a reproducible failure laboratory
+
+Create controlled tests or scripts that exercise real failure-handling logic.
+
+Required scenarios where applicable:
+
+| Failure scenario | Expected behavior |
+| --- | --- |
+| Duplicate event delivery | No duplicate business effect |
+| Worker crashes before persistence | Safe recovery or explicit failure |
+| Worker crashes after persistence | Idempotent recovery |
+| Database unavailable | Controlled failure, no false success |
+| Concurrent execution requests | No invalid concurrent ownership |
+| Reconciliation mismatch | Execution cannot succeed |
+| Invalid JSON Schema payload | Rejected safely |
+| Forbidden personal information | Fail closed |
+| Missing metadata baseline | Governance gate fails |
+| Breaking schema modification | Governance gate blocks |
+| Delayed source data | Freshness detection |
+| Lineage transport unavailable | Documented, tested failure policy |
+
+Use failpoints, mocks, fault injection, or isolated test infrastructure as appropriate.
+
+Do not add production failpoints that can be triggered accidentally.
+
+Every demonstrated scenario must have:
+
+1. Reproduction instructions.
+2. Expected result.
+3. Observed result, if actually executed.
+4. Verification assertion.
+5. Cleanup instructions.
+6. Recovery explanation.
+
+### P1-T. Recovery runbooks
+
+Create concise operational procedures explaining how to:
+
+- Diagnose a failed execution.
+- Inspect ledger state.
+- Locate reconciliation problems.
+- Identify stale work.
+- Safely retry an idempotent batch.
+- Handle incompatible metadata changes.
+- Investigate freshness violations.
+- Restore normal operation following a test incident.
+
+Distinguish normal recovery from destructive disaster recovery.
+
+Do not recommend deleting database records as the default recovery mechanism.
+
+---
+
+## 12. WORKSTREAM P2 — PANDAS, NUMPY AND SCIKIT-LEARN
+
+These libraries are intentionally part of the desired portfolio, but they must perform genuine, testable engineering work.
+
+Do not add them solely as dependency badges.
+
+### P2-A. Pandas
+
+Identify an appropriate operational analytics use case.
+
+Preferred candidates:
+
+- Batch-execution analysis.
+- Reconciliation report analysis.
+- Failure-rate aggregation.
+- Duration distribution reporting.
+- Data quality trend analysis.
+- Operational incident summaries.
+
+Use pandas for actual tabular operations.
+
+Ensure that processing sensitive raw events is not required.
+
+Add tests covering empty datasets, missing values, duplicate rows, data types, and timestamp handling.
+
+Avoid materializing large database tables into pandas when SQL aggregation would be more efficient.
+
+### P2-B. NumPy
+
+Use NumPy for a genuinely numerical task such as:
+
+- Numerical distribution summaries.
+- Quantile estimation.
+- Statistical normalization.
+- Robust deviation measurements.
+- Vectorized numerical features.
+- Reproducible simulation inputs.
+
+Explain why the NumPy operation is preferable to simpler alternatives.
+
+Handle NaN, infinity, empty arrays, precision, and numerical edge cases.
+
+### P2-C. Scikit-learn operational anomaly detection
+
+Implement a modest, defensible anomaly-detection experiment if a real operational use case is available.
+
+Use **operational telemetry**, not raw student information.
+
+Candidate features:
+
+- Batch execution duration.
+- Accepted-record count.
+- Rejected-record ratio.
+- Duplicate ratio.
+- Reconciliation difference.
+- Retry count.
+- Freshness delay.
+
+A technique such as Isolation Forest may be considered, but only after evaluating whether simpler statistical thresholds are sufficient.
+
+Required engineering practices:
+
+- Define the prediction target clearly.
+- Separate training and evaluation data.
+- Prevent future information leakage.
+- Use deterministic random states where applicable.
+- Record preprocessing assumptions.
+- Version the training configuration.
+- Handle small datasets explicitly.
+- Avoid unsupported accuracy claims.
+- Evaluate false positives using labeled or deliberately injected test anomalies.
+- Document limitations of synthetic evaluation.
+- Provide a non-ML statistical baseline for comparison.
+- Make anomaly output advisory unless there is explicit justification for enforcement.
+
+Do not allow an unsupervised anomaly score to modify student grades, teacher approvals, or educational decisions.
+
+### P2-D. Reproducible analytics
+
+Provide a reproducible command to:
+
+1. Generate sanitized operational input.
+2. Compute baseline statistics.
+3. Run the anomaly detector.
+4. Produce an evaluation summary.
+5. Save an appropriately sanitized artifact.
+
+The process must not require real student data.
+
+Where possible, add automated regression tests for feature generation and scoring behavior.
+
+---
+
+## 13. WORKSTREAM P2 — PIPELINE ORCHESTRATION
+
+### P2-E. Evaluate orchestration needs
+
+Inspect existing scheduling and orchestration mechanisms.
+
+Do not immediately add Apache Airflow, Dagster, Prefect, or another heavy orchestration framework.
+
+Determine whether existing scripts and command-line entrypoints are sufficient.
+
+If orchestration is missing, first implement or strengthen a reproducible end-to-end execution command coordinating:
+
+1. Input validation.
+2. Ingestion.
+3. Ledger tracking.
+4. Reconciliation.
+5. dbt transformations.
+6. Quality checks.
+7. Metadata or lineage updates.
+8. Final execution status.
+
+Preserve correct transaction boundaries.
+
+The orchestrator must not report success when a mandatory downstream step fails.
+
+If external orchestration is genuinely justified, write an architectural decision record comparing at least:
+
+- Existing CLI plus scheduler.
+- Lightweight existing workflow.
+- One external orchestrator.
+
+Choose according to actual complexity, operational cost, development effort, and portfolio value.
+
+No technology may be added solely to expand the technology list.
+
+---
+
+## 14. WORKSTREAM P2 — PERFORMANCE AND DATABASE ENGINEERING
+
+### P2-F. PostgreSQL correctness and performance
+
+Review high-value query paths and database structure.
+
+Look for verified problems involving:
+
+- Missing useful indexes.
+- Inefficient reconciliation queries.
+- Excessive locking.
+- Unbounded scans.
+- N+1 database access.
+- Long transactions.
+- Unnecessary materialization.
+- Poor query plans.
+- Excessive index maintenance.
+- Inefficient batch sizes.
+
+Use `EXPLAIN (ANALYZE, BUFFERS)` only in a suitable isolated environment.
+
+Compare query plans and actual measurements before proposing optimization.
+
+Never invent latency improvements.
+
+A benchmark must record:
+
+- Database version.
+- Hardware or runner context.
+- Dataset size.
+- Data distribution.
+- Query or workload.
+- Warm/cold cache assumptions where relevant.
+- Number of repetitions.
+- Measurement method.
+- Before and after results.
+
+If benchmarking cannot run, provide executable instructions and mark performance claims unverified.
+
+### P2-G. Concurrency and transaction analysis
+
+Validate existing advisory-lock semantics and transaction retries.
+
+Pay particular attention to:
+
+- Transaction-level versus session-level locks.
+- Lock acquisition ordering.
+- Deadlocks.
+- Serialization failures.
+- Unique constraints under races.
+- Transaction rollback.
+- Resource cleanup.
+- Concurrent ledger finalization.
+
+Do not remove a correctness mechanism merely because a simpler implementation appears faster.
+
+---
+
+## 15. WORKSTREAM P2 — SECURITY, PRIVACY AND DEPENDENCY HYGIENE
+
+### P2-H. Data protection
+
+Audit telemetry, metadata, logs, fixtures, monitoring, and analytics for privacy exposure.
+
+Ensure:
+
+- Forbidden personal information is not collected.
+- Sensitive records are not placed into exception messages.
+- Temporary files do not leak secrets.
+- Debug logging does not weaken privacy.
+- Test fixtures use synthetic or appropriately sanitized data.
+- Privacy validation is enforced at the relevant trust boundary.
+- No longitudinal student linkage is added without authorization and verified design.
+
+Test forbidden-field and nested sensitive-payload scenarios.
+
+### P2-I. Dependency reliability
+
+Inspect package manifests and lockfiles.
+
+Preserve major dependency versions unless an upgrade solves a documented issue.
+
+If a dependency upgrade is necessary:
+
+1. Explain the reason.
+2. Check compatibility.
+3. Update appropriate lockfiles.
+4. Run affected tests.
+5. Describe migration risks.
+6. Document rollback options.
+
+Do not add unmaintained or redundant dependencies.
+
+### P2-J. CI supply-chain hygiene
+
+Review:
+
+- Secrets handling.
+- GitHub Actions permissions.
+- Dependency integrity.
+- Unsafe script execution.
+- Sensitive artifact uploads.
+- Untrusted pull-request code.
+- Container configuration.
+- Reproducible installation.
+
+Recommend only changes that are compatible with the actual repository.
+
+---
+
+## 16. ARCHITECTURAL DECISION RECORDS
+
+Create or update ADRs for material decisions.
+
+Potential decisions:
+
+- Metadata baseline strategy.
+- Governance REVIEW enforcement.
+- Execution recovery semantics.
+- Runtime lineage interoperability.
+- Operational anomaly detection.
+- Pipeline orchestration approach.
+
+Do not generate an ADR for every small code change.
+
+Each ADR must contain:
+
+- Context.
+- Problem.
+- Alternatives considered.
+- Decision.
+- Technical justification.
+- Consequences.
+- Failure modes.
+- Migration or rollback implications.
+
+Existing ADRs remain authoritative unless explicitly superseded through a documented decision.
+
+---
+
+## 17. PORTFOLIO DOCUMENTATION
+
+Update documentation only after implementation evidence exists.
+
+### 17.1 README
+
+The README should clearly explain:
+
+- What LotusLearn AI is.
+- Its educational business context.
+- What the Data Engineering subsystem does.
+- The current architecture.
+- Real technologies used.
+- Reproducible local setup.
+- How to run the pipeline.
+- How to run tests.
+- How to inspect execution evidence.
+- How to reproduce failure simulations.
+- How governance works.
+- Which capabilities remain planned.
+
+Do not describe planned functionality as completed.
+
+### 17.2 Senior Data Engineering case study
+
+Create a technical case study containing:
+
+1. Business problem.
+2. Engineering requirements.
+3. System constraints.
+4. Privacy requirements.
+5. Architectural approach.
+6. Event ingestion design.
+7. Idempotency and transaction guarantees.
+8. Data quality strategy.
+9. Metadata governance.
+10. Runtime lineage.
+11. Operational observability.
+12. Recovery scenarios.
+13. Testing approach.
+14. Actual performance evidence, if measured.
+15. Engineering trade-offs.
+16. Known limitations.
+17. Future work.
+
+Make it possible for a technical interviewer to challenge the design and reproduce its claims.
+
+### 17.3 Architecture diagrams
+
+Use maintainable text-based diagrams where appropriate.
+
+Diagrams must reflect actual implemented components.
+
+Avoid depicting unimplemented cloud infrastructure, schedulers, or monitoring services as deployed.
+
+### 17.4 Troubleshooting and reproducibility
+
+Document exact commands based on discovered repository paths.
+
+Include the expected outputs or observable conditions.
+
+Do not fabricate sample success logs.
+
+Synthetic examples must be labeled as examples.
+
+---
+
+## 18. TESTING STRATEGY
+
+### 18.1 Testing pyramid
+
+Preserve the existing test suites.
+
+Strengthen testing across the appropriate levels.
+
+**Unit tests**
+
+- Pure validation logic.
+- State transitions.
+- Drift classification.
+- Policy decisions.
+- Numerical transformations.
+- Error classification.
+
+**Integration tests**
+
+- PostgreSQL migrations.
+- Ingestion.
+- Idempotency.
+- Execution ledger.
+- Reconciliation.
+- Metadata extraction.
+- dbt model execution.
+- Governance persistence.
+
+**Concurrency tests**
+
+- Competing workers.
+- Duplicate submission.
+- Finalization races.
+- Transaction interruption.
+- Recovery ownership.
+
+**End-to-end tests**
+
+- Synthetic analytical event.
+- Validation.
+- Persistence.
+- Transformation.
+- Quality verification.
+- Final result.
+- Operational evidence.
+
+**Negative tests**
+
+- Privacy violation.
+- Schema incompatibility.
+- Unexpected duplicate.
+- Missing metadata artifact.
+- Failed reconciliation.
+- Stale worker.
+- Incorrect ledger transition.
+
+### 18.2 Test quality standards
+
+Tests must exercise actual production logic wherever feasible.
+
+Avoid creating parallel test-only implementations of production behavior.
+
+Use deterministic fixtures and stable assertions.
+
+Avoid reliance on execution order.
+
+Ensure test cleanup is safe.
+
+Do not lower existing assertions or skip failing tests merely to make CI green.
+
+Do not introduce meaningless coverage targets.
+
+### 18.3 Regression control
+
+Before changing a module:
+
+1. Identify existing tests.
+2. Record the baseline.
+3. Introduce a failing regression test where practical.
+4. Implement the smallest correct change.
+5. Run focused tests.
+6. Run relevant integration tests.
+7. Run broader regression tests.
+8. Inspect the final diff.
+
+Any unavailable test must be reported as not executed.
+
+---
+
+## 19. EXECUTION PROTOCOL FOR GOOGLE AI STUDIO
+
+### 19.1 Repository authority
+
+The existing GitHub repository is the authoritative source.
+
+Google AI Studio is a development environment, not permission to regenerate the project.
+
+Do not create a replacement application or a new repository.
+
+Do not automatically synchronize, commit, push, merge, or deploy.
+
+### 19.2 Synchronization safeguards
+
+Before modifications:
+
+- Establish the actual imported commit, if available.
+- Establish the selected GitHub branch.
+- Identify whether the AI Studio workspace contains uncommitted changes.
+- Compare its state against the intended repository state.
+- Confirm that no directories have been omitted by import.
+- Identify files that AI Studio cannot access.
+
+If the workspace is stale, incomplete, conflicted, or pointed at the wrong branch, stop major edits and provide the appropriate recovery instructions.
+
+Never assume a successful import guarantees an accurate Git branch relationship.
+
+### 19.3 Working method
+
+Use the following sequence:
+
+**STEP 1 — Audit**
+
+Read and understand the existing implementation.
+
+**STEP 2 — Gap classification**
+
+Label each capability:
+
+- IMPLEMENTED AND VERIFIED.
+- IMPLEMENTED BUT INCOMPLETE.
+- DOCUMENTED ONLY.
+- MISSING.
+- BLOCKED BY ENVIRONMENT.
+
+**STEP 3 — Change design**
+
+For each gap, define:
+
+- Existing behavior.
+- Required new behavior.
+- Files affected.
+- Database impact.
+- API or contract impact.
+- Risk.
+- Test strategy.
+- Rollback strategy.
+
+**STEP 4 — Implementation**
+
+Apply cohesive, narrowly scoped modifications.
+
+Prefer extending existing code over creating competing implementations.
+
+**STEP 5 — Verification**
+
+Run every test that the environment genuinely supports.
+
+Provide independent Codespaces verification commands for unsupported operations.
+
+**STEP 6 — Review**
+
+Inspect code differences, test results, migrations, and documentation.
+
+**STEP 7 — Handoff**
+
+Produce a factual implementation report.
+
+### 19.4 Scope control
+
+Do not attempt to implement every workstream in one enormous code change.
+
+Prioritize:
+
+1. Critical correctness and privacy.
+2. CI and governance enforcement.
+3. Execution reliability.
+4. Data quality.
+5. Runtime lineage.
+6. Observability and recovery.
+7. Operational analytics.
+8. Performance optimization.
+9. Portfolio documentation.
+
+Do not begin dependent workstreams until their required foundations are sufficiently verified.
+
+If the current environment cannot safely complete a phase, stop that phase, preserve valid progress, and provide precise continuation instructions.
+
+Do not replace incomplete verification with optimistic statements.
+
+---
+
+## 20. GITHUB CODESPACES VERIFICATION CONTRACT
+
+All manually executed commands should be compatible with the existing GitHub Codespaces repository workflow.
+
+Prefer complete, copy-pasteable terminal commands.
+
+Do not require manual editing through VS Code menus.
+
+When generating file modifications for manual execution, use safe guarded heredocs or equivalent terminal-based methods.
+
+### 20.1 Required preflight
+
+Before offering modifying commands, determine the correct repository root, branch, and files.
+
+The preflight must include:
+
+`pwd`
+
+`git status --short`
+
+`git branch --show-current`
+
+`git rev-parse HEAD`
+
+`git diff --stat`
+
+Do not assume an empty working tree.
+
+### 20.2 Safe modification behavior
+
+Commands must:
+
+- Avoid overwriting existing unreviewed changes.
+- Validate expected paths.
+- Avoid destructive cleanup.
+- Avoid installing globally without justification.
+- Avoid leaking secrets through shell history.
+- Use the existing Python environment where appropriate.
+- Preserve existing Node.js and database configurations.
+
+Do not invent environment variable values.
+
+### 20.3 Verification commands
+
+Discover the actual project paths and provide commands for:
+
+- TypeScript tests.
+- Python tests.
+- PostgreSQL integration tests.
+- Migration validation.
+- dbt parsing and execution.
+- dbt data tests.
+- Metadata governance evaluation.
+- End-to-end pipeline demonstration.
+- Fault-injection scenarios.
+- Final diff review.
+
+Use supported versions and the actual repository configuration.
+
+### 20.4 Commit protocol
+
+Never commit automatically.
+
+After verification, provide:
+
+- Files changed.
+- Test evidence.
+- Remaining risks.
+- Suggested commit message.
+- Optional exact Git commands for user-controlled staging and commit.
+
+The user retains control over all commits and pushes.
+
+---
+
+## 21. ENGINEERING ACCEPTANCE CRITERIA
+
+A capability is complete only when its necessary implementation and evidence exist.
+
+| Capability | Acceptance evidence |
+| --- | --- |
+| Repository preservation | Existing architecture and history retained |
+| CI | Real tests executed with reliable failure propagation |
+| Governance gate | Actual baseline-versus-candidate drift enforcement |
+| Database migrations | Reproducible clean and upgrade-path tests |
+| Idempotency | Duplicate and retry integration tests |
+| Ledger | State-transition and concurrency tests |
+| Recovery | Reproducible stale-run or crash-recovery scenario |
+| Reconciliation | Positive and negative consistency tests |
+| dbt | Actual model execution and data-test evidence |
+| Data quality | Defects cause meaningful test failures |
+| Runtime lineage | Execution-to-dataset relationships demonstrated |
+| Privacy | Forbidden data rejected and not leaked |
+| Observability | Real operational metrics or evidence queries |
+| Pandas / NumPy | Genuine tested processing use case |
+| Scikit-learn | Reproducible operational experiment with limitations |
+| Documentation | All claims traceable to code or executed evidence |
+
+**Acceptance rules:**
+
+- Missing evidence means NOT VERIFIED.
+- An unavailable runtime means BLOCKED, not PASSED.
+- Partial implementation means INCOMPLETE.
+- A mock-only test cannot prove database integration.
+- A generated diagram cannot prove system functionality.
+- A documented command cannot prove that the command succeeded.
+- A green unit-test suite alone does not establish end-to-end correctness.
+
+---
+
+## 22. FINAL DELIVERABLES
+
+At the end of each execution phase, return the following report.
+
+### A. Repository state
+
+- Repository.
+- Branch.
+- Commit SHA.
+- Working-tree status.
+- Environment limitations.
+- Scope of files inspected.
+
+### B. Evidence-based audit
+
+A table of:
+
+- Capability.
+- Existing implementation.
+- Evidence.
+- Gap.
+- Severity.
+- Recommended action.
+- Verification status.
+
+### C. Changes implemented
+
+For each change:
+
+- Problem solved.
+- Original behavior.
+- New behavior.
+- Files modified.
+- Compatibility considerations.
+- Tests added.
+- Remaining limitations.
+
+### D. Database modifications
+
+If applicable:
+
+- Migration names.
+- Tables or columns affected.
+- Constraints added.
+- Indexes added.
+- Migration compatibility.
+- Rollback or recovery notes.
+
+### E. Verification report
+
+Include the exact command and actual outcome for every test that was executed.
+
+Classify:
+
+- PASSED.
+- FAILED.
+- NOT EXECUTED.
+- BLOCKED.
+
+Never infer success from generated code.
+
+### F. Architecture changes
+
+Explain the architecture before and after the phase.
+
+Identify which existing components were reused.
+
+### G. Security and privacy review
+
+State what was checked.
+
+Disclose unresolved risks.
+
+### H. Portfolio impact
+
+Explain what genuinely new Senior Data Engineering capability this phase demonstrates.
+
+Connect it to source code and evidence.
+
+### I. Next phase
+
+Recommend the next highest-value technical change.
+
+Identify dependencies and blockers.
+
+### J. Codespaces handoff
+
+Provide complete commands for independent verification.
+
+Provide a suggested commit message only after review.
+
+---
+
+## 23. DEFINITION OF DONE
+
+The transformation is not complete simply because additional files or technologies have been added.
+
+The repository must demonstrate a coherent engineering system in which:
+
+1. Valid events can be processed reproducibly.
+2. Invalid or sensitive events are rejected safely.
+3. Duplicate execution does not corrupt analytical results.
+4. Database migrations preserve compatibility.
+5. Pipeline executions have trustworthy lifecycle records.
+6. Failure recovery is documented and tested.
+7. Reconciliation identifies inconsistencies.
+8. dbt transformations preserve analytical correctness.
+9. Quality tests detect representative real defects.
+10. Metadata changes are classified and governed.
+11. CI enforces appropriate governance decisions.
+12. Runtime lineage is accurate where implemented.
+13. Operational diagnostics expose meaningful failure information.
+14. Privacy boundaries remain intact.
+15. Tests can be reproduced independently.
+16. Documentation distinguishes verified implementation from planned work.
+17. A technical reviewer can reproduce the evidence without trusting marketing claims.
+
+No fabricated success is acceptable.
+
+---
+
+## 24. PRIORITY AND STOP CONDITIONS
+
+The following events require immediate reporting:
+
+- The imported repository is incomplete.
+- The current branch cannot be established.
+- The current commit cannot be established and safe synchronization is uncertain.
+- Unexpected uncommitted changes exist in a file that would be modified.
+- A proposed migration risks existing data.
+- A privacy invariant cannot be preserved.
+- Existing test failures cannot be distinguished from new regressions.
+- Required database or dbt execution is unavailable.
+- A proposed change would require replacing functioning architecture without evidence.
+- A governance baseline cannot be trusted.
+
+When a blocker is encountered:
+
+1. State the exact blocker.
+2. Preserve existing valid work.
+3. Do not fabricate results.
+4. Do not bypass required checks.
+5. Provide the narrowest safe resolution.
+6. Identify the next executable step.
+
+---
+
+## 25. START EXECUTION
+
+Begin with Phase Zero.
+
+Inspect the actual imported repository and establish the current source state.
+
+Do not generate a new application.
+
+Do not assume that the file list in this prompt matches the latest branch.
+
+Produce the complete evidence-based architecture and capability inventory first.
+
+After the audit is complete, identify the highest-priority verified P0 defect.
+
+If the repository is complete, the workspace is safe, and the required prerequisites are available, implement one cohesive P0 changeset, including relevant tests and documentation.
+
+Do not combine unrelated workstreams in the initial changeset.
+
+Run available verification, report exact results, and provide the next implementation plan.
+
+Preserve the existing TypeScript, Python, PostgreSQL, dbt, metadata, governance, and execution-ledger foundations.
+
+**The objective is not to make LotusLearn AI look like a Senior Data Engineering project.**
+
+**The objective is to make LotusLearn AI demonstrably engineered, tested, recoverable, governable, and reproducible at a level that can withstand a rigorous Senior Data Engineer technical interview.**
