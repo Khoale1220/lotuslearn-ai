@@ -1,0 +1,58 @@
+name: OPS-01G Monitoring Integration
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ops01g-monitoring.yml'
+      - 'docker-compose.monitoring.yml'
+      - 'monitoring/**'
+      - 'pipelines/src/lotuslearn_pipeline/execution_exporter.py'
+      - 'pipelines/tests/test_execution_exporter.py'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/ops01g-monitoring.yml'
+      - 'docker-compose.monitoring.yml'
+      - 'monitoring/**'
+      - 'pipelines/src/lotuslearn_pipeline/execution_exporter.py'
+      - 'pipelines/tests/test_execution_exporter.py'
+
+permissions:
+  contents: read
+
+jobs:
+  monitoring-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pipeline dependencies
+        run: python -m pip install -e './pipelines[dev]'
+
+      - name: Python quality and tests
+        run: |
+          python -m ruff check pipelines/src/lotuslearn_pipeline/execution_exporter.py pipelines/tests/test_execution_exporter.py
+          python -m ruff format --check pipelines/src/lotuslearn_pipeline/execution_exporter.py pipelines/tests/test_execution_exporter.py
+          python -m pytest -q pipelines/tests/test_execution_exporter.py pipelines/tests/test_execution_metrics.py pipelines/tests/test_execution_health_cli.py
+
+      - name: Docker Compose validation
+        env:
+          LOTUSLEARN_MONITORING_DATABASE_URL: postgresql://ci:ci@postgres:5432/ci
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.monitoring.yml config --quiet
+
+      - name: Prometheus validation
+        run: |
+          docker run --rm --entrypoint /bin/promtool -w /etc/prometheus -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" prom/prometheus:v3.16.0 check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/promtool -w /etc/prometheus -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" prom/prometheus:v3.16.0 test rules execution-alerts.test.yml
+
+      - name: Alertmanager validation
+        run: |
+          docker run --rm --entrypoint /bin/amtool -v "$PWD/monitoring/alertmanager:/etc/alertmanager:ro" prom/alertmanager:v0.35.0 check-config /etc/alertmanager/alertmanager.yml
