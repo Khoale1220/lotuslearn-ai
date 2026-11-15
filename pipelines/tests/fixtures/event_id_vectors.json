@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "source": "server/services/analyticalEventProducer.ts",
+  "vectors": [
+    {
+      "event_type": "ANALYSIS_INGESTED",
+      "run_id": "run-123",
+      "target_id": "fingerprint-abc",
+      "event_id": "90be615eabffc58d358297153f588aa057bf17d1e4445a6d3730c11f1724f2bd"
+    },
+    {
+      "event_type": "ANALYSIS_INGESTED",
+      "run_id": "run-123",
+      "target_id": "fingerprint-abc",
+      "event_id": "90be615eabffc58d358297153f588aa057bf17d1e4445a6d3730c11f1724f2bd"
+    },
+    {
+      "event_type": "FINDING_IDENTIFIED",
+      "run_id": "run-123",
+      "target_id": "cluster-1",
+      "event_id": "523f6828538e2d96d5d844f8850d131f58248f974e4a62189ff55d64ba8d25f6"
+    },
+    {
+      "event_type": "GROUP_FORMED",
+      "run_id": "run-123",
+      "target_id": "group-1",
+      "event_id": "fe3127d44e282e67ddd8ccc8ecf1aaac7b809ed90b4eaaa9f42d8bdb90890ec3"
+    },
+    {
+      "event_type": "VERIFICATION_AUDITED",
+      "run_id": "run-123",
+      "target_id": "audit",
+      "event_id": "8e3af3668b717d807b02eddfc05f98b66d02fef94171539ea09628d6c5d8e20d"
+    },
+    {
+      "event_type": "DECISION_RECORDED",
+      "run_id": "run-123",
+      "target_id": "action-1",
+      "event_id": "8413d3c3775f0658e7e1aad873e38ec3281d1c784847d777dd49a91f044e65bb"
+    },
+    {
+      "event_type": "ANALYSIS_INGESTED",
+      "run_id": "run-124",
+      "target_id": "fingerprint-abc",
+      "event_id": "b7b06eb60abbce07a7e9a88b63174a982377e026bbf33ad6cfed19634327973f"
+    },
+    {
+      "event_type": "ANALYSIS_INGESTED",
+      "run_id": "run-123",
+      "target_id": "fingerprint-different",
+      "event_id": "3141c23b065788811635d540fa26fcbfec28865e9246fa0f128e9186b70aa9d5"
+    }
+  ]
+}
