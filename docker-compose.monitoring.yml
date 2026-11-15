@@ -1,0 +1,67 @@
+services:
+  execution-health-exporter:
+    build:
+      context: .
+      dockerfile: monitoring/exporter.Dockerfile
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      LOTUSLEARN_DATABASE_URL: ${LOTUSLEARN_MONITORING_DATABASE_URL:?Set a PostgreSQL monitoring URL}
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "9108"
+      - --stale-after-seconds
+      - "900"
+      - --limit
+      - "100"
+    expose:
+      - "9108"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9108/-/healthy', timeout=2).close()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=24h
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - lotus_prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - execution-health-exporter
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.35.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
+      - lotus_alertmanager_data:/alertmanager
+
+volumes:
+  lotus_prometheus_data:
+  lotus_alertmanager_data:
