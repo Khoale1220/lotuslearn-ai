@@ -104,9 +104,7 @@ def test_recovery_ignores_recent_execution():
             stale_after=timedelta(minutes=5),
         )
 
-        assert execution_id not in {
-            item.execution_id for item in candidates
-        }
+        assert execution_id not in {item.execution_id for item in candidates}
 
         recovered = recover_stale_executions(
             url,
@@ -115,9 +113,7 @@ def test_recovery_ignores_recent_execution():
             reason="recent execution must remain untouched",
         )
 
-        assert execution_id not in {
-            item.execution_id for item in recovered
-        }
+        assert execution_id not in {item.execution_id for item in recovered}
 
         with psycopg.connect(url) as conn:
             with conn.cursor() as cur:
@@ -158,11 +154,7 @@ def test_recovery_fails_stale_execution_and_writes_evidence():
             reason="integration stale recovery",
         )
 
-        record = next(
-            item
-            for item in recovered
-            if item.execution_id == execution_id
-        )
+        record = next(item for item in recovered if item.execution_id == execution_id)
 
         assert record.batch_id == batch_id
         assert record.actor == "pytest"
@@ -233,11 +225,7 @@ def test_concurrent_recovery_claims_execution_exactly_once():
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(executor.map(lambda _: recover(), range(2)))
 
-        recovered_ids = [
-            item.execution_id
-            for result in results
-            for item in result
-        ]
+        recovered_ids = [item.execution_id for result in results for item in result]
 
         assert recovered_ids.count(execution_id) == 1
 

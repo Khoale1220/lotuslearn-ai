@@ -401,43 +401,41 @@ def _downstream_assets(graph: Mapping[str, set[str]], seeds: set[str]) -> set[st
 
 
 def _normalize_new_asset_child_severity(
-    changes,
+    changes: Sequence[MetadataChange],
     *,
-    new_asset_ids,
-):
-    """Normalize child metadata belonging to brand-new assets.
+    new_asset_ids: set[str],
+) -> list[MetadataChange]:
+    """Normalize metadata introduced solely with brand-new assets.
 
-    New asset identity is derived from the snapshot asset-id domain,
-    not from MetadataChange.entity_id. This avoids mixing entity
-    identity with owning asset identity.
+    Adding a new asset does not break existing consumers. Fields,
+    constraints, and other metadata belonging exclusively to that new
+    asset therefore must not independently escalate the same additive
+    change to REVIEW_REQUIRED or BREAKING.
 
-    Fields, constraints, and lineage metadata introduced solely as
-    part of a brand-new asset must not independently escalate that
-    addition to REVIEW_REQUIRED or BREAKING.
+    Metadata belonging to assets already present in the baseline keeps
+    its original severity.
     """
     if not new_asset_ids:
-        return changes
+        return list(changes)
 
-    normalized = [
-        replace(
-            change,
-            severity=MetadataChangeSeverity.NON_BREAKING,
-        )
+    normalized: list[MetadataChange] = []
+
+    for change in changes:
         if (
-            change.entity_type is not MetadataEntityType.ASSET
+            change.entity_type != MetadataEntityType.ASSET
             and change.asset_id in new_asset_ids
             and change.severity
             in {
                 MetadataChangeSeverity.BREAKING,
                 MetadataChangeSeverity.REVIEW_REQUIRED,
             }
-        )
-        else change
-        for change in changes
-    ]
+        ):
+            change = replace(
+                change,
+                severity=MetadataChangeSeverity.NON_BREAKING,
+            )
 
-    if isinstance(changes, tuple):
-        return tuple(normalized)
+        normalized.append(change)
 
     return normalized
 
@@ -847,11 +845,15 @@ def compare_metadata_snapshots(
     graph = _graph_union(baseline, current)
     reached = _downstream_assets(graph, direct_assets)
     downstream_assets = reached - direct_assets
+
+    # Determine newly introduced assets from the snapshot contract
+    # itself rather than from derived MetadataChange identifiers.
+    new_asset_ids = set(current_assets) - set(baseline_assets)
+
     changes = _normalize_new_asset_child_severity(
         changes,
-        new_asset_ids=set(current_assets) - set(baseline_assets),
+        new_asset_ids=new_asset_ids,
     )
-
     return MetadataDiff(
         comparison_id=comparison_id,
         baseline_checksum=baseline_checksum,

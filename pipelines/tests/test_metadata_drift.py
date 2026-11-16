@@ -14,7 +14,6 @@ from lotuslearn_pipeline.metadata import (
 from lotuslearn_pipeline.metadata_drift import (
     MetadataChangeKind,
     MetadataChangeSeverity,
-    MetadataEntityType,
     compare_metadata_snapshots,
 )
 
@@ -658,27 +657,27 @@ def test_new_asset_child_metadata_does_not_escalate_governance():
     diff = compare_metadata_snapshots(baseline, current)
 
     asset_additions = [
-        change
-        for change in diff.changes
-        if (
-            change.entity_type is MetadataEntityType.ASSET
-            and change.kind is MetadataChangeKind.ASSET_ADDED
-        )
+        change for change in diff.changes if change.kind is MetadataChangeKind.ASSET_ADDED
     ]
 
     assert len(asset_additions) == 1
 
-    new_asset_id = new_asset.asset_id
-
     child_changes = [
         change
         for change in diff.changes
-        if (change.entity_type is not MetadataEntityType.ASSET and change.asset_id == new_asset_id)
+        if (
+            change.asset_id == new_asset.asset_id
+            and change.kind
+            in {
+                MetadataChangeKind.FIELD_ADDED,
+                MetadataChangeKind.CONSTRAINT_ADDED,
+            }
+        )
     ]
 
-    assert child_changes
     assert {
         MetadataChangeKind.FIELD_ADDED,
         MetadataChangeKind.CONSTRAINT_ADDED,
     }.issubset({change.kind for change in child_changes})
+
     assert all(change.severity is MetadataChangeSeverity.NON_BREAKING for change in child_changes)

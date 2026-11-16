@@ -356,9 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
 
     if not args.database_url:
-        raise SystemExit(
-            "LOTUSLEARN_DATABASE_URL or --database-url is required"
-        )
+        raise SystemExit("LOTUSLEARN_DATABASE_URL or --database-url is required")
 
     stale_after = timedelta(seconds=args.stale_seconds)
 

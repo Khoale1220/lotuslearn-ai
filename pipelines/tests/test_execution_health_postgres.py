@@ -39,9 +39,7 @@ def pg_url():
     ):
         pytest.fail("Unsafe PostgreSQL integration test target")
 
-    with psycopg.connect(
-        url, autocommit=True, row_factory=dict_row
-    ) as conn:
+    with psycopg.connect(url, autocommit=True, row_factory=dict_row) as conn:
         identity = conn.execute(
             """
             SELECT
@@ -60,10 +58,7 @@ def pg_url():
         migrations = get_migration_status(conn)
 
         assert len(migrations) == 8
-        assert all(
-            row["applied"] and row["match"] is True
-            for row in migrations
-        )
+        assert all(row["applied"] and row["match"] is True for row in migrations)
 
     return url
 
@@ -180,15 +175,9 @@ def test_postgres_classifies_health_without_mutation(pg_records):
 
     assert found[ids["recent"]].health is ExecutionHealthState.RECENT
 
-    assert (
-        found[ids["stale"]].health
-        is ExecutionHealthState.SUSPECTED_STALE
-    )
+    assert found[ids["stale"]].health is ExecutionHealthState.SUSPECTED_STALE
 
-    assert (
-        found[ids["future"]].health
-        is ExecutionHealthState.FUTURE_HEARTBEAT
-    )
+    assert found[ids["future"]].health is ExecutionHealthState.FUTURE_HEARTBEAT
 
     assert ids["terminal"] not in found
 
@@ -208,10 +197,7 @@ def test_postgres_health_query_is_bounded_and_sorted(pg_records):
 
     assert len(rows) == 2
 
-    ordering = [
-        (row.heartbeat_at, row.execution_id)
-        for row in rows
-    ]
+    ordering = [(row.heartbeat_at, row.execution_id) for row in rows]
 
     assert ordering == sorted(ordering)
 
