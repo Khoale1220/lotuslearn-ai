@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: read
+
 jobs:
   node_validate:
     name: Node Quality Gates
@@ -20,6 +23,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Pin npm for reproducible installs
+        run: |
+          npm install --global npm@10.9.9
+          test "$(npm --version)" = "10.9.9"
 
       - name: Install Node dependencies
         run: npm ci
@@ -38,36 +46,346 @@ jobs:
 
   metadata_governance:
     name: Metadata Governance Policy Gate
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres_baseline:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_ci_password
+          POSTGRES_DB: lotuslearn_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lotuslearn_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+      postgres_candidate:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_ci_password
+          POSTGRES_DB: lotuslearn_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lotuslearn_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+
+      BASE_DATABASE_URL: >-
+        postgresql://postgres:postgres_ci_password@127.0.0.1:5432/lotuslearn_test
+
+      CANDIDATE_DATABASE_URL: >-
+        postgresql://postgres:postgres_ci_password@127.0.0.1:5433/lotuslearn_test
+
+      LOTUSLEARN_ANALYTICS_SCHEMA: analytics
+      LOTUSLEARN_OPERATIONAL_SCHEMA: public
+      LOTUSLEARN_DBT_THREADS: "4"
 
     steps:
-      - name: Checkout repository
+      - name: Checkout trusted baseline
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+          persist-credentials: false
+
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
-      - name: Install Python package and development dependencies
+      - name: Create isolated Python environments
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e "./pipelines[dev]"
-          python -m pip check
+          set -euo pipefail
 
-      - name: Lint metadata governance policy
-        run: |
-          ruff check \
-            pipelines/src/lotuslearn_pipeline/metadata_policy.py \
-            pipelines/tests/test_metadata_policy.py
+          python -m venv "$RUNNER_TEMP/lotuslearn-base-venv"
+          python -m venv "$RUNNER_TEMP/lotuslearn-candidate-venv"
 
-      - name: Run metadata governance policy gate
+          BASE_PY="$RUNNER_TEMP/lotuslearn-base-venv/bin/python"
+          CANDIDATE_PY="$RUNNER_TEMP/lotuslearn-candidate-venv/bin/python"
+
+          "$BASE_PY" -m pip install \
+            --disable-pip-version-check \
+            -e "./baseline/pipelines[dev]" \
+            -r "./baseline/analytics/requirements.txt"
+
+          "$CANDIDATE_PY" -m pip install \
+            --disable-pip-version-check \
+            -e "./candidate/pipelines[dev]" \
+            -r "./candidate/analytics/requirements.txt"
+
+          "$BASE_PY" -m pip check
+          "$CANDIDATE_PY" -m pip check
+
+      - name: Verify governance implementation tests
+        shell: bash
         run: |
-          python -m pytest \
-            pipelines/tests/test_metadata_policy.py \
-            -v \
-            -rs
+          set -euo pipefail
+
+          CANDIDATE_PY="$RUNNER_TEMP/lotuslearn-candidate-venv/bin/python"
+
+          "$CANDIDATE_PY" -m ruff check \
+            candidate/pipelines/src/lotuslearn_pipeline/metadata.py \
+            candidate/pipelines/src/lotuslearn_pipeline/metadata_drift.py \
+            candidate/pipelines/src/lotuslearn_pipeline/metadata_policy.py \
+            candidate/pipelines/src/lotuslearn_pipeline/metadata_ci_gate.py \
+            candidate/pipelines/tests/test_metadata_policy.py \
+            candidate/pipelines/tests/test_metadata_ci_gate.py
+
+          PYTHONDONTWRITEBYTECODE=1 \
+          "$CANDIDATE_PY" -m pytest \
+            -q \
+            -p no:cacheprovider \
+            candidate/pipelines/tests/test_metadata_policy.py \
+            candidate/pipelines/tests/test_metadata_ci_gate.py
+
+      - name: Apply trusted baseline migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE_BIN="$RUNNER_TEMP/lotuslearn-base-venv/bin"
+
+          "$BASE_BIN/lotuslearn-pipeline" \
+            --db "$BASE_DATABASE_URL" \
+            --command migrate
+
+          "$BASE_BIN/lotuslearn-pipeline" \
+            --db "$BASE_DATABASE_URL" \
+            --command verify
+
+      - name: Apply candidate migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CANDIDATE_BIN="$RUNNER_TEMP/lotuslearn-candidate-venv/bin"
+
+          "$CANDIDATE_BIN/lotuslearn-pipeline" \
+            --db "$CANDIDATE_DATABASE_URL" \
+            --command migrate
+
+          "$CANDIDATE_BIN/lotuslearn-pipeline" \
+            --db "$CANDIDATE_DATABASE_URL" \
+            --command verify
+
+      - name: Parse trusted baseline dbt graph
+        shell: bash
+        env:
+          LOTUSLEARN_DB_HOST: 127.0.0.1
+          LOTUSLEARN_DB_PORT: "5432"
+          LOTUSLEARN_DB_USER: postgres
+          LOTUSLEARN_DB_PASSWORD: postgres_ci_password
+          LOTUSLEARN_DB_NAME: lotuslearn_test
+        run: |
+          set -euo pipefail
+
+          "$RUNNER_TEMP/lotuslearn-base-venv/bin/dbt" parse \
+            --project-dir baseline/analytics \
+            --profiles-dir baseline/analytics \
+            --warn-error \
+            --no-partial-parse
+
+          test -s baseline/analytics/target/manifest.json
+
+      - name: Parse candidate dbt graph
+        shell: bash
+        env:
+          LOTUSLEARN_DB_HOST: 127.0.0.1
+          LOTUSLEARN_DB_PORT: "5433"
+          LOTUSLEARN_DB_USER: postgres
+          LOTUSLEARN_DB_PASSWORD: postgres_ci_password
+          LOTUSLEARN_DB_NAME: lotuslearn_test
+        run: |
+          set -euo pipefail
+
+          "$RUNNER_TEMP/lotuslearn-candidate-venv/bin/dbt" parse \
+            --project-dir candidate/analytics \
+            --profiles-dir candidate/analytics \
+            --warn-error \
+            --no-partial-parse
+
+          test -s candidate/analytics/target/manifest.json
+
+      - name: Extract metadata with trusted baseline extractor
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/metadata-governance"
+
+          BASE_PY="$RUNNER_TEMP/lotuslearn-base-venv/bin/python"
+
+          SNAPSHOT_DATABASE_URL="$BASE_DATABASE_URL" \
+          SNAPSHOT_MANIFEST="$GITHUB_WORKSPACE/baseline/analytics/target/manifest.json" \
+          SNAPSHOT_REPO="$GITHUB_WORKSPACE/baseline" \
+          SNAPSHOT_OUTPUT="$RUNNER_TEMP/metadata-governance/baseline.json" \
+          "$BASE_PY" - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
+
+          from lotuslearn_pipeline.metadata import (
+              extract_metadata_snapshot,
+              validate_metadata_snapshot,
+          )
+
+          snapshot = extract_metadata_snapshot(
+              database_url=os.environ["SNAPSHOT_DATABASE_URL"],
+              manifest_path=Path(os.environ["SNAPSHOT_MANIFEST"]),
+              repo_root=Path(os.environ["SNAPSHOT_REPO"]),
+          )
+
+          validation = validate_metadata_snapshot(snapshot)
+
+          if not validation.is_valid:
+              raise RuntimeError(
+                  "Trusted baseline metadata validation failed: "
+                  + "; ".join(validation.errors)
+              )
+
+          Path(os.environ["SNAPSHOT_OUTPUT"]).write_text(
+              json.dumps(
+                  snapshot.to_dict(),
+                  indent=2,
+                  sort_keys=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PYTHON
+
+          SNAPSHOT_DATABASE_URL="$CANDIDATE_DATABASE_URL" \
+          SNAPSHOT_MANIFEST="$GITHUB_WORKSPACE/candidate/analytics/target/manifest.json" \
+          SNAPSHOT_REPO="$GITHUB_WORKSPACE/candidate" \
+          SNAPSHOT_OUTPUT="$RUNNER_TEMP/metadata-governance/candidate.json" \
+          "$BASE_PY" - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
+
+          from lotuslearn_pipeline.metadata import (
+              extract_metadata_snapshot,
+              validate_metadata_snapshot,
+          )
+
+          snapshot = extract_metadata_snapshot(
+              database_url=os.environ["SNAPSHOT_DATABASE_URL"],
+              manifest_path=Path(os.environ["SNAPSHOT_MANIFEST"]),
+              repo_root=Path(os.environ["SNAPSHOT_REPO"]),
+          )
+
+          validation = validate_metadata_snapshot(snapshot)
+
+          if not validation.is_valid:
+              raise RuntimeError(
+                  "Candidate metadata validation failed: "
+                  + "; ".join(validation.errors)
+              )
+
+          Path(os.environ["SNAPSHOT_OUTPUT"]).write_text(
+              json.dumps(
+                  snapshot.to_dict(),
+                  indent=2,
+                  sort_keys=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PYTHON
+
+      - name: Evaluate metadata governance with trusted baseline policy
+        id: metadata_gate
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          BASE_PY="$RUNNER_TEMP/lotuslearn-base-venv/bin/python"
+          EVIDENCE_DIR="$RUNNER_TEMP/metadata-governance"
+
+          set +e
+
+          "$BASE_PY" \
+            -m lotuslearn_pipeline.metadata_ci_gate \
+            compare \
+            --baseline "$EVIDENCE_DIR/baseline.json" \
+            --candidate "$EVIDENCE_DIR/candidate.json" \
+            --baseline-commit "$BASE_SHA" \
+            --candidate-commit "$CANDIDATE_SHA" \
+            --evidence "$EVIDENCE_DIR/evidence.json"
+
+          rc=$?
+
+          set -e
+
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+
+          if [ -f "$EVIDENCE_DIR/evidence.json" ]; then
+            cat "$EVIDENCE_DIR/evidence.json"
+          fi
+
+          exit 0
+
+      - name: Upload sanitized metadata governance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metadata-governance-evidence
+          path: ${{ runner.temp }}/metadata-governance/evidence.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce metadata governance decision
+        if: always()
+        shell: bash
+        env:
+          GOVERNANCE_EXIT_CODE: ${{ steps.metadata_gate.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GOVERNANCE_EXIT_CODE:-}" ]; then
+            echo "Metadata governance produced no decision."
+            exit 4
+          fi
+
+          case "$GOVERNANCE_EXIT_CODE" in
+            0)
+              echo "Metadata governance: PASS"
+              ;;
+            2)
+              echo "Metadata governance: BLOCK"
+              exit 2
+              ;;
+            3)
+              echo "Metadata governance: REVIEW is blocking by default"
+              exit 3
+              ;;
+            *)
+              echo "Metadata governance integrity failure: $GOVERNANCE_EXIT_CODE"
+              exit "$GOVERNANCE_EXIT_CODE"
+              ;;
+          esac
+
 
   python_pipeline:
     name: Data Engineering Pipeline
@@ -131,7 +449,7 @@ jobs:
           LOTUSLEARN_DB_PORT: "5432"
           LOTUSLEARN_DB_USER: postgres
           LOTUSLEARN_DB_PASSWORD: postgres_ci_password
-          LOTUSLEARN_DB_NAME: lotuslearn_dev
+          LOTUSLEARN_DB_NAME: lotuslearn_test
           LOTUSLEARN_ANALYTICS_SCHEMA: analytics
         run: |
           dbt parse \
