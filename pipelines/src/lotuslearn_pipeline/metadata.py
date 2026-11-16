@@ -9,7 +9,7 @@ import os
 import re
 import subprocess
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from dataclasses import field as dataclass_field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -666,11 +666,79 @@ def _parse_dbt_relation(
     return database, schema, name
 
 
+def _dbt_platform_for_resource(resource: Dict[str, Any]) -> str:
+    """Return the canonical platform for one dbt resource.
+
+    A dbt source represents an existing physical PostgreSQL relation,
+    not a second logical copy of that relation. Models and other dbt
+    resources retain dbt identity.
+    """
+    return (
+        "postgres"
+        if str(resource.get("resource_type") or "") == "source"
+        else "dbt"
+    )
+
+
 def _dbt_asset_id_from_resource(resource: Dict[str, Any]) -> str:
     database, schema, name = _parse_dbt_relation(resource)
     if not name:
-        raise ValueError(f"Unable to resolve dbt asset name for resource {resource!r}")
-    return derive_asset_id("dbt", database, schema, name)
+        raise ValueError(
+            f"Unable to resolve dbt asset name for resource {resource!r}"
+        )
+
+    return derive_asset_id(
+        _dbt_platform_for_resource(resource),
+        database,
+        schema,
+        name,
+    )
+
+
+def _merge_duplicate_asset_metadata(
+    existing: Asset,
+    duplicate: Asset,
+) -> Asset:
+    """Merge metadata describing the same canonical physical asset."""
+    if existing.asset_id != duplicate.asset_id:
+        raise ValueError("Cannot merge assets with different identities")
+
+    primary = existing
+    overlay = duplicate
+
+    # Prefer the physical PostgreSQL representation over the dbt source
+    # representation while retaining dbt governance metadata.
+    if (
+        getattr(primary, "dbt_resource_type", None) == "source"
+        and getattr(overlay, "dbt_resource_type", None) != "source"
+    ):
+        primary, overlay = overlay, primary
+
+    updates: Dict[str, Any] = {}
+
+    for field_name in (
+        "dbt_unique_id",
+        "dbt_resource_type",
+        "materialization",
+        "source_file",
+        "owner",
+    ):
+        if not hasattr(primary, field_name):
+            continue
+
+        current = getattr(primary, field_name)
+        incoming = getattr(overlay, field_name, None)
+
+        if current in (None, "") and incoming not in (None, ""):
+            updates[field_name] = incoming
+
+    if (
+        getattr(primary, "description", None) in (None, "")
+        and getattr(overlay, "description", None) not in (None, "")
+    ):
+        updates["description"] = overlay.description
+
+    return replace(primary, **updates) if updates else primary
 
 
 def extract_postgres_metadata(
@@ -963,7 +1031,13 @@ def extract_dbt_metadata(
                 f"{unique_id} because no stable relation name could be resolved."
             )
             continue
-        asset_id = derive_asset_id("dbt", database, schema, name)
+        platform = _dbt_platform_for_resource(resource)
+        asset_id = derive_asset_id(
+            platform,
+            database,
+            schema,
+            name,
+        )
         asset_ids[unique_id] = asset_id
         asset_type = "source" if resource_type == "source" else resource_type
         description = resource.get("description")
@@ -974,7 +1048,7 @@ def extract_dbt_metadata(
         source_file_value = resource.get("original_file_path") or resource.get("path")
         asset = Asset(
             asset_id=asset_id,
-            platform="dbt",
+            platform=platform,
             database=database,
             schema=schema,
             name=name,
@@ -1143,14 +1217,31 @@ def build_metadata_snapshot(
         )
 
     deduped_assets: List[Asset] = []
-    seen_assets: set[str] = set()
+    asset_indexes: Dict[str, int] = {}
+
     for asset in sorted(
-        assets, key=lambda a: (a.platform, a.database or "", a.schema or "", a.name)
+        assets,
+        key=lambda a: (
+            a.platform,
+            a.database or "",
+            a.schema or "",
+            a.name,
+        ),
     ):
-        if asset.asset_id in seen_assets:
+        existing_index = asset_indexes.get(asset.asset_id)
+
+        if existing_index is None:
+            asset_indexes[asset.asset_id] = len(deduped_assets)
+            deduped_assets.append(asset)
             continue
-        seen_assets.add(asset.asset_id)
-        deduped_assets.append(asset)
+
+        deduped_assets[existing_index] = (
+            _merge_duplicate_asset_metadata(
+                deduped_assets[existing_index],
+                asset,
+            )
+        )
+
 
     deduped_fields: List[Field] = []
     seen_fields: set[Tuple[str, str]] = set()
@@ -1326,7 +1417,15 @@ def extract_metadata_snapshot(
     if manifest_file is not None and manifest_file.exists():
         manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
         metadata = manifest.get("metadata") or {}
-        snapshot.dbt_artifact_schema_version = str(metadata.get("dbt_schema_version") or "unknown")
+        snapshot.dbt_artifact_schema_version = str(
+            metadata.get("dbt_schema_version") or "unknown"
+        )
+
+        # dbt_artifact_schema_version participates in canonical snapshot
+        # content. Any enrichment after construction must happen before the
+        # final checksum is exposed to validation or serialization.
+        snapshot.content_checksum = snapshot.compute_checksum()
+
     return snapshot
 
 
