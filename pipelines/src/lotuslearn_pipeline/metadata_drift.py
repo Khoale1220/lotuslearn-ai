@@ -12,7 +12,7 @@ import hashlib
 import json
 import re
 from collections import defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any, Mapping, Optional, Sequence
 
@@ -280,10 +280,7 @@ def classify_metadata_change_severity(
             return MetadataChangeSeverity.BREAKING
         return MetadataChangeSeverity.NON_BREAKING
     if kind == MetadataChangeKind.FIELD_NULLABILITY_CHANGED:
-        if (
-            after_values.get("nullable") is False
-            and before_values.get("nullable") is not False
-        ):
+        if after_values.get("nullable") is False and before_values.get("nullable") is not False:
             return MetadataChangeSeverity.BREAKING
         return MetadataChangeSeverity.REVIEW_REQUIRED
     if kind in {
@@ -369,9 +366,7 @@ def _make_change(
         entity_id=entity_id,
         entity_type=entity_type,
         kind=kind,
-        severity=classify_metadata_change_severity(
-            kind, before=policy_before, after=policy_after
-        ),
+        severity=classify_metadata_change_severity(kind, before=policy_before, after=policy_after),
         asset_id=_safe_asset_id(asset_id) if asset_id is not None else None,
         field_name=_safe_field_name(field_name) if field_name is not None else None,
         related_asset_ids=tuple(sorted({_safe_asset_id(value) for value in related_asset_ids})),
@@ -405,6 +400,46 @@ def _downstream_assets(graph: Mapping[str, set[str]], seeds: set[str]) -> set[st
     return visited
 
 
+def _normalize_new_asset_child_severity(
+    changes: Sequence[MetadataChange],
+    *,
+    new_asset_ids: set[str],
+) -> list[MetadataChange]:
+    """Normalize metadata introduced solely with brand-new assets.
+
+    Adding a new asset does not break existing consumers. Fields,
+    constraints, and other metadata belonging exclusively to that new
+    asset therefore must not independently escalate the same additive
+    change to REVIEW_REQUIRED or BREAKING.
+
+    Metadata belonging to assets already present in the baseline keeps
+    its original severity.
+    """
+    if not new_asset_ids:
+        return list(changes)
+
+    normalized: list[MetadataChange] = []
+
+    for change in changes:
+        if (
+            change.entity_type != MetadataEntityType.ASSET
+            and change.asset_id in new_asset_ids
+            and change.severity
+            in {
+                MetadataChangeSeverity.BREAKING,
+                MetadataChangeSeverity.REVIEW_REQUIRED,
+            }
+        ):
+            change = replace(
+                change,
+                severity=MetadataChangeSeverity.NON_BREAKING,
+            )
+
+        normalized.append(change)
+
+    return normalized
+
+
 def compare_metadata_snapshots(
     baseline: MetadataSnapshot,
     current: MetadataSnapshot,
@@ -428,9 +463,7 @@ def compare_metadata_snapshots(
         new = current_assets.get(asset_id)
         if old is None or new is None:
             kind = (
-                MetadataChangeKind.ASSET_ADDED
-                if old is None
-                else MetadataChangeKind.ASSET_REMOVED
+                MetadataChangeKind.ASSET_ADDED if old is None else MetadataChangeKind.ASSET_REMOVED
             )
             changes.append(
                 _make_change(
@@ -732,12 +765,8 @@ def compare_metadata_snapshots(
                     identity=identity,
                     asset_id=owning_asset,
                     changed_properties=changed_properties,
-                    before={
-                        "constraint_type": _safe_label(identity[2], _SAFE_CONSTRAINT_TYPES)
-                    },
-                    after={
-                        "constraint_type": _safe_label(identity[2], _SAFE_CONSTRAINT_TYPES)
-                    },
+                    before={"constraint_type": _safe_label(identity[2], _SAFE_CONSTRAINT_TYPES)},
+                    after={"constraint_type": _safe_label(identity[2], _SAFE_CONSTRAINT_TYPES)},
                 )
             )
             direct_assets.add(owning_asset)
@@ -770,9 +799,7 @@ def compare_metadata_snapshots(
                     related_asset_ids=(source_asset, target_asset),
                     changed_properties=("relationship",),
                     after=(
-                        {"edge_type": _safe_label(identity[2], _SAFE_EDGE_TYPES)}
-                        if added
-                        else None
+                        {"edge_type": _safe_label(identity[2], _SAFE_EDGE_TYPES)} if added else None
                     ),
                     before=(
                         {"edge_type": _safe_label(identity[2], _SAFE_EDGE_TYPES)}
@@ -818,6 +845,15 @@ def compare_metadata_snapshots(
     graph = _graph_union(baseline, current)
     reached = _downstream_assets(graph, direct_assets)
     downstream_assets = reached - direct_assets
+
+    # Determine newly introduced assets from the snapshot contract
+    # itself rather than from derived MetadataChange identifiers.
+    new_asset_ids = set(current_assets) - set(baseline_assets)
+
+    changes = _normalize_new_asset_child_severity(
+        changes,
+        new_asset_ids=new_asset_ids,
+    )
     return MetadataDiff(
         comparison_id=comparison_id,
         baseline_checksum=baseline_checksum,
