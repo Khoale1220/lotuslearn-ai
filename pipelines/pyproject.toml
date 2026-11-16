@@ -12,6 +12,8 @@ dependencies = [
     "jsonschema>=4.20.0",
     "rfc3339-validator>=0.1.4",
     "psycopg[binary]>=3.2,<4",
+    "numpy>=2.0",
+    "pandas>=2.2",
 ]
 
 [project.optional-dependencies]
