@@ -400,29 +400,21 @@ def _downstream_assets(graph: Mapping[str, set[str]], seeds: set[str]) -> set[st
     return visited
 
 
-def _normalize_new_asset_child_severity(changes):
-    """Normalize composite additions for assets absent from the baseline.
+def _normalize_new_asset_child_severity(
+    changes,
+    *,
+    new_asset_ids,
+):
+    """Normalize child metadata belonging to brand-new assets.
 
-    Adding a brand-new asset is non-breaking for existing consumers.
-    Fields, constraints, and lineage edges that only describe that new
-    asset therefore must not independently escalate the same addition
-    to REVIEW or BLOCK.
+    New asset identity is derived from the snapshot asset-id domain,
+    not from MetadataChange.entity_id. This avoids mixing entity
+    identity with owning asset identity.
 
-    Existing assets retain their original field/constraint severity.
+    Fields, constraints, and lineage metadata introduced solely as
+    part of a brand-new asset must not independently escalate that
+    addition to REVIEW_REQUIRED or BREAKING.
     """
-    new_asset_ids = {
-        change.asset_id
-        for change in changes
-        if (
-            change.entity_type == MetadataEntityType.ASSET
-            and change.asset_id is not None
-            and (
-                "ADD" in str(change.kind.value).upper()
-                or "CREATE" in str(change.kind.value).upper()
-            )
-        )
-    }
-
     if not new_asset_ids:
         return changes
 
@@ -432,8 +424,8 @@ def _normalize_new_asset_child_severity(changes):
             severity=MetadataChangeSeverity.NON_BREAKING,
         )
         if (
-            change.asset_id in new_asset_ids
-            and change.entity_type != MetadataEntityType.ASSET
+            change.entity_type is not MetadataEntityType.ASSET
+            and change.asset_id in new_asset_ids
             and change.severity
             in {
                 MetadataChangeSeverity.BREAKING,
@@ -855,7 +847,10 @@ def compare_metadata_snapshots(
     graph = _graph_union(baseline, current)
     reached = _downstream_assets(graph, direct_assets)
     downstream_assets = reached - direct_assets
-    changes = _normalize_new_asset_child_severity(changes)
+    changes = _normalize_new_asset_child_severity(
+        changes,
+        new_asset_ids=set(current_assets) - set(baseline_assets),
+    )
 
     return MetadataDiff(
         comparison_id=comparison_id,

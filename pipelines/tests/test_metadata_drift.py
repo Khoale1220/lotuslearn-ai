@@ -14,6 +14,7 @@ from lotuslearn_pipeline.metadata import (
 from lotuslearn_pipeline.metadata_drift import (
     MetadataChangeKind,
     MetadataChangeSeverity,
+    MetadataEntityType,
     compare_metadata_snapshots,
 )
 
@@ -317,9 +318,7 @@ def test_source_metadata_change_is_detected_without_copying_values():
     old = make_asset(
         "orders", dbt_unique_id="model.project.orders", source_file="models/orders.sql"
     )
-    new = make_asset(
-        "orders", dbt_unique_id="model.project.orders", source_file="private/path.sql"
-    )
+    new = make_asset("orders", dbt_unique_id="model.project.orders", source_file="private/path.sql")
     diff = compare_metadata_snapshots(make_snapshot(assets=[old]), make_snapshot(assets=[new]))
     change = changes_of(diff, MetadataChangeKind.ASSET_SOURCE_METADATA_CHANGED)[0]
     assert change.changed_properties == ("source_file",)
@@ -448,9 +447,7 @@ def test_field_level_lineage_modification_is_reported():
 def test_changed_lineage_target_seeds_downstream_impact():
     source, target, consumer = (make_asset(name) for name in ("source", "target", "consumer"))
     retained_edge = make_lineage(target.asset_id, consumer.asset_id)
-    baseline = make_snapshot(
-        assets=[source, target, consumer], lineage_edges=[retained_edge]
-    )
+    baseline = make_snapshot(assets=[source, target, consumer], lineage_edges=[retained_edge])
     current = make_snapshot(
         assets=[source, target, consumer],
         lineage_edges=[
@@ -535,9 +532,7 @@ def test_removed_asset_uses_baseline_lineage_for_impact():
 def test_added_lineage_uses_current_downstream_graph():
     source, target, consumer = (make_asset(name) for name in ("source", "target", "consumer"))
     retained_edge = make_lineage(target.asset_id, consumer.asset_id)
-    baseline = make_snapshot(
-        assets=[source, target, consumer], lineage_edges=[retained_edge]
-    )
+    baseline = make_snapshot(assets=[source, target, consumer], lineage_edges=[retained_edge])
     current = make_snapshot(
         assets=[source, target, consumer],
         lineage_edges=[
@@ -638,3 +633,52 @@ def test_free_text_descriptions_and_defaults_never_enter_change_payload():
     serialized = json.dumps(diff.to_dict())
     for private_value in ("alice@example.test", "bob@example.test", "old-secret", "new-secret"):
         assert private_value not in serialized
+
+
+def test_new_asset_child_metadata_does_not_escalate_governance():
+    new_asset = make_asset("new_asset")
+    required_field = make_field(
+        new_asset.asset_id,
+        "required_value",
+        nullable=False,
+    )
+    primary_key = make_constraint(
+        new_asset.asset_id,
+        constraint_name="new_asset_pk",
+        constrained_fields=("required_value",),
+    )
+
+    baseline = make_snapshot(assets=[])
+    current = make_snapshot(
+        assets=[new_asset],
+        fields=[required_field],
+        constraints=[primary_key],
+    )
+
+    diff = compare_metadata_snapshots(baseline, current)
+
+    asset_additions = [
+        change
+        for change in diff.changes
+        if (
+            change.entity_type is MetadataEntityType.ASSET
+            and change.kind is MetadataChangeKind.ASSET_ADDED
+        )
+    ]
+
+    assert len(asset_additions) == 1
+
+    new_asset_id = new_asset.asset_id
+
+    child_changes = [
+        change
+        for change in diff.changes
+        if (change.entity_type is not MetadataEntityType.ASSET and change.asset_id == new_asset_id)
+    ]
+
+    assert child_changes
+    assert {
+        MetadataChangeKind.FIELD_ADDED,
+        MetadataChangeKind.CONSTRAINT_ADDED,
+    }.issubset({change.kind for change in child_changes})
+    assert all(change.severity is MetadataChangeSeverity.NON_BREAKING for change in child_changes)
