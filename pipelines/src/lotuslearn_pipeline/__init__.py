@@ -127,3 +127,19 @@ __all__ = [
     "MetadataSnapshotWriteResult",
     "PostgresMetadataHistoryStore",
 ]
+
+# P1 operational recovery public API
+from lotuslearn_pipeline.execution_recovery import (
+    RecoveryRecord,
+    StaleExecution,
+    list_stale_executions,
+    recover_stale_executions,
+)
+
+__all__ = [
+    *__all__,
+    "RecoveryRecord",
+    "StaleExecution",
+    "list_stale_executions",
+    "recover_stale_executions",
+]
