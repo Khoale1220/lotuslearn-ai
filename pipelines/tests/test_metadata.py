@@ -1041,3 +1041,223 @@ def test_from_dict_derived_count_contradiction_does_not_echo_raw_value():
     assert "Contradictory asset_count in serialized metadata snapshot" in str(exc_info.value)
     assert sensitive_token not in str(exc_info.value)
 
+
+
+def test_extract_metadata_snapshot_recomputes_checksum_after_dbt_artifact_enrichment(
+    tmp_path, monkeypatch
+):
+    from lotuslearn_pipeline import metadata as metadata_module
+
+    asset = metadata_module.Asset(
+        metadata_module.derive_asset_id(
+            "postgres",
+            "lotuslearn_test",
+            "public",
+            "orders",
+        ),
+        "postgres",
+        "lotuslearn_test",
+        "public",
+        "orders",
+        "base_table",
+    )
+
+    initial = metadata_module.MetadataSnapshot(
+        assets=[asset],
+    )
+
+    before = initial.content_checksum
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "metadata": {
+                    "dbt_schema_version": (
+                        "https://schemas.getdbt.com/"
+                        "dbt/manifest/v12.json"
+                    )
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        metadata_module,
+        "build_metadata_snapshot",
+        lambda **_: initial,
+    )
+
+    snapshot = metadata_module.extract_metadata_snapshot(
+        manifest_path=manifest,
+    )
+
+    assert (
+        snapshot.dbt_artifact_schema_version
+        == "https://schemas.getdbt.com/dbt/manifest/v12.json"
+    )
+
+    assert snapshot.content_checksum != before
+    assert snapshot.content_checksum == snapshot.compute_checksum()
+
+    validation = metadata_module.validate_metadata_snapshot(
+        snapshot
+    )
+    assert validation.is_valid, validation.errors
+
+    restored = metadata_module.MetadataSnapshot.from_dict(
+        snapshot.to_dict()
+    )
+
+    assert (
+        restored.content_checksum
+        == snapshot.content_checksum
+    )
+
+
+def test_dbt_source_uses_canonical_postgres_identity(tmp_path):
+    manifest = {
+        "metadata": {
+            "dbt_schema_version": (
+                "https://schemas.getdbt.com/"
+                "dbt/manifest/v12.json"
+            )
+        },
+        "sources": {
+            "source.test.raw.orders": {
+                "unique_id": "source.test.raw.orders",
+                "resource_type": "source",
+                "database": "lotuslearn_test",
+                "schema": "public",
+                "name": "orders",
+                "identifier": "orders",
+                "description": "Operational orders source",
+                "columns": {
+                    "order_id": {
+                        "data_type": "bigint",
+                    }
+                },
+            }
+        },
+        "nodes": {
+            "model.test.stg_orders": {
+                "unique_id": "model.test.stg_orders",
+                "resource_type": "model",
+                "database": "lotuslearn_test",
+                "schema": "analytics",
+                "name": "stg_orders",
+                "alias": "stg_orders",
+                "config": {
+                    "materialized": "view",
+                },
+                "columns": {},
+            }
+        },
+        "parent_map": {
+            "model.test.stg_orders": [
+                "source.test.raw.orders"
+            ]
+        },
+    }
+
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(manifest),
+        encoding="utf-8",
+    )
+
+    (
+        assets,
+        _,
+        _,
+        lineage_edges,
+        _,
+        _,
+        errors,
+    ) = extract_dbt_metadata(manifest_path)
+
+    assert not errors
+
+    source_asset = next(
+        asset
+        for asset in assets
+        if asset.dbt_resource_type == "source"
+    )
+
+    model_asset = next(
+        asset
+        for asset in assets
+        if asset.dbt_resource_type == "model"
+    )
+
+    expected_physical_id = derive_asset_id(
+        "postgres",
+        "lotuslearn_test",
+        "public",
+        "orders",
+    )
+
+    assert source_asset.platform == "postgres"
+    assert source_asset.asset_id == expected_physical_id
+    assert model_asset.platform == "dbt"
+
+    edge = next(
+        edge
+        for edge in lineage_edges
+        if edge.edge_type == "dbt_parent"
+    )
+
+    assert edge.source_asset == expected_physical_id
+    assert edge.target_asset == model_asset.asset_id
+
+
+def test_duplicate_physical_asset_merge_preserves_dbt_context():
+    from lotuslearn_pipeline import metadata as metadata_module
+
+    asset_id = derive_asset_id(
+        "postgres",
+        "lotuslearn_test",
+        "public",
+        "orders",
+    )
+
+    postgres_asset = Asset(
+        asset_id=asset_id,
+        platform="postgres",
+        database="lotuslearn_test",
+        schema="public",
+        name="orders",
+        asset_type="base_table",
+        description="Database catalog description",
+    )
+
+    dbt_source = Asset(
+        asset_id=asset_id,
+        platform="postgres",
+        database="lotuslearn_test",
+        schema="public",
+        name="orders",
+        asset_type="source",
+        description="dbt source description",
+        dbt_unique_id="source.test.raw.orders",
+        dbt_resource_type="source",
+        source_file="models/sources.yml",
+    )
+
+    merged = metadata_module._merge_duplicate_asset_metadata(
+        postgres_asset,
+        dbt_source,
+    )
+
+    assert merged.asset_id == asset_id
+    assert merged.platform == "postgres"
+    assert merged.asset_type == "base_table"
+
+    # Physical catalog description remains authoritative.
+    assert merged.description == "Database catalog description"
+
+    # dbt governance context is retained.
+    assert merged.dbt_unique_id == "source.test.raw.orders"
+    assert merged.dbt_resource_type == "source"
+    assert merged.source_file == "models/sources.yml"
