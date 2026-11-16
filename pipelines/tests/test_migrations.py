@@ -8,6 +8,7 @@ expected access-path indexes.
 import json
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -21,10 +22,44 @@ from lotuslearn_pipeline.postgres import (
     get_postgres_migration_files,
 )
 
-TEST_PG_URL = (
-    os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
-    or ""
-)
+
+def _expected_migration_names(
+    *,
+    start_at: str | None = None,
+) -> list[str]:
+    """Return the ordered migration contract represented on disk."""
+    migration_dir = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "lotuslearn_pipeline"
+        / "migrations"
+        / "postgres"
+    )
+
+    names = sorted(
+        candidate.name
+        for candidate in migration_dir.glob("[0-9][0-9][0-9][0-9]_*.sql")
+        if candidate.is_file()
+    )
+
+    if not names:
+        raise AssertionError("No PostgreSQL migrations discovered")
+
+    if len(names) != len(set(names)):
+        raise AssertionError("Duplicate PostgreSQL migration names discovered")
+
+    if start_at is None:
+        return names
+
+    try:
+        index = names.index(start_at)
+    except ValueError as exc:
+        raise AssertionError(f"Expected migration not found: {start_at}") from exc
+
+    return names[index:]
+
+
+TEST_PG_URL = os.environ.get("LOTUSLEARN_TEST_DATABASE_URL") or ""
 
 
 @pytest.fixture
@@ -36,9 +71,7 @@ def empty_pg_conn():
     with psycopg.connect(TEST_PG_URL, autocommit=True) as reset_conn:
         database_name = reset_conn.execute("SELECT current_database();").fetchone()[0]
         if database_name != "lotuslearn_test":
-            raise RuntimeError(
-                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
-            )
+            raise RuntimeError("Refusing destructive PostgreSQL test setup outside lotuslearn_test")
         reset_conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     conn = psycopg.connect(
@@ -57,18 +90,21 @@ def test_migrations_fresh_apply(empty_pg_conn):
     """Fresh database applies packaged migrations with valid checksums."""
     applied = apply_postgres_migrations(empty_pg_conn)
 
-    assert applied == [
-        "0001_initial.sql",
-        "0002_reliability_hardening.sql",
-        "0003_metadata_history.sql",
-        "0004_metadata_governance_history.sql",
-        "0005_pipeline_executions.sql",
-        "0006_pipeline_execution_invariants.sql",
-        "0007_pipeline_execution_temporal_integrity.sql",
-    ]
+    assert applied == _expected_migration_names()
 
     status = get_migration_status(empty_pg_conn)
-    assert len(status) == 7
+    expected_migration_count = len(
+        list(
+            (
+                Path(__file__).parents[1]
+                / "src"
+                / "lotuslearn_pipeline"
+                / "migrations"
+                / "postgres"
+            ).glob("*.sql")
+        )
+    )
+    assert len(status) == expected_migration_count
 
     for migration in status:
         assert migration["applied"] is True
@@ -78,10 +114,7 @@ def test_migrations_fresh_apply(empty_pg_conn):
 
 def test_legacy_checksum_adoption(empty_pg_conn):
     """A legacy 0001 row without checksum metadata is adopted safely."""
-    packaged = {
-        migration[1]: migration
-        for migration in get_postgres_migration_files()
-    }
+    packaged = {migration[1]: migration for migration in get_postgres_migration_files()}
     initial_sql = packaged["0001_initial.sql"][2]
 
     with empty_pg_conn.cursor() as cur:
@@ -99,14 +132,7 @@ def test_legacy_checksum_adoption(empty_pg_conn):
 
     applied = apply_postgres_migrations(empty_pg_conn)
 
-    assert applied == [
-        "0002_reliability_hardening.sql",
-        "0003_metadata_history.sql",
-        "0004_metadata_governance_history.sql",
-        "0005_pipeline_executions.sql",
-        "0006_pipeline_execution_invariants.sql",
-        "0007_pipeline_execution_temporal_integrity.sql",
-    ]
+    assert applied == _expected_migration_names(start_at="0002_reliability_hardening.sql")
 
     with empty_pg_conn.cursor() as cur:
         cur.execute(
@@ -128,10 +154,7 @@ def test_legacy_checksum_adoption(empty_pg_conn):
 
 def test_realistic_0001_to_0002_upgrade(empty_pg_conn):
     """Upgrade a populated DE-02A 0001 database without losing history."""
-    packaged = {
-        migration[1]: migration
-        for migration in get_postgres_migration_files()
-    }
+    packaged = {migration[1]: migration for migration in get_postgres_migration_files()}
     initial_sql = packaged["0001_initial.sql"][2]
 
     run_id = "run-upgrade-001"
@@ -344,14 +367,7 @@ def test_realistic_0001_to_0002_upgrade(empty_pg_conn):
 
     applied = apply_postgres_migrations(empty_pg_conn)
 
-    assert applied == [
-        "0002_reliability_hardening.sql",
-        "0003_metadata_history.sql",
-        "0004_metadata_governance_history.sql",
-        "0005_pipeline_executions.sql",
-        "0006_pipeline_execution_invariants.sql",
-        "0007_pipeline_execution_temporal_integrity.sql",
-    ]
+    assert applied == _expected_migration_names(start_at="0002_reliability_hardening.sql")
 
     with empty_pg_conn.cursor() as cur:
         cur.execute(
@@ -515,15 +531,7 @@ def _stage_ops01_schema_through_0005(conn, monkeypatch):
     packaged = migration_module.get_postgres_migration_files()
     names = [entry[1] for entry in packaged]
 
-    assert names == [
-        "0001_initial.sql",
-        "0002_reliability_hardening.sql",
-        "0003_metadata_history.sql",
-        "0004_metadata_governance_history.sql",
-        "0005_pipeline_executions.sql",
-        "0006_pipeline_execution_invariants.sql",
-        "0007_pipeline_execution_temporal_integrity.sql",
-    ]
+    assert names == _expected_migration_names()
 
     first_five = packaged[:5]
 
@@ -588,10 +596,7 @@ def test_upgrade_0005_to_0006_preserves_existing_executions(
     assert len(before) == 2
 
     applied = apply_postgres_migrations(empty_pg_conn)
-    assert applied == [
-        "0006_pipeline_execution_invariants.sql",
-        "0007_pipeline_execution_temporal_integrity.sql",
-    ]
+    assert applied == _expected_migration_names(start_at="0006_pipeline_execution_invariants.sql")
 
     after = empty_pg_conn.execute(
         "SELECT * FROM pipeline_executions ORDER BY execution_id"
@@ -600,7 +605,18 @@ def test_upgrade_0005_to_0006_preserves_existing_executions(
     assert after == before
 
     status = get_migration_status(empty_pg_conn)
-    assert len(status) == 7
+    expected_migration_count = len(
+        list(
+            (
+                Path(__file__).parents[1]
+                / "src"
+                / "lotuslearn_pipeline"
+                / "migrations"
+                / "postgres"
+            ).glob("*.sql")
+        )
+    )
+    assert len(status) == expected_migration_count
     assert all(row["applied"] and row["match"] for row in status)
 
     assert apply_postgres_migrations(empty_pg_conn) == []
@@ -698,9 +714,8 @@ def test_upgrade_0005_to_0006_fails_atomically_on_dirty_history(
         (execution_id,),
     )
 
-    assert apply_postgres_migrations(empty_pg_conn) == [
-        "0006_pipeline_execution_invariants.sql",
-        "0007_pipeline_execution_temporal_integrity.sql",
-    ]
+    assert apply_postgres_migrations(empty_pg_conn) == _expected_migration_names(
+        start_at="0006_pipeline_execution_invariants.sql"
+    )
 
     assert apply_postgres_migrations(empty_pg_conn) == []
