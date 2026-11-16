@@ -285,7 +285,17 @@ def test_dbt_metadata_extracts_source_aliases_descriptions_and_materialization()
         for asset in assets
         if asset.dbt_unique_id == "model.lotuslearn_analytics.fct_teacher_decisions"
     )
-    assert model_asset.database == "lotuslearn_dev"
+    manifest_payload = json.loads(
+        manifest_path.read_text(encoding="utf-8")
+    )
+    model_manifest_node = next(
+        node
+        for node in manifest_payload["nodes"].values()
+        if node.get("resource_type") == "model"
+        and (node.get("alias") or node.get("name"))
+        == model_asset.name
+    )
+    assert model_asset.database == model_manifest_node["database"]
     assert model_asset.schema == "analytics_marts"
     assert model_asset.name == "fct_teacher_decisions"
     assert model_asset.materialization == "table"
