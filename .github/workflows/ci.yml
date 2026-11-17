@@ -338,6 +338,120 @@ jobs:
 
           set -e
 
+          # SAFE_METADATA_INTEGRITY_DIAGNOSTIC_V1
+          if [ "$rc" -eq 4 ]; then
+            echo "Running safe trusted-baseline integrity diagnostic"
+
+            "$BASE_PY" - \
+              "$EVIDENCE_DIR/baseline.json" \
+              "$EVIDENCE_DIR/candidate.json" \
+              "$BASE_SHA" \
+              "$CANDIDATE_SHA" \
+              "$EVIDENCE_DIR/diagnostic-evidence.json" <<'PYDIAG'
+          from pathlib import Path
+          import sys
+
+          from lotuslearn_pipeline.metadata_ci_gate import (
+              _run_compare,
+              build_parser,
+          )
+
+          baseline_path = sys.argv[1]
+          candidate_path = sys.argv[2]
+          baseline_commit = sys.argv[3]
+          candidate_commit = sys.argv[4]
+          evidence_path = sys.argv[5]
+
+          args = build_parser().parse_args(
+              [
+                  "compare",
+                  "--baseline",
+                  baseline_path,
+                  "--candidate",
+                  candidate_path,
+                  "--baseline-commit",
+                  baseline_commit,
+                  "--candidate-commit",
+                  candidate_commit,
+                  "--evidence",
+                  evidence_path,
+              ]
+          )
+
+
+          def safe_code(error: Exception) -> str:
+              message = str(error).lower()
+
+              if "serialized metadata snapshot must be a dictionary" in message:
+                  return "snapshot_not_dictionary"
+
+              if "missing or empty content_checksum" in message:
+                  return "snapshot_checksum_missing"
+
+              if "malformed content_checksum" in message:
+                  return "snapshot_checksum_malformed"
+
+              if "content checksum mismatch" in message:
+                  return "snapshot_checksum_mismatch"
+
+              if (
+                  "contradictory " in message
+                  and " in serialized metadata snapshot" in message
+              ):
+                  return "snapshot_derived_count_mismatch"
+
+              if "failed integrity validation" in message:
+                  return "snapshot_integrity_validation_failed"
+
+              if "observation id must be non-empty" in message:
+                  return "snapshot_observation_id_invalid"
+
+              if "timestamp must be timezone-aware" in message:
+                  return "snapshot_timestamp_invalid"
+
+              if "contains duplicate " in message and " identities" in message:
+                  return "snapshot_duplicate_identity"
+
+              return "unclassified_integrity_failure"
+
+
+          try:
+              result = _run_compare(args)
+          except Exception as error:
+              frames = []
+              tb = error.__traceback__
+
+              while tb is not None:
+                  code = tb.tb_frame.f_code
+                  filename = Path(code.co_filename)
+
+                  if "lotuslearn_pipeline" in filename.parts:
+                      frames.append(
+                          f"{filename.name}:{tb.tb_lineno}:{code.co_name}"
+                      )
+
+                  tb = tb.tb_next
+
+              origin = frames[-1] if frames else "unavailable"
+              trace = ">".join(frames[-5:]) if frames else "unavailable"
+
+              print(
+                  "Metadata governance diagnostic: "
+                  f"type={type(error).__name__} "
+                  f"code={safe_code(error)} "
+                  f"origin={origin} "
+                  f"trace={trace}",
+                  file=sys.stderr,
+              )
+          else:
+              print(
+                  "Metadata governance diagnostic: "
+                  f"direct_compare_returned={result}",
+                  file=sys.stderr,
+              )
+          PYDIAG
+          fi
+
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
 
           if [ -f "$EVIDENCE_DIR/evidence.json" ]; then
