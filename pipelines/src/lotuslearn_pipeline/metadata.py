@@ -445,6 +445,18 @@ class MetadataSnapshot:
         self.error_count = len(self.errors)
 
     def _checksum_payload(self) -> Dict[str, Any]:
+        def _sanitized_sort_key(
+            value: Any,
+            primary_fields: Tuple[str, ...],
+        ) -> Tuple[Any, ...]:
+            serialized = _sanitize_metadata_serialization(
+                _to_jsonable_dict(value)
+            )
+            return tuple(
+                serialized.get(field_name) or ""
+                for field_name in primary_fields
+            ) + (_safe_json(serialized),)
+
         payload = {
             "schema_version": self.schema_version,
             "extractor_version": self.extractor_version,
@@ -456,12 +468,9 @@ class MetadataSnapshot:
                 _to_jsonable_dict(asset)
                 for asset in sorted(
                     self.assets,
-                    key=lambda a: (
-                        a.platform,
-                        a.database or "",
-                        a.schema or "",
-                        a.name,
-                        _safe_json(_to_jsonable_dict(a)),
+                    key=lambda a: _sanitized_sort_key(
+                        a,
+                        ("platform", "database", "schema", "name"),
                     ),
                 )
             ],
@@ -469,10 +478,9 @@ class MetadataSnapshot:
                 _to_jsonable_dict(field)
                 for field in sorted(
                     self.fields,
-                    key=lambda f: (
-                        f.asset_id,
-                        f.field_name,
-                        _safe_json(_to_jsonable_dict(f)),
+                    key=lambda f: _sanitized_sort_key(
+                        f,
+                        ("asset_id", "field_name"),
                     ),
                 )
             ],
@@ -480,11 +488,13 @@ class MetadataSnapshot:
                 _to_jsonable_dict(constraint)
                 for constraint in sorted(
                     self.constraints,
-                    key=lambda c: (
-                        c.owning_asset,
-                        c.constraint_name,
-                        c.constraint_type,
-                        _safe_json(_to_jsonable_dict(c)),
+                    key=lambda c: _sanitized_sort_key(
+                        c,
+                        (
+                            "owning_asset",
+                            "constraint_name",
+                            "constraint_type",
+                        ),
                     ),
                 )
             ],
@@ -492,11 +502,13 @@ class MetadataSnapshot:
                 _to_jsonable_dict(edge)
                 for edge in sorted(
                     self.lineage_edges,
-                    key=lambda e: (
-                        e.source_asset,
-                        e.target_asset,
-                        e.edge_type,
-                        _safe_json(_to_jsonable_dict(e)),
+                    key=lambda e: _sanitized_sort_key(
+                        e,
+                        (
+                            "source_asset",
+                            "target_asset",
+                            "edge_type",
+                        ),
                     ),
                 )
             ],
