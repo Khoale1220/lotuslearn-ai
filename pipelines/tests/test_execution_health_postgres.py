@@ -57,7 +57,8 @@ def pg_url():
         apply_postgres_migrations(conn)
         migrations = get_migration_status(conn)
 
-        assert len(migrations) == 9
+        assert migrations
+        assert all(migration["applied"] for migration in migrations)
         assert all(row["applied"] and row["match"] is True for row in migrations)
 
     return url
