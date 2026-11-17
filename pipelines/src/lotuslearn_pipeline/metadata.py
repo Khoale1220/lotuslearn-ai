@@ -30,6 +30,7 @@ SUPPORTED_DBT_ARTIFACT_SCHEMAS = {
 class MetadataIntegrityError(ValueError):
     """Raised when metadata snapshot integrity verification fails."""
 
+
 PROHIBITED_METADATA_TOKENS = (
     "password",
     "passwd",
@@ -455,24 +456,48 @@ class MetadataSnapshot:
                 _to_jsonable_dict(asset)
                 for asset in sorted(
                     self.assets,
-                    key=lambda a: (a.platform, a.database or "", a.schema or "", a.name),
+                    key=lambda a: (
+                        a.platform,
+                        a.database or "",
+                        a.schema or "",
+                        a.name,
+                        _safe_json(_to_jsonable_dict(a)),
+                    ),
                 )
             ],
             "fields": [
                 _to_jsonable_dict(field)
-                for field in sorted(self.fields, key=lambda f: (f.asset_id, f.field_name))
+                for field in sorted(
+                    self.fields,
+                    key=lambda f: (
+                        f.asset_id,
+                        f.field_name,
+                        _safe_json(_to_jsonable_dict(f)),
+                    ),
+                )
             ],
             "constraints": [
                 _to_jsonable_dict(constraint)
                 for constraint in sorted(
                     self.constraints,
-                    key=lambda c: (c.owning_asset, c.constraint_name, c.constraint_type),
+                    key=lambda c: (
+                        c.owning_asset,
+                        c.constraint_name,
+                        c.constraint_type,
+                        _safe_json(_to_jsonable_dict(c)),
+                    ),
                 )
             ],
             "lineage_edges": [
                 _to_jsonable_dict(edge)
                 for edge in sorted(
-                    self.lineage_edges, key=lambda e: (e.source_asset, e.target_asset, e.edge_type)
+                    self.lineage_edges,
+                    key=lambda e: (
+                        e.source_asset,
+                        e.target_asset,
+                        e.edge_type,
+                        _safe_json(_to_jsonable_dict(e)),
+                    ),
                 )
             ],
             "warnings": sorted(self.warnings),
@@ -673,19 +698,13 @@ def _dbt_platform_for_resource(resource: Dict[str, Any]) -> str:
     not a second logical copy of that relation. Models and other dbt
     resources retain dbt identity.
     """
-    return (
-        "postgres"
-        if str(resource.get("resource_type") or "") == "source"
-        else "dbt"
-    )
+    return "postgres" if str(resource.get("resource_type") or "") == "source" else "dbt"
 
 
 def _dbt_asset_id_from_resource(resource: Dict[str, Any]) -> str:
     database, schema, name = _parse_dbt_relation(resource)
     if not name:
-        raise ValueError(
-            f"Unable to resolve dbt asset name for resource {resource!r}"
-        )
+        raise ValueError(f"Unable to resolve dbt asset name for resource {resource!r}")
 
     return derive_asset_id(
         _dbt_platform_for_resource(resource),
@@ -732,10 +751,9 @@ def _merge_duplicate_asset_metadata(
         if current in (None, "") and incoming not in (None, ""):
             updates[field_name] = incoming
 
-    if (
-        getattr(primary, "description", None) in (None, "")
-        and getattr(overlay, "description", None) not in (None, "")
-    ):
+    if getattr(primary, "description", None) in (None, "") and getattr(
+        overlay, "description", None
+    ) not in (None, ""):
         updates["description"] = overlay.description
 
     return replace(primary, **updates) if updates else primary
@@ -1235,13 +1253,10 @@ def build_metadata_snapshot(
             deduped_assets.append(asset)
             continue
 
-        deduped_assets[existing_index] = (
-            _merge_duplicate_asset_metadata(
-                deduped_assets[existing_index],
-                asset,
-            )
+        deduped_assets[existing_index] = _merge_duplicate_asset_metadata(
+            deduped_assets[existing_index],
+            asset,
         )
-
 
     deduped_fields: List[Field] = []
     seen_fields: set[Tuple[str, str]] = set()
@@ -1417,9 +1432,7 @@ def extract_metadata_snapshot(
     if manifest_file is not None and manifest_file.exists():
         manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
         metadata = manifest.get("metadata") or {}
-        snapshot.dbt_artifact_schema_version = str(
-            metadata.get("dbt_schema_version") or "unknown"
-        )
+        snapshot.dbt_artifact_schema_version = str(metadata.get("dbt_schema_version") or "unknown")
 
         # dbt_artifact_schema_version participates in canonical snapshot
         # content. Any enrichment after construction must happen before the
