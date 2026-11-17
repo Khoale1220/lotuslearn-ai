@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any
+from uuid import UUID
 
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -50,6 +51,7 @@ class PersistedQualityEvaluation:
     detector_evidence: Mapping[str, object] | None
     payload: Mapping[str, object]
     created_at: datetime
+    execution_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -166,6 +168,7 @@ def _record_from_row(
         detector_evidence=detector,
         payload=row["payload"],
         created_at=row["created_at"],
+        execution_id=row["execution_id"],
     )
 
 
@@ -174,6 +177,7 @@ def persist_quality_evaluation(
     *,
     evaluation_key: str,
     decision: QualityEvaluationDecision,
+    execution_id: UUID | None = None,
 ) -> PersistQualityEvaluationResult:
     """Persist immutable evidence or return EXISTING for exact replay.
 
@@ -207,7 +211,7 @@ def persist_quality_evaluation(
             cursor.execute(
                 """
                 INSERT INTO data_quality_evaluation_history (
-                    evaluation_key,
+                    evaluation_key, execution_id,
                     decision_fingerprint,
                     reconciliation_fingerprint,
                     evaluation_status,
@@ -220,7 +224,7 @@ def persist_quality_evaluation(
                     payload
                 )
                 VALUES (
-                    %s,
+                    %s, %s,
                     %s,
                     %s,
                     %s,
@@ -235,7 +239,7 @@ def persist_quality_evaluation(
                 ON CONFLICT (evaluation_key)
                 DO NOTHING
                 RETURNING
-                    evaluation_key,
+                    evaluation_key, execution_id,
                     decision_fingerprint,
                     reconciliation_fingerprint,
                     evaluation_status,
@@ -250,6 +254,7 @@ def persist_quality_evaluation(
                 """,
                 (
                     key,
+                    execution_id,
                     decision_digest,
                     reconciliation_digest,
                     decision.status.value,
@@ -258,7 +263,7 @@ def persist_quality_evaluation(
                     decision.analytics_ready,
                     Jsonb(list(decision.reasons)),
                     Jsonb(list(decision.feature_columns)),
-                    (Jsonb(detector_evidence) if detector_evidence is not None else None),
+                    Jsonb(detector_evidence) if detector_evidence is not None else None,
                     Jsonb(payload),
                 ),
             )
@@ -274,7 +279,7 @@ def persist_quality_evaluation(
             cursor.execute(
                 """
                 SELECT
-                    evaluation_key,
+                    evaluation_key, execution_id,
                     decision_fingerprint,
                     reconciliation_fingerprint,
                     evaluation_status,
@@ -300,7 +305,7 @@ def persist_quality_evaluation(
                     "evaluation conflict occurred but the existing record could not be read"
                 )
 
-            if (
+            if existing["execution_id"] != execution_id or (
                 existing["decision_fingerprint"] != decision_digest
                 or existing["payload"] != payload
             ):

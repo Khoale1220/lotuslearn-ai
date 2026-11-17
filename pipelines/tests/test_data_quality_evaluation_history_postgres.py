@@ -202,3 +202,255 @@ def test_database_rejects_delete_of_audit_record(
         )
 
     assert exc_info.value.sqlstate == "55000"
+
+
+# DE-04F4B execution-lineage PostgreSQL contracts
+
+
+def _f4b_create_execution(conn):
+    """Create a committed execution through the production ledger API."""
+    import os
+    from uuid import uuid4
+
+    from lotuslearn_pipeline.execution_ledger import (
+        PostgresPipelineExecutionLedger,
+    )
+
+    execution_id = uuid4()
+    batch_id = uuid4()
+
+    ledger = PostgresPipelineExecutionLedger(
+        database_url=os.environ["LOTUSLEARN_DATABASE_URL"],
+    )
+
+    ledger.start_execution(
+        execution_id=execution_id,
+        batch_id=batch_id,
+        attempt_number=1,
+    )
+
+    row = conn.execute(
+        """
+        SELECT execution_id
+        FROM pipeline_executions
+        WHERE execution_id = %s
+        """,
+        (execution_id,),
+    ).fetchone()
+
+    assert row is not None
+    assert row["execution_id"] == execution_id
+
+    return execution_id
+
+
+def _f4b_assert_existing(result):
+    """Verify replay disposition without coupling to enum implementation."""
+    disposition = result.disposition
+
+    name = getattr(disposition, "name", None)
+    value = getattr(disposition, "value", disposition)
+
+    assert name == "EXISTING" or value == "EXISTING" or value == "existing"
+
+
+def test_execution_lineage_exact_replay_is_existing(conn):
+    from uuid import uuid4
+
+    execution_id = _f4b_create_execution(conn)
+    evaluation_key = f"f4b-exact-replay-{uuid4()}"
+    decision = make_decision()
+
+    first = persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+        execution_id=execution_id,
+    )
+
+    replay = persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+        execution_id=execution_id,
+    )
+
+    assert first.record.execution_id == execution_id
+    assert replay.record.execution_id == execution_id
+
+    _f4b_assert_existing(replay)
+
+    row = conn.execute(
+        """
+        SELECT
+            execution_id,
+            COUNT(*) OVER () AS record_count
+        FROM data_quality_evaluation_history
+        WHERE evaluation_key = %s
+        LIMIT 1
+        """,
+        (evaluation_key,),
+    ).fetchone()
+
+    assert row is not None
+    assert row["record_count"] == 1
+    assert row["execution_id"] == execution_id
+
+
+def test_same_evaluation_key_cannot_rebind_to_different_execution(
+    conn,
+):
+    from uuid import uuid4
+
+    first_execution_id = _f4b_create_execution(conn)
+    second_execution_id = _f4b_create_execution(conn)
+
+    assert first_execution_id != second_execution_id
+
+    evaluation_key = f"f4b-cross-execution-{uuid4()}"
+    decision = make_decision()
+
+    persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+        execution_id=first_execution_id,
+    )
+
+    with pytest.raises(QualityEvaluationConflictError):
+        persist_quality_evaluation(
+            conn,
+            evaluation_key=evaluation_key,
+            decision=decision,
+            execution_id=second_execution_id,
+        )
+
+    row = conn.execute(
+        """
+        SELECT execution_id
+        FROM data_quality_evaluation_history
+        WHERE evaluation_key = %s
+        """,
+        (evaluation_key,),
+    ).fetchone()
+
+    assert row is not None
+    assert row["execution_id"] == first_execution_id
+
+
+def test_legacy_null_execution_replay_remains_existing(conn):
+    from uuid import uuid4
+
+    evaluation_key = f"f4b-legacy-null-{uuid4()}"
+    decision = make_decision()
+
+    first = persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+    )
+
+    replay = persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+    )
+
+    assert first.record.execution_id is None
+    assert replay.record.execution_id is None
+
+    _f4b_assert_existing(replay)
+
+    row = conn.execute(
+        """
+        SELECT
+            execution_id,
+            COUNT(*) OVER () AS record_count
+        FROM data_quality_evaluation_history
+        WHERE evaluation_key = %s
+        LIMIT 1
+        """,
+        (evaluation_key,),
+    ).fetchone()
+
+    assert row is not None
+    assert row["record_count"] == 1
+    assert row["execution_id"] is None
+
+
+def test_legacy_null_execution_cannot_be_rebound_to_uuid(conn):
+    from uuid import uuid4
+
+    execution_id = _f4b_create_execution(conn)
+    evaluation_key = f"f4b-null-rebind-{uuid4()}"
+    decision = make_decision()
+
+    persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+    )
+
+    with pytest.raises(QualityEvaluationConflictError):
+        persist_quality_evaluation(
+            conn,
+            evaluation_key=evaluation_key,
+            decision=decision,
+            execution_id=execution_id,
+        )
+
+    row = conn.execute(
+        """
+        SELECT execution_id
+        FROM data_quality_evaluation_history
+        WHERE evaluation_key = %s
+        """,
+        (evaluation_key,),
+    ).fetchone()
+
+    assert row is not None
+    assert row["execution_id"] is None
+
+
+def test_unknown_execution_uuid_is_rejected_by_database_fk(conn):
+    from uuid import uuid4
+
+    from psycopg.errors import ForeignKeyViolation
+
+    unknown_execution_id = uuid4()
+
+    row = conn.execute(
+        """
+        SELECT execution_id
+        FROM pipeline_executions
+        WHERE execution_id = %s
+        """,
+        (unknown_execution_id,),
+    ).fetchone()
+
+    assert row is None
+
+    evaluation_key = f"f4b-unknown-execution-{uuid4()}"
+
+    with pytest.raises(ForeignKeyViolation):
+        persist_quality_evaluation(
+            conn,
+            evaluation_key=evaluation_key,
+            decision=make_decision(),
+            execution_id=unknown_execution_id,
+        )
+
+    # PostgreSQL errors abort a non-autocommit transaction. Recover before
+    # proving that no evidence row survived the rejected insert.
+    conn.rollback()
+
+    row = conn.execute(
+        """
+        SELECT evaluation_key
+        FROM data_quality_evaluation_history
+        WHERE evaluation_key = %s
+        """,
+        (evaluation_key,),
+    ).fetchone()
+
+    assert row is None
