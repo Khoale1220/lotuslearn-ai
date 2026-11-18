@@ -44,3 +44,6 @@ Thumbs.db
 bun.lock
 yarn.lock
 pnpm-lock.yaml
+
+# AI Studio transient paste artifacts
+public/assets/aistudio/
