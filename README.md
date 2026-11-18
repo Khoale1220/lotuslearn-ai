@@ -50,7 +50,7 @@ Student Submissions (Text / Images)
                │
                ▼
 ┌───────────────────────────────┐
-│ 8. Analytical Producer (DE-01)│  Draft 2020-12 Events -> Python SQLite Pipeline
+│ 8. Analytical Producer (DE-01)│  Draft 2020-12 Events -> Python Dual-Backend Pipeline (SQLite / PostgreSQL)
 └───────────────────────────────┘
 ```
 
@@ -61,9 +61,11 @@ Student Submissions (Text / Images)
 - AI & Reasoning: Google Gen AI SDK (`@google/genai`), Gemini 3.8 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash-Lite
 - Privacy & Sanitization: Google Cloud Sensitive Data Protection (REST v2) with deterministic local provider
 - Validation: Zod and JSON Schema Draft 2020-12
-- Data Engineering (DE-01): Python 3.10+, SQLite 3 with enforced foreign keys, pytest, ruff, jsonschema
+- Data Engineering (DE-01–DE-04): Python 3.10+, SQLite 3 for hermetic/local execution, PostgreSQL 18 durable backend via psycopg, versioned PostgreSQL migrations, dbt analytics transformations, pandas / NumPy / scikit-learn data-quality and anomaly-analysis tooling, pytest, ruff, jsonschema
 
-## Data Engineering Foundation (DE-01, DE-01.1, DE-02A, DE-02B, and DE-03)
+## Data Engineering Foundation (DE-01, DE-01.1, DE-02A, DE-02B, DE-03, and DE-04)
+
+- **DE-04 (Data Quality & Reconciliation):** Extends the Python analytical pipeline with data-quality evaluation, reconciliation, anomaly-analysis support, evaluation history, and execution correlation, with SQLite retained for hermetic/local runs and versioned PostgreSQL persistence for durable execution. Governed analytics transformations remain backed by dbt.
 
 The data engineering milestones establish a verifiable analytical event contract, transactional idempotency, dual-backend persistence, and a governed dbt transformation layer for the LotusLearn analytical pipeline:
 
@@ -102,7 +104,7 @@ LotusLearn collects structured, de-identified diagnostic telemetry designed for 
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd lotuslearn
+cd lotuslearn-ai
 
 # Install Node dependencies
 npm ci
@@ -123,7 +125,7 @@ npm run typecheck
 # Node linting
 npm run lint
 
-# Automated Node regression tests (237 tests across 48 suites)
+# Automated Node regression tests
 npm test
 
 # Production bundle build
@@ -132,7 +134,7 @@ npm run build
 # Python pipeline linting (ruff)
 npm run lint:python
 
-# Python pipeline unit & integration tests (58 pytest tests)
+# Python pipeline unit & integration tests
 npm run test:python
 
 # dbt analytical transformation parsing and contract verification

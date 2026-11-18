@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lotuslearn-pipeline"
 version = "0.1.0"
-description = "LotusLearn analytical event ingestion, quality gates, and relational SQLite metrics pipeline"
+description = "LotusLearn analytical event ingestion, data quality, reconciliation, and dual-backend SQLite/PostgreSQL metrics pipeline"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
