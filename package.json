@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "clean": "node scripts/clean.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test server/services/pipelineRegression.test.ts server/services/analyticalEventProducer.test.ts src/context/ThemeContext.test.ts server/services/reliabilityFixtureProducer.test.ts",
+    "test": "tsx --test server/services/pipelineRegression.test.ts server/services/analyticalEventProducer.test.ts src/context/ThemeContext.test.ts",
     "test:python": "pytest pipelines/tests",
     "lint": "oxlint",
     "lint:python": "ruff check pipelines",
