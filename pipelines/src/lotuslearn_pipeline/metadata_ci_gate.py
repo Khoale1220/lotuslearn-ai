@@ -41,9 +41,7 @@ def _validate(snapshot: MetadataSnapshot) -> None:
         raise GateError("invalid metadata")
 
     known = [
-        getattr(result, key)
-        for key in ("is_valid", "valid", "passed")
-        if hasattr(result, key)
+        getattr(result, key) for key in ("is_valid", "valid", "passed") if hasattr(result, key)
     ]
 
     if known:
@@ -54,10 +52,7 @@ def _validate(snapshot: MetadataSnapshot) -> None:
 
     checksum = snapshot.compute_checksum()
 
-    if (
-        not snapshot.content_checksum
-        or checksum != snapshot.content_checksum
-    ):
+    if not snapshot.content_checksum or checksum != snapshot.content_checksum:
         raise GateError("metadata checksum mismatch")
 
 
@@ -153,20 +148,13 @@ def _run_compare(args: argparse.Namespace) -> int:
         "candidate_checksum": candidate.content_checksum,
         "comparison_id": diff.comparison_id,
         "change_count": len(diff.changes),
-        "directly_changed_asset_count": len(
-            diff.directly_changed_assets
-        ),
-        "downstream_impacted_asset_count": len(
-            diff.downstream_impacted_assets
-        ),
+        "directly_changed_asset_count": len(diff.directly_changed_assets),
+        "downstream_impacted_asset_count": len(diff.downstream_impacted_assets),
     }
 
     _write_new_json(Path(args.evidence), evidence)
 
-    print(
-        f"Metadata governance: {status}; "
-        f"changes={len(diff.changes)}"
-    )
+    print(f"Metadata governance: {status}; changes={len(diff.changes)}")
 
     return EXIT_CODES[status]
 
@@ -177,10 +165,7 @@ def _run_extract(args: argparse.Namespace) -> int:
 
     database = unquote(parsed.path.lstrip("/"))
 
-    if (
-        parsed.scheme not in ("postgresql", "postgres")
-        or database != args.expected_database
-    ):
+    if parsed.scheme not in ("postgresql", "postgres") or database != args.expected_database:
         raise GateError("missing or unapproved test database")
 
     manifest = Path(args.manifest)
@@ -197,18 +182,13 @@ def _run_extract(args: argparse.Namespace) -> int:
     _validate(snapshot)
     _write_new_json(Path(args.output), snapshot.to_dict())
 
-    print(
-        f"Metadata snapshot extracted; "
-        f"assets={len(snapshot.assets)}"
-    )
+    print(f"Metadata snapshot extracted; assets={len(snapshot.assets)}")
 
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="LotusLearn metadata governance"
-    )
+    parser = argparse.ArgumentParser(description="LotusLearn metadata governance")
 
     commands = parser.add_subparsers(
         dest="command",
@@ -244,6 +224,45 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _safe_integrity_error_code(error: Exception) -> str:
+    """Return a non-sensitive classification for governance integrity failures.
+
+    The raw exception text must never be emitted by the CI gate because it
+    may contain SQL, credentials, database identifiers, or other sensitive
+    runtime details.
+    """
+    message = str(error).lower()
+
+    if "serialized metadata snapshot must be a dictionary" in message:
+        return "snapshot_not_dictionary"
+
+    if "missing or empty content_checksum" in message:
+        return "snapshot_checksum_missing"
+
+    if "malformed content_checksum" in message:
+        return "snapshot_checksum_malformed"
+
+    if "content checksum mismatch" in message:
+        return "snapshot_checksum_mismatch"
+
+    if "contradictory " in message and " in serialized metadata snapshot" in message:
+        return "snapshot_derived_count_mismatch"
+
+    if "failed integrity validation" in message:
+        return "snapshot_integrity_validation_failed"
+
+    if "observation id must be non-empty" in message:
+        return "snapshot_observation_id_invalid"
+
+    if "timestamp must be timezone-aware" in message:
+        return "snapshot_timestamp_invalid"
+
+    if "contains duplicate " in message and " identities" in message:
+        return "snapshot_duplicate_identity"
+
+    return "unclassified_integrity_failure"
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -258,7 +277,8 @@ def main(argv: list[str] | None = None) -> int:
         # credentials, or other sensitive information.
         print(
             "Metadata governance: INTEGRITY ERROR "
-            f"[{type(error).__name__}]",
+            f"[{type(error).__name__}] "
+            f"code={_safe_integrity_error_code(error)}",
             file=sys.stderr,
         )
         return 4
