@@ -34,7 +34,7 @@ _VALID_VERIFICATION_STATUSES = frozenset(
 _PRIVACY_VALIDATOR = AnalyticalEventValidator()
 
 
-def _assert_zero_pii(event: dict[str, Any]) -> None:
+def assert_zero_pii(event: dict[str, Any]) -> None:
     """Apply the canonical Python privacy contract."""
 
     privacy_ok, reason = _PRIVACY_VALIDATOR.validate_privacy(event)
@@ -187,7 +187,7 @@ def _decision_event(
         }
     )
 
-    _assert_zero_pii(event)
+    assert_zero_pii(event)
 
     return event
 
@@ -345,7 +345,7 @@ def _build_analysis_ingested_event(
         ),
     )
 
-    _assert_zero_pii(event)
+    assert_zero_pii(event)
 
     return event
 
@@ -462,7 +462,7 @@ def _build_cluster_events(
             cluster.get("explanation"),
         )
 
-        _assert_zero_pii(event)
+        assert_zero_pii(event)
 
         events.append(event)
 
@@ -552,7 +552,7 @@ def _build_group_events(
             group.get("estimatedDuration"),
         )
 
-        _assert_zero_pii(event)
+        assert_zero_pii(event)
 
         events.append(event)
 
@@ -683,7 +683,7 @@ def _build_verification_event(
         }
     )
 
-    _assert_zero_pii(event)
+    assert_zero_pii(event)
 
     return event
 
