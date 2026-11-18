@@ -4,7 +4,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from '../src/data/demoClassroom';
 import { generateGroundedDemoAnalysis } from '../server/services/demoFallbackGenerator';
-import { produceAnalyticalEvents } from '../server/services/analyticalEventProducer';
 
 function runPostgresPipelineSmoke(): void {
   const tmpDir = os.tmpdir();
@@ -16,8 +15,44 @@ function runPostgresPipelineSmoke(): void {
 
   try {
     const demoResult = generateGroundedDemoAnalysis(DEMO_CONTEXT, DEMO_SUBMISSIONS);
-    const events = produceAnalyticalEvents(demoResult);
-    fs.writeFileSync(tmpJsonPath, JSON.stringify(events, null, 2), 'utf-8');
+    const producerPythonCommand =
+      (spawnSync('python3', ['--version']).status === 0
+        ? 'python3'
+        : 'python');
+
+    const producerEnv = {
+      ...process.env,
+      PYTHONPATH: [
+        path.resolve(process.cwd(), 'pipelines/src'),
+        process.env.PYTHONPATH ?? '',
+      ]
+        .filter(Boolean)
+        .join(path.delimiter),
+    };
+
+    const producerResult = spawnSync(
+      producerPythonCommand,
+      [
+        '-m',
+        'lotuslearn_pipeline.event_export_cli',
+        '--input',
+        '-',
+        '--output',
+        tmpJsonPath,
+      ],
+      {
+        input: JSON.stringify(demoResult),
+        encoding: 'utf-8',
+        stdio: ['pipe', 'inherit', 'inherit'],
+        env: producerEnv,
+      }
+    );
+
+    if (producerResult.status !== 0) {
+      throw new Error(
+        `Python analytical-event export failed with status ${producerResult.status ?? 'unknown'}`
+      );
+    }
 
     const pythonCmd =
       process.env.PYTHON ||
