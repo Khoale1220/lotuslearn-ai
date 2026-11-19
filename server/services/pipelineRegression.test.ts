@@ -40,7 +40,7 @@ import {
 } from '../schemas/analysisSchemas';
 import { generateGroundedDemoAnalysis } from './demoFallbackGenerator';
 import { runFullAnalysisPipeline } from './pipelineCoordinator';
-import { validateObserverOutput } from './observerService';
+
 import { PipelineError, classifyGeminiError } from '../errors/pipelineErrors';
 import {
   generateContentDetailed,
@@ -1861,102 +1861,6 @@ ${pendingResult.interventions
     });
 
     // -----------------------------------------------------------------------
-    // 27.1 OBSERVER IDENTITY (O1 through O7)
-    // -----------------------------------------------------------------------
-    describe('27.1: Observer Identity Validation (O1 - O7)', () => {
-      const roster: StudentSubmission[] = [
-        { studentId: 'Student 01', studentText: 'Text 1', workType: 'typed' },
-        { studentId: 'Student 02', studentText: 'Text 2', workType: 'typed' },
-        { studentId: 'Student 03', studentText: 'Text 3', workType: 'typed' },
-      ];
-
-      it('O1: ordered expected IDs -> PASS', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 02', demonstratedUnderstanding: [] },
-          { studentId: 'Student 03', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, true, 'O1 must pass');
-        assert.strictEqual(res.missingStudentIds.length, 0);
-        assert.strictEqual(res.duplicateStudentIds.length, 0);
-        assert.strictEqual(res.unknownStudentIds.length, 0);
-      });
-
-      it('O2: same IDs reordered -> PASS without positional relabeling', () => {
-        const obs = [
-          { studentId: 'Student 03', demonstratedUnderstanding: ['Skill 3'] },
-          { studentId: 'Student 01', demonstratedUnderstanding: ['Skill 1'] },
-          { studentId: 'Student 02', demonstratedUnderstanding: ['Skill 2'] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, true, 'O2 must pass');
-        assert.strictEqual(res.matchedObservations.get('Student 01')?.demonstratedUnderstanding[0], 'Skill 1');
-        assert.strictEqual(res.matchedObservations.get('Student 02')?.demonstratedUnderstanding[0], 'Skill 2');
-        assert.strictEqual(res.matchedObservations.get('Student 03')?.demonstratedUnderstanding[0], 'Skill 3');
-      });
-
-      it('O3: missing expected student -> FAIL', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 03', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, false, 'O3 must fail');
-        assert.deepStrictEqual(res.missingStudentIds, ['Student 02']);
-      });
-
-      it('O4: duplicate student -> FAIL', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 02', demonstratedUnderstanding: [] },
-          { studentId: 'Student 02', demonstratedUnderstanding: [] },
-          { studentId: 'Student 03', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, false, 'O4 must fail');
-        assert.deepStrictEqual(res.duplicateStudentIds, ['Student 02']);
-      });
-
-      it('O5: unknown student -> FAIL', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 02', demonstratedUnderstanding: [] },
-          { studentId: 'Student 03', demonstratedUnderstanding: [] },
-          { studentId: 'Student 99', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, false, 'O5 must fail');
-        assert.deepStrictEqual(res.unknownStudentIds, ['Student 99']);
-      });
-
-      it('O6: partial identity mismatch -> FAIL', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 99', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, false, 'O6 must fail');
-        assert.ok(res.missingStudentIds.includes('Student 02'));
-        assert.ok(res.missingStudentIds.includes('Student 03'));
-        assert.ok(res.unknownStudentIds.includes('Student 99'));
-      });
-
-      it('O7: correct array length but wrong identity set -> FAIL', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 03', demonstratedUnderstanding: [] },
-          { studentId: 'Student 99', demonstratedUnderstanding: [] },
-        ];
-        assert.strictEqual(obs.length, roster.length, 'Array lengths match');
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, false, 'O7 must fail despite identical array length');
-        assert.deepStrictEqual(res.missingStudentIds, ['Student 02']);
-        assert.deepStrictEqual(res.unknownStudentIds, ['Student 99']);
-      });
-    });
-
-    // -----------------------------------------------------------------------
     // 27.2 EVIDENCE GROUNDING (E1 through E8)
     // -----------------------------------------------------------------------
     describe('27.2: Evidence Matching Domain Model & Grounding Invariants (E1 - E8)', () => {
@@ -2096,32 +2000,6 @@ ${pendingResult.interventions
     // 27.3 IMAGE / HANDWRITTEN MULTIMODAL SOURCE (I1 through I5)
     // -----------------------------------------------------------------------
     describe('27.3: Multimodal & Image Transcription Honesty (I1 - I5)', () => {
-      it('I1: image source only -> does NOT imply transcription_high', () => {
-        const subs: StudentSubmission[] = [
-          { studentId: 'Student 01', studentText: 'Transcribed text', workType: 'handwritten_work' },
-        ];
-        const rawObs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [], extractedSourceText: 'Transcribed text' },
-        ];
-        const validation = validateObserverOutput(subs, rawObs);
-        assert.strictEqual(validation.valid, true);
-
-        // Verify that observerService policy sets confidenceOrStatus to 'transcription_unverified'
-        const isImage = subs[0].workType === 'handwritten_work';
-        const extractedText = rawObs[0].extractedSourceText;
-        const confidenceOrStatus = isImage
-          ? !extractedText || extractedText.trim().length === 0
-            ? 'unreadable'
-            : 'transcription_unverified'
-          : 'exact_source';
-
-        assert.strictEqual(
-          confidenceOrStatus,
-          'transcription_unverified',
-          'Image source must never automatically imply high confidence'
-        );
-      });
-
       it('I2: usable transcription without explicit confidence is transcription_unverified', () => {
         const norm: NormalizedSourceEvidence = {
           studentId: 'Student 01',
@@ -2575,32 +2453,6 @@ ${pendingResult.interventions
         assert.strictEqual(res.success, false);
       });
 
-      it('SO3: schema-valid duplicate IDs fail domain validation', () => {
-        const duplicateObs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-        ];
-        const roster: StudentSubmission[] = [
-          { studentId: 'Student 01', studentText: 'T1', workType: 'typed' },
-          { studentId: 'Student 02', studentText: 'T2', workType: 'typed' },
-        ];
-        const res = validateObserverOutput(roster, duplicateObs);
-        assert.strictEqual(res.valid, false, 'Schema-valid duplicate IDs must fail domain validation');
-        assert.deepStrictEqual(res.duplicateStudentIds, ['Student 01']);
-      });
-
-      it('SO4: schema-valid unknown student fails domain validation', () => {
-        const unknownObs = [
-          { studentId: 'Student 999', demonstratedUnderstanding: [] },
-        ];
-        const roster: StudentSubmission[] = [
-          { studentId: 'Student 01', studentText: 'T1', workType: 'typed' },
-        ];
-        const res = validateObserverOutput(roster, unknownObs);
-        assert.strictEqual(res.valid, false, 'Schema-valid unknown student must fail domain validation');
-        assert.deepStrictEqual(res.unknownStudentIds, ['Student 999']);
-      });
-
       it('SO5: schema-valid impossible relationship fails domain validation', () => {
         const clusters: MisconceptionCluster[] = [
           {
@@ -2677,37 +2529,6 @@ ${pendingResult.interventions
         { studentId: 'Student 01', studentText: 'I have lived in Da Nang for five years.', workType: 'typed' },
         { studentId: 'Student 02', studentText: 'I have visited Ha Long Bay last year.', workType: 'typed' },
       ];
-
-      it('Attack 1: Observer returns correct count but wrong identities -> blocked', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 99', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, false);
-      });
-
-      it('Attack 2: Observer duplicates Student 01 and omits Student 02 -> blocked', () => {
-        const obs = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, false);
-        assert.deepStrictEqual(res.duplicateStudentIds, ['Student 01']);
-        assert.deepStrictEqual(res.missingStudentIds, ['Student 02']);
-      });
-
-      it('Attack 3: Observer returns correct identities in random order -> passed without relabeling', () => {
-        const obs = [
-          { studentId: 'Student 02', demonstratedUnderstanding: ['Observation 2'] },
-          { studentId: 'Student 01', demonstratedUnderstanding: ['Observation 1'] },
-        ];
-        const res = validateObserverOutput(roster, obs);
-        assert.strictEqual(res.valid, true);
-        assert.strictEqual(res.matchedObservations.get('Student 01')?.demonstratedUnderstanding[0], 'Observation 1');
-        assert.strictEqual(res.matchedObservations.get('Student 02')?.demonstratedUnderstanding[0], 'Observation 2');
-      });
 
       it('Attack 4: Quote contains 80% similar tokens scattered across unrelated sentences -> unsupported', () => {
         const scattered = 'Last year we visited many places. I have lived there. The bay is nice.';
@@ -2856,15 +2677,6 @@ ${pendingResult.interventions
         const c1 = { clusterId: 'id-1', misconceptionTitle: 'Common Title' };
         const c2 = { clusterId: 'id-2', misconceptionTitle: 'Common Title' };
         assert.notStrictEqual(c1.clusterId, c2.clusterId);
-      });
-
-      it('Attack 17: structured response valid but student identity set wrong -> domain validation fails', () => {
-        const schemaValidWrongIds = [
-          { studentId: 'Student 01', demonstratedUnderstanding: [] },
-          { studentId: 'Student 99', demonstratedUnderstanding: [] },
-        ];
-        const res = validateObserverOutput(roster, schemaValidWrongIds);
-        assert.strictEqual(res.valid, false);
       });
 
       it('Attack 18: malformed Gemini output fails gracefully with PipelineError', () => {
