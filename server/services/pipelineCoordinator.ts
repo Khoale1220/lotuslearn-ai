@@ -3,7 +3,7 @@ import {
   LearningContext,
   StudentSubmission,
 } from '../../src/types';
-import { observeSubmissions } from './observerService';
+import { observeSubmissions } from './pythonObserverAdapter';
 import { diagnoseClassPatterns } from './diagnosisService';
 import { planTeachingStrategy } from './strategyService';
 import { verifyAnalysisPipeline } from './verifierService';
@@ -44,7 +44,7 @@ export async function runFullAnalysisPipeline(
       }
     };
 
-    // Stage 1: Privacy Gateway — Identity Normalization & SDP Sanitization (Pre-AI Boundary)
+    // Stage 1: Privacy Gateway â€” Identity Normalization & SDP Sanitization (Pre-AI Boundary)
     currentStageNumber = 1;
     currentStageName = 'Privacy Gateway';
     enforceDeadline(currentStageName);
@@ -227,7 +227,7 @@ export async function runFullAnalysisPipeline(
         { stage: 4, name: 'Deterministic Validation', detail: 'Verified student ID coverage, cluster math, and exact quotes' },
         { stage: 5, name: 'Gemini Teaching Strategist', detail: 'Generated differentiated scaffolds and 25-minute lesson sequence' },
         { stage: 6, name: 'Gemini Verification', detail: 'Audited claims against student evidence' },
-        { stage: 7, name: 'Complete', detail: 'All 7 stages verified · preparing diagnostic results' },
+        { stage: 7, name: 'Complete', detail: 'All 7 stages verified Â· preparing diagnostic results' },
       ];
 
       for (const s of stages) {
