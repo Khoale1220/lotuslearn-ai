@@ -1,0 +1,104 @@
+{
+  "fixture_version": 1,
+  "source_implementation": "server/services/observerService.ts",
+  "source_sha256": "d78c2de38f905d7fca25877778a769f3660ffe7803548207b321aecdcff54a87",
+  "capture_contract": {
+    "capture_source": "current TypeScript behavior",
+    "provider_mode": "hermetic mocked provider",
+    "network_access_allowed": false,
+    "production_credentials_allowed": false,
+    "python_expected_results_authored": false
+  },
+  "normalization": {
+    "preserve": [
+      "business output semantics",
+      "observation ordering where contractually meaningful",
+      "normalized evidence semantics",
+      "deterministic model/provider identity"
+    ],
+    "normalize": [
+      "durationMs",
+      "clock-derived telemetry",
+      "provider runtime latency"
+    ],
+    "forbid": [
+      "real network provider calls",
+      "production credentials",
+      "fabricated business output",
+      "line-by-line TypeScript translation"
+    ]
+  },
+  "raw_capture_count": 1,
+  "case_count": 1,
+  "cases": [
+    {
+      "input": {
+        "context": {
+          "subject": "English",
+          "gradeLevel": "Grade 10",
+          "lessonTitle": "Grammar Review",
+          "learningObjective": "Present Perfect vs Past Simple",
+          "expectedAnswerRubric": "Correct usage of Present Perfect and time markers"
+        },
+        "submissions": [
+          {
+            "studentId": "Custom 01",
+            "studentText": "I have finished my homework last night.",
+            "workType": "typed"
+          }
+        ]
+      },
+      "provider_result": {
+        "text": "[{\"studentId\":\"Custom 01\",\"demonstratedUnderstanding\":[\"Uses have auxiliary\"],\"misconceptions\":[\"Combines present perfect with finished time last night\"],\"supportingEvidence\":[{\"quoteOrDetail\":\"finished my homework last night\",\"interpretation\":\"Finished past marker\"}]}]",
+        "modelUsed": "gemini-3.5-flash-lite",
+        "durationMs": 0,
+        "telemetry": {
+          "stage": "Stage 1: Observer",
+          "requestedModel": "gemini-3.5-flash-lite",
+          "actualModel": "gemini-3.5-flash-lite",
+          "latencyMs": 0
+        }
+      },
+      "expected": {
+        "observations": [
+          {
+            "studentId": "Custom 01",
+            "demonstratedUnderstanding": [
+              "Uses have auxiliary"
+            ],
+            "misconceptions": [
+              "Combines present perfect with finished time last night"
+            ],
+            "supportingEvidence": [
+              {
+                "quoteOrDetail": "finished my homework last night",
+                "interpretation": "Finished past marker",
+                "sourceType": "typed"
+              }
+            ],
+            "rubricAlignment": "Evaluated against lesson rubric.",
+            "confidence": 0.92,
+            "recommendedSupportLevel": "guided_practice"
+          }
+        ],
+        "normalizedEvidence": [
+          {
+            "studentId": "Custom 01",
+            "sourceType": "typed",
+            "extractedText": "I have finished my homework last night.",
+            "confidenceOrStatus": "exact_source"
+          }
+        ],
+        "modelUsed": "gemini-3.5-flash-lite",
+        "durationMs": 0,
+        "telemetry": {
+          "stage": "Stage 1: Observer",
+          "requestedModel": "gemini-3.5-flash-lite",
+          "actualModel": "gemini-3.5-flash-lite",
+          "latencyMs": 0
+        }
+      },
+      "case_id": "observer-9ddaeca881d714a3"
+    }
+  ]
+}
