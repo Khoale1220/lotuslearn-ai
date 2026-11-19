@@ -11,11 +11,7 @@ from lotuslearn_pipeline.observer_service import (
     observe_submissions_from_provider_result,
 )
 
-FIXTURE_PATH = (
-    Path(__file__).parent
-    / "fixtures"
-    / "observer_service_parity.json"
-)
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "observer_service_parity.json"
 
 
 def _load_fixture() -> dict[str, Any]:
@@ -66,20 +62,128 @@ def test_observer_service_matches_golden_contract(
     result = observe_submissions_from_provider_result(
         input_payload["context"],
         input_payload["submissions"],
-        case['provider_result'],
+        case["provider_result"],
     ).to_contract_dict()
 
-    assert _normalize_contract(result) == _normalize_contract(
-        case["expected"]
+    assert _normalize_contract(result) == _normalize_contract(case["expected"])
+
+
+def test_observer_service_accepts_fenced_provider_json() -> None:
+    case = deepcopy(_load_fixture()["cases"][0])
+
+    provider_result = case["provider_result"]
+
+    provider_result["text"] = f"```json\n{provider_result['text']}\n```"
+
+    result = observe_submissions_from_provider_result(
+        case["input"]["context"],
+        case["input"]["submissions"],
+        provider_result,
+    ).to_contract_dict()
+
+    assert _normalize_contract(result) == _normalize_contract(case["expected"])
+
+
+@pytest.mark.parametrize(
+    ("observations", "expected_message"),
+    [
+        (
+            [],
+            "omitted expected student ID",
+        ),
+        (
+            [
+                {
+                    "studentId": "Unknown 99",
+                }
+            ],
+            "unknown student ID",
+        ),
+        (
+            [
+                {
+                    "studentId": "Custom 01",
+                },
+                {
+                    "studentId": "Custom 01",
+                },
+            ],
+            "duplicate observation",
+        ),
+    ],
+)
+def test_observer_service_fails_closed_on_identity_mismatch(
+    observations: list[dict[str, Any]],
+    expected_message: str,
+) -> None:
+    case = deepcopy(_load_fixture()["cases"][0])
+
+    case["provider_result"]["text"] = json.dumps(observations)
+
+    with pytest.raises(
+        ValueError,
+        match=expected_message,
+    ):
+        observe_submissions_from_provider_result(
+            case["input"]["context"],
+            case["input"]["submissions"],
+            case["provider_result"],
+        )
+
+
+def test_observer_service_preserves_image_evidence_semantics() -> None:
+    case = deepcopy(_load_fixture()["cases"][0])
+
+    submission = case["input"]["submissions"][0]
+
+    submission["workType"] = "handwritten_work"
+    submission["imageBase64"] = "ZmFrZS1pbWFnZQ=="
+
+    case["provider_result"]["text"] = json.dumps(
+        [
+            {
+                "studentId": "Custom 01",
+                "demonstratedUnderstanding": ["Uses have auxiliary"],
+                "misconceptions": [],
+                "supportingEvidence": [
+                    {
+                        "quoteOrDetail": ("I have finished my homework"),
+                        "interpretation": ("Transcribed supporting evidence"),
+                    }
+                ],
+                "extractedSourceText": ("I have finished my homework."),
+            }
+        ]
     )
+
+    result = observe_submissions_from_provider_result(
+        case["input"]["context"],
+        case["input"]["submissions"],
+        case["provider_result"],
+    ).to_contract_dict()
+
+    assert result["normalizedEvidence"] == [
+        {
+            "studentId": "Custom 01",
+            "sourceType": "image_transcription",
+            "extractedText": ("I have finished my homework."),
+            "confidenceOrStatus": ("transcription_unverified"),
+        }
+    ]
+
+    assert result["observations"][0]["supportingEvidence"][0]["sourceType"] == "image_transcription"
+
+    assert result["observations"][0]["rubricAlignment"] == "Evaluated against lesson rubric."
+
+    assert result["observations"][0]["confidence"] == 0.92
+
+    assert result["observations"][0]["recommendedSupportLevel"] == "guided_practice"
 
 
 def test_fixture_declares_typescript_source() -> None:
     fixture = _load_fixture()
 
-    source = fixture.get("source_implementation") or fixture.get(
-        "sourceImplementation"
-    )
+    source = fixture.get("source_implementation") or fixture.get("sourceImplementation")
 
     assert source is not None
     assert "observerService" in str(source)
