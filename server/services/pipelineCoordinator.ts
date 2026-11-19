@@ -18,10 +18,19 @@ import { PipelineError, classifyGeminiError, classifyPrivacyError } from '../err
 export type ProgressCallback = (stage: number, stageName: string, detail: string) => void;
 export { isExactDemoClassroom };
 
+type PipelineDependencies = {
+  observeSubmissions: typeof observeSubmissions;
+};
+
+const DEFAULT_PIPELINE_DEPENDENCIES: PipelineDependencies = {
+  observeSubmissions,
+};
+
 export async function runFullAnalysisPipeline(
   context: LearningContext,
   submissions: StudentSubmission[],
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  dependencies: PipelineDependencies = DEFAULT_PIPELINE_DEPENDENCIES
 ): Promise<ClassAnalysisResult> {
   const timestamp = new Date().toISOString();
   const analysisId = `analysis_${Date.now()}`;
@@ -70,7 +79,7 @@ export async function runFullAnalysisPipeline(
     );
     const obsStart = Date.now();
     const { observations, normalizedEvidence, modelUsed: obsModel, durationMs: obsDuration, telemetry: obsTelemetry } =
-      await observeSubmissions(context, sanitizedSubmissions);
+      await dependencies.observeSubmissions(context, sanitizedSubmissions);
     stageDurations['Stage 2: Gemini Observer'] = obsDuration || (Date.now() - obsStart);
     if (obsModel && !modelsUsed.includes(obsModel)) modelsUsed.push(obsModel);
 

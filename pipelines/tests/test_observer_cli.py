@@ -62,7 +62,8 @@ def test_observer_cli_matches_golden_contract() -> None:
     assert actual == case["expected"]
 
 
-def test_observer_cli_fails_closed_without_provider_result() -> None:
+def test_observer_cli_fails_closed_when_live_execution_is_unavailable(monkeypatch) -> None:
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     case = _load_fixture()["cases"][0]
 
     process = _run_cli(
@@ -74,7 +75,7 @@ def test_observer_cli_fails_closed_without_provider_result() -> None:
 
     assert process.returncode == 2
     assert process.stdout == ""
-    assert "provider_result must be an object" in process.stderr
+    assert "GEMINI_API_KEY is required for live Observer execution." in process.stderr
 
 
 def test_observer_cli_rejects_malformed_json() -> None:

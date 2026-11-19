@@ -18,7 +18,6 @@ import {
   NormalizedSourceEvidenceSchema,
   StudentObservationListSchema,
 } from '../schemas/analysisSchemas';
-import { generateObserverProviderResult } from './observerProvider';
 
 export interface ObserverResult {
   observations: StudentObservation[];
@@ -31,7 +30,7 @@ export interface ObserverResult {
 interface ObserverCliRequest {
   context: LearningContext;
   submissions: StudentSubmission[];
-  providerResult: GenerationResult;
+  providerResult?: GenerationResult;
 }
 
 const ObserverCliResultSchema = z.object({
@@ -95,7 +94,7 @@ export async function runObserverCli(
 
   return new Promise<ObserverResult>((resolve, reject) => {
     const child = spawn(
-      pythonExecutable,
+      process.env.LOTUSLEARN_PYTHON_EXECUTABLE?.trim() || pythonExecutable,
       ['-m', 'lotuslearn_pipeline.observer_cli'],
       {
         cwd: repoRoot,
@@ -215,7 +214,7 @@ export async function runObserverCli(
         return;
       }
 
-      if (parsed.data.modelUsed !== request.providerResult.modelUsed) {
+      if (request.providerResult && parsed.data.modelUsed !== request.providerResult.modelUsed) {
         rejectOnce(
           observerBoundaryError(
             'OBSERVER_SCHEMA_ERROR',
@@ -258,15 +257,8 @@ export async function observeSubmissions(
   context: LearningContext,
   submissions: StudentSubmission[]
 ): Promise<ObserverResult> {
-  const providerResult =
-    await generateObserverProviderResult(
-      context,
-      submissions
-    );
-
   return runObserverCli({
     context,
     submissions,
-    providerResult,
   });
 }

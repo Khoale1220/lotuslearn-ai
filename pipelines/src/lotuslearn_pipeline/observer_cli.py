@@ -60,6 +60,18 @@ def _render_result(result: dict[str, Any]) -> str:
 def _run_request(payload: dict[str, Any]) -> dict[str, Any]:
     context = payload.get("context")
     submissions = payload.get("submissions")
+    if "providerResult" not in payload:
+        from lotuslearn_pipeline.gemini_execution import GeminiExecutionError
+        from lotuslearn_pipeline.observer_runtime import observe_submissions_live
+
+        try:
+            return observe_submissions_live(
+                payload["context"],
+                payload["submissions"],
+            ).to_contract_dict()
+        except GeminiExecutionError as exc:
+            raise ValueError(str(exc)) from exc
+
     provider_result = payload.get("providerResult")
 
     result = observe_submissions_from_provider_result(
