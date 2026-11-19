@@ -174,9 +174,9 @@ export async function runObserverCli(
 
         rejectOnce(
           observerBoundaryError(
-            exitCode === 2
-              ? 'OBSERVER_SCHEMA_ERROR'
-              : 'INVARIANT_FAILURE',
+            exitCode === null
+              ? 'INVARIANT_FAILURE'
+              : 'OBSERVER_SCHEMA_ERROR',
             `Python Observer CLI failed: ${detail}`
           )
         );
