@@ -202,3 +202,138 @@ def test_fixture_contains_no_credentials() -> None:
 
     for token in forbidden:
         assert token not in raw
+
+
+def test_observer_service_preserves_reordered_identity_mapping() -> None:
+    case = deepcopy(_load_fixture()["cases"][0])
+
+    case["input"]["submissions"] = [
+        {
+            "studentId": "Student 01",
+            "studentText": "Text 1",
+            "workType": "typed",
+        },
+        {
+            "studentId": "Student 02",
+            "studentText": "Text 2",
+            "workType": "typed",
+        },
+        {
+            "studentId": "Student 03",
+            "studentText": "Text 3",
+            "workType": "typed",
+        },
+    ]
+
+    case["provider_result"]["text"] = json.dumps(
+        [
+            {
+                "studentId": "Student 03",
+                "demonstratedUnderstanding": ["Skill 3"],
+            },
+            {
+                "studentId": "Student 01",
+                "demonstratedUnderstanding": ["Skill 1"],
+            },
+            {
+                "studentId": "Student 02",
+                "demonstratedUnderstanding": ["Skill 2"],
+            },
+        ]
+    )
+
+    result = observe_submissions_from_provider_result(
+        case["input"]["context"],
+        case["input"]["submissions"],
+        case["provider_result"],
+    ).to_contract_dict()
+
+    assert [item["studentId"] for item in result["observations"]] == [
+        "Student 01",
+        "Student 02",
+        "Student 03",
+    ]
+
+    assert [item["demonstratedUnderstanding"][0] for item in result["observations"]] == [
+        "Skill 1",
+        "Skill 2",
+        "Skill 3",
+    ]
+
+
+def test_observer_service_rejects_equal_length_wrong_identity_set() -> None:
+    case = deepcopy(_load_fixture()["cases"][0])
+
+    case["input"]["submissions"] = [
+        {
+            "studentId": "Student 01",
+            "studentText": "Text 1",
+            "workType": "typed",
+        },
+        {
+            "studentId": "Student 02",
+            "studentText": "Text 2",
+            "workType": "typed",
+        },
+        {
+            "studentId": "Student 03",
+            "studentText": "Text 3",
+            "workType": "typed",
+        },
+    ]
+
+    case["provider_result"]["text"] = json.dumps(
+        [
+            {"studentId": "Student 01"},
+            {"studentId": "Student 03"},
+            {"studentId": "Student 99"},
+        ]
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        observe_submissions_from_provider_result(
+            case["input"]["context"],
+            case["input"]["submissions"],
+            case["provider_result"],
+        )
+
+    message = str(exc_info.value)
+
+    assert 'unknown student ID: "Student 99"' in message
+    assert 'omitted expected student ID: "Student 02"' in message
+
+
+def test_observer_service_reports_duplicate_and_missing_together() -> None:
+    case = deepcopy(_load_fixture()["cases"][0])
+
+    case["input"]["submissions"] = [
+        {
+            "studentId": "Student 01",
+            "studentText": "Text 1",
+            "workType": "typed",
+        },
+        {
+            "studentId": "Student 02",
+            "studentText": "Text 2",
+            "workType": "typed",
+        },
+    ]
+
+    case["provider_result"]["text"] = json.dumps(
+        [
+            {"studentId": "Student 01"},
+            {"studentId": "Student 01"},
+        ]
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        observe_submissions_from_provider_result(
+            case["input"]["context"],
+            case["input"]["submissions"],
+            case["provider_result"],
+        )
+
+    message = str(exc_info.value)
+
+    assert 'duplicate observation for student ID: "Student 01"' in message
+    assert 'omitted expected student ID: "Student 02"' in message
