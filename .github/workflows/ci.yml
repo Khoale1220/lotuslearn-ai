@@ -38,6 +38,18 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Set up Python for cross-language Node tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python pipeline runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "./pipelines"
+          python -m pip check
+
       - name: Run full Node regression suite
         run: npm test
 
@@ -537,8 +549,6 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Verify deterministic reliability fixtures
-        run: npm run fixtures:verify
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -551,6 +561,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e "./pipelines[dev]"
           python -m pip check
+
+      - name: Verify deterministic reliability fixtures
+        run: npm run fixtures:verify
 
       - name: Install pinned dbt analytics dependencies
         run: |
@@ -647,8 +660,6 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Verify deterministic reliability fixtures
-        run: npm run fixtures:verify
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -661,6 +672,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e "./pipelines[dev]"
           python -m pip check
+
+      - name: Verify deterministic reliability fixtures
+        run: npm run fixtures:verify
 
       - name: Install pinned dbt analytics dependencies
         run: |
