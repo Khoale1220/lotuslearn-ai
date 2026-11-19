@@ -1,7 +1,9 @@
 """Cross-language test ensuring TypeScript output satisfies Python validator."""
 
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 from lotuslearn_pipeline.models import IngestionOutcome
@@ -16,10 +18,11 @@ def test_typescript_producer_output_accepted_by_python_pipeline():
     and asserts that 100% of events pass Python JSON schema validation and zero-PII gates.
     """
     script_path = REPO_ROOT / "scripts" / "export_demo_events.ts"
-    cmd = ["npx", "tsx", str(script_path)]
+    cmd = ["npx.cmd" if os.name == "nt" else "npx", "tsx", str(script_path)]
 
     proc = subprocess.run(
         cmd,
+        env={**os.environ, "PYTHON": sys.executable},
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
