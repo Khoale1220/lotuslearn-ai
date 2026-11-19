@@ -3843,6 +3843,14 @@ ${pendingResult.interventions
         };
 
         setGeminiClient(mockAi);
+    const { readFileSync: readObserverFixture } = await import('node:fs');
+    const { resolve: resolveObserverFixture } = await import('node:path');
+    const hermeticObserverFixture = JSON.parse(
+      readObserverFixture(
+        resolveObserverFixture(process.cwd(), 'pipelines/tests/fixtures/observer_service_parity.json'),
+        'utf8'
+      )
+    ).cases[0].expected;
 
         const result = await runFullAnalysisPipeline(
           {
@@ -3852,7 +3860,11 @@ ${pendingResult.interventions
             learningObjective: 'Present Perfect vs Past Simple',
             expectedAnswerRubric: 'Correct usage of Present Perfect and time markers',
           },
-          customSubmissions
+          customSubmissions,
+    undefined,
+    {
+      observeSubmissions: async () => hermeticObserverFixture,
+    }
         );
 
         assert.ok(result.executionMetadata, 'Result must contain executionMetadata');
