@@ -111,20 +111,20 @@ const PipelineVisualizer = ({
     /* Main Status Header */
   }
       <div className="text-center max-w-2xl mx-auto space-y-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-semibold border border-blue-200">
-          <Loader2 size={13} className="animate-spin text-blue-600" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-subtle)] text-[var(--accent-fg)] text-xs font-semibold border border-[var(--border-brand)]">
+          <Loader2 size={13} className="animate-spin text-[var(--accent-fg)]" />
           <span>Analyzing Student Work</span>
-          <span className="text-slate-300" aria-hidden="true">/</span>
+          <span className="text-[var(--text-secondary)]" aria-hidden="true">/</span>
           <span>Step {currentStage} of 7</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
           {activeStageObj.name}
         </h1>
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
           {currentDetail || activeStageObj.subhead}
         </p>
-        <div className="pt-1 flex items-center justify-center gap-2 text-xs font-mono text-slate-500">
-          <Clock size={13} className="text-slate-400" />
+        <div className="pt-1 flex items-center justify-center gap-2 text-xs font-mono text-[var(--text-secondary)]">
+          <Clock size={13} className="text-[var(--text-secondary)]" />
           <span>Time elapsed: {elapsedSec}s</span>
         </div>
       </div>
@@ -132,9 +132,9 @@ const PipelineVisualizer = ({
       {
     /* Semantic Ordered Progress List */
   }
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
+      <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-2xs">
         <h2 className="sr-only">Analysis Progress Steps</h2>
-        <ol className="divide-y divide-slate-100">
+        <ol className="divide-y divide-[var(--border-subtle)]">
           {USER_FACING_STAGES.map((st) => {
     const isCurrent = currentStage === st.id && !errorMessage;
     const isCompleted = currentStage > st.id;
@@ -143,38 +143,38 @@ const PipelineVisualizer = ({
     return <li
       key={st.id}
       aria-current={isCurrent ? "step" : void 0}
-      className={`py-3.5 flex items-center justify-between gap-4 transition-colors ${isCurrent ? "bg-blue-50/50 -mx-6 px-6" : ""}`}
+      className={`py-3.5 flex items-center justify-between gap-4 transition-colors ${isCurrent ? "bg-[var(--bg-interactive)] -mx-6 px-6" : ""}`}
     >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
-      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-colors ${isCompleted ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : isCurrent ? "bg-blue-600 text-white shadow-xs ring-4 ring-blue-100" : isFailed ? "bg-rose-100 text-rose-800 border border-rose-300" : "bg-slate-100 text-slate-500 border border-slate-200"}`}
+      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-colors ${isCompleted ? "bg-[var(--status-success-bg)] text-[var(--status-success)] border border-[var(--status-success-border)]" : isCurrent ? "bg-[var(--accent-fg)] text-[var(--action-primary-fg)] shadow-xs ring-4 ring-[var(--accent-subtle)]" : isFailed ? "bg-[var(--status-error-bg)] text-[var(--status-error)] border border-[var(--status-error-border)]" : "bg-[var(--bg-interactive)] text-[var(--text-secondary)] border border-[var(--border-default)]"}`}
     >
-                    {isCompleted ? <CheckCircle2 size={16} className="text-emerald-700" /> : isCurrent ? <Loader2 size={15} className="animate-spin" /> : isFailed ? <AlertTriangle size={15} className="text-rose-600" /> : <span>{st.id}</span>}
+                    {isCompleted ? <CheckCircle2 size={16} className="text-[var(--status-success)]" /> : isCurrent ? <Loader2 size={15} className="animate-spin" /> : isFailed ? <AlertTriangle size={15} className="text-[var(--status-error)]" /> : <span>{st.id}</span>}
                   </div>
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-semibold truncate ${isCurrent ? "text-blue-900 font-bold" : isCompleted ? "text-slate-900" : "text-slate-600"}`}>
+                      <span className={`text-sm font-semibold truncate ${isCurrent ? "text-[var(--accent-fg)] font-bold" : isCompleted ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
                         {st.name}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 truncate hidden sm:block">
+                    <p className="text-xs text-[var(--text-secondary)] truncate hidden sm:block">
                       {st.subhead}
                     </p>
                   </div>
                 </div>
 
                 <div className="text-right shrink-0 text-xs">
-                  {isCompleted && <span className="font-mono text-emerald-700 font-medium">
+                  {isCompleted && <span className="font-mono text-[var(--status-success)] font-medium">
                       {duration ? `${duration}s` : "Done"}
                     </span>}
-                  {isCurrent && <span className="text-blue-700 font-semibold flex items-center gap-1 font-mono">
+                  {isCurrent && <span className="text-[var(--accent-fg)] font-semibold flex items-center gap-1 font-mono">
                       In progress
                     </span>}
-                  {isFailed && <span className="text-rose-700 font-semibold font-mono">
+                  {isFailed && <span className="text-[var(--status-error)] font-semibold font-mono">
                       Issue detected
                     </span>}
-                  {!isCompleted && !isCurrent && !isFailed && <span className="text-slate-400 font-mono">Queued</span>}
+                  {!isCompleted && !isCurrent && !isFailed && <span className="text-[var(--text-secondary)] font-mono">Queued</span>}
                 </div>
               </li>;
   })}
@@ -186,28 +186,28 @@ const PipelineVisualizer = ({
   }
       {errorDisplay && <div
     role="alert"
-    className="rounded-xl border border-rose-200 bg-rose-50/70 p-6 space-y-4 text-xs"
+    className="rounded-xl border border-[var(--status-error-border)] bg-[var(--status-error-bg)] p-6 space-y-4 text-xs"
   >
           <div className="flex items-start gap-3">
-            <AlertTriangle size={20} className="text-rose-600 shrink-0 mt-0.5" />
+            <AlertTriangle size={20} className="text-[var(--status-error)] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-rose-900">
+              <h3 className="text-sm font-bold text-[var(--status-error)]">
                 {errorDisplay.title}
               </h3>
-              <p className="text-rose-800 leading-relaxed">
+              <p className="text-[var(--status-error)] leading-relaxed">
                 {errorDisplay.message}
               </p>
-              <p className="text-rose-700 font-medium pt-1">
+              <p className="text-[var(--status-error)] font-medium pt-1">
                 {errorDisplay.recommendedAction}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2 border-t border-rose-200">
+          <div className="flex items-center gap-3 pt-2 border-t border-[var(--status-error-border)]">
             {errorDisplay.retryAllowed && onRetry && <button
     type="button"
     onClick={onRetry}
-    className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition active:scale-98"
+    className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--action-primary-bg)] hover:bg-[var(--action-primary-hover)] px-4 py-2 text-xs font-semibold text-[var(--action-primary-fg)] shadow-2xs transition active:scale-98"
   >
                 <RefreshCw size={13} />
                 <span>Retry Analysis</span>
@@ -215,7 +215,7 @@ const PipelineVisualizer = ({
             {onCancel && <button
     type="button"
     onClick={onCancel}
-    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition"
+    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-control)] bg-[var(--bg-surface)] hover:bg-[var(--bg-interactive)] px-3.5 py-2 text-xs font-semibold text-[var(--action-secondary-fg)] shadow-2xs transition"
   >
                 <ArrowLeft size={13} />
                 <span>Return to Wizard</span>
@@ -226,12 +226,12 @@ const PipelineVisualizer = ({
       {
     /* Progressive Technical Disclosure for Judges / Engineers */
   }
-      <details className="group rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
-        <summary className="cursor-pointer font-semibold text-slate-700 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded">
+      <details className="group rounded-xl border border-[var(--border-default)] bg-[var(--bg-interactive)] p-4 text-xs">
+        <summary className="cursor-pointer font-semibold text-[var(--action-secondary-fg)] flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] rounded">
           <span>Technical Architecture &amp; Engine Details</span>
-          <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform" />
+          <ChevronDown size={14} className="text-[var(--text-secondary)] group-open:rotate-180 transition-transform" />
         </summary>
-        <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-2 text-slate-600 font-mono text-[11px]">
+        <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-2 text-[var(--text-secondary)] font-mono text-[11px]">
           <p>
             <strong>Active Pipeline Stage:</strong> {activeStageObj.technicalName}
           </p>

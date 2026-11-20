@@ -48,6 +48,8 @@
   --action-primary-text: #ffffff;
   --action-primary-fg: var(--fog-200);
   --action-primary-hover: var(--slate-800);
+  --accent-fg: var(--action-primary-bg);
+  --accent-subtle: color-mix(in srgb, var(--action-primary-bg) 10%, var(--bg-surface));
   /* Semantic structural borders.
    * Components consume these roles instead of raw palette classes.
    * Values derive from existing semantic providers so light/dark
@@ -82,7 +84,9 @@
   --status-success: #047857;
   --status-success-fg: color-mix(in srgb, var(--status-success) 81%, black);
   --status-warning: #B45309;
-  --status-error: #BE123C;
+  --status-error: color-mix(in srgb, #BE123C 86.5%, var(--text-primary));
+  --status-error-bg: color-mix(in srgb, var(--status-error) 8%, var(--bg-surface));
+  --status-error-border: color-mix(in srgb, var(--status-error) 35%, var(--bg-surface));
   --status-error-fg: color-mix(in srgb, var(--status-error) 89%, black);
 
   color-scheme: light;
@@ -134,6 +138,8 @@
   --status-success-fg: var(--status-success);
   --status-warning: #FCD34D;
   --status-error: #FDA4AF;
+  --status-error-bg: color-mix(in srgb, var(--status-error) 14%, var(--bg-surface));
+  --status-error-border: color-mix(in srgb, var(--status-error) 45%, var(--bg-surface));
   --status-error-fg: var(--status-error);
 
   color-scheme: dark;
