@@ -1,5 +1,5 @@
 import { observeSubmissions } from "./pythonObserverAdapter.js";
-import { diagnoseClassPatterns } from "./diagnosisService.js";
+import { diagnoseClassPatterns } from "./pythonDiagnosisAdapter.js";
 import { planTeachingStrategy } from "./strategyService.js";
 import { verifyAnalysisPipeline } from "./verifierService.js";
 import { runDeterministicValidation } from "./deterministicValidator.js";
@@ -9,7 +9,8 @@ import { getPrivacyGateway } from "./privacyGateway.js";
 import { isExactDemoClassroom, computeDatasetFingerprint } from "./demoFingerprint.js";
 import { PipelineError, classifyGeminiError, classifyPrivacyError } from "../errors/pipelineErrors.js";
 const DEFAULT_PIPELINE_DEPENDENCIES = {
-  observeSubmissions
+  observeSubmissions,
+  diagnoseClassPatterns
 };
 async function runFullAnalysisPipeline(context, submissions, onProgress, dependencies = DEFAULT_PIPELINE_DEPENDENCIES) {
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
@@ -60,7 +61,7 @@ async function runFullAnalysisPipeline(context, submissions, onProgress, depende
     enforceDeadline(currentStageName);
     onProgress?.(3, "Gemini Diagnosis", "Synthesizing class-wide misconception patterns and root causes");
     const diagStart = Date.now();
-    const { classSnapshot, misconceptionClusters, modelUsed: diagModel, durationMs: diagDuration, telemetry: diagTelemetry } = await diagnoseClassPatterns(context, observations);
+    const { classSnapshot, misconceptionClusters, modelUsed: diagModel, durationMs: diagDuration, telemetry: diagTelemetry } = await dependencies.diagnoseClassPatterns(context, observations);
     stageDurations["Stage 3: Gemini Diagnosis"] = diagDuration || Date.now() - diagStart;
     if (diagModel && !modelsUsed.includes(diagModel)) modelsUsed.push(diagModel);
     currentStageNumber = 4;

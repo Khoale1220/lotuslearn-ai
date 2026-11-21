@@ -3310,7 +3310,46 @@ ${pendingResult.interventions.map((i) => `- Teacher Decision: ${getCanonicalTeac
           customSubmissions,
           void 0,
           {
-            observeSubmissions: async () => hermeticObserverFixture
+            observeSubmissions: async () => hermeticObserverFixture,
+            diagnoseClassPatterns: async () => ({
+              classSnapshot: {
+                totalSubmissions: 1,
+                misconceptionCount: 1,
+                strongestConcept: "Basic verb forms",
+                highestPriorityNeed: "Finished time markers",
+                overallRecommendation: "Target time markers"
+              },
+              misconceptionClusters: [
+                {
+                  clusterId: "cluster-1",
+                  misconceptionTitle: "Finished-Time Markers with Present Perfect",
+                  explanation: "Uses past markers with present perfect",
+                  affectedStudentIds: ["Custom 01"],
+                  studentCount: 1,
+                  percentageAffected: 100,
+                  evidenceExamples: [
+                    {
+                      studentId: "Custom 01",
+                      excerpt: "finished my homework last night",
+                      groundingReason: "Direct quote"
+                    }
+                  ],
+                  teachingPriority: "high",
+                  confidence: 0.9,
+                  recommendedInstructionalResponse: "Target with calendar sorting drill",
+                  status: "pending",
+                  teacherDecision: "pending"
+                }
+              ],
+              modelUsed: "gemini-3.8-flash",
+              durationMs: 1,
+              telemetry: {
+                stage: "Stage 3: Gemini Diagnosis",
+                requestedModel: "gemini-3.8-flash",
+                actualModel: "gemini-3.8-flash",
+                latencyMs: 1
+              }
+            })
           }
         );
         assert.ok(result.executionMetadata, "Result must contain executionMetadata");
