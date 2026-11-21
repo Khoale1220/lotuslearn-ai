@@ -45,11 +45,11 @@ const VerificationPanel = ({
   }
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-[var(--border-decorative)] gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 text-teal-700 border border-teal-200 shrink-0">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--status-success-bg)] text-[var(--status-success)] border border-[var(--status-success-border)] shrink-0">
             <ShieldCheck size={22} />
           </div>
           <div>
-            <span className="text-xs font-semibold text-teal-700 uppercase tracking-wider block mb-1">
+            <span className="text-xs font-semibold text-[var(--status-success)] uppercase tracking-wider block mb-1">
               Multi-Layer Verification &amp; Trust Boundaries
             </span>
             <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
@@ -80,46 +80,46 @@ const VerificationPanel = ({
         {
     /* Pillar 1: DETERMINISTIC CODE CHECK */
   }
-        <div className="rounded-xl border border-teal-200 bg-teal-50/20 p-5 space-y-3.5">
-          <div className="flex items-center justify-between pb-2 border-b border-teal-100">
+        <div className="rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-5 space-y-3.5">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
             <div>
-              <span className="text-xs font-bold text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Calculator size={14} className="text-teal-600" />
+              <span className="text-xs font-bold text-[var(--status-success-fg)] uppercase tracking-wider flex items-center gap-1.5">
+                <Calculator size={14} className="text-[var(--status-success)]" />
                 Pillar 1: Code Check
               </span>
-              <span className="text-[10px] text-teal-700 font-mono block">
+              <span className="text-[10px] text-[var(--status-success)] font-mono block">
                 Deterministic Software Layer
               </span>
             </div>
             <span
-    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${!isDetChecked ? "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-control)]" : isDetVerified ? "text-teal-800 bg-teal-50 border-teal-300" : "text-[var(--status-warning)] bg-amber-50 border-amber-300"}`}
+    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${!isDetChecked ? "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-control)]" : isDetVerified ? "text-[var(--status-success)] bg-[var(--status-success-bg)] border-[var(--status-success-border)]" : "text-[var(--status-warning)] bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]"}`}
   >
               {!isDetChecked ? "Not Checked" : isDetVerified ? "Code Verified" : "Check Flagged"}
             </span>
           </div>
 
           <div className="space-y-2 text-xs text-[var(--text-primary)]">
-            <div className="flex items-center justify-between py-1 border-b border-teal-100/60 font-mono text-[11px]">
+            <div className="flex items-center justify-between py-1 border-b border-[var(--border-subtle)] font-mono text-[11px]">
               <span>Roster Coverage:</span>
-              <span className={det?.coveragePassed ? "text-teal-800 font-bold" : "text-[var(--status-warning)]"}>
+              <span className={det?.coveragePassed ? "text-[var(--status-success)] font-bold" : "text-[var(--status-warning)]"}>
                 {det?.coveragePassed ? "Coverage Complete" : "Incomplete"}
               </span>
             </div>
-            <div className="flex items-center justify-between py-1 border-b border-teal-100/60 font-mono text-[11px]">
+            <div className="flex items-center justify-between py-1 border-b border-[var(--border-subtle)] font-mono text-[11px]">
               <span>Cluster Arithmetic:</span>
-              <span className={det?.clusterMathPassed ? "text-teal-800 font-bold" : "text-[var(--status-warning)]"}>
+              <span className={det?.clusterMathPassed ? "text-[var(--status-success)] font-bold" : "text-[var(--status-warning)]"}>
                 {det?.clusterMathPassed ? "Math Sound" : "Discrepancy"}
               </span>
             </div>
-            <div className="flex items-center justify-between py-1 border-b border-teal-100/60 font-mono text-[11px]">
+            <div className="flex items-center justify-between py-1 border-b border-[var(--border-subtle)] font-mono text-[11px]">
               <span>Student Partition:</span>
-              <span className={det?.groupPartitionPassed ? "text-teal-800 font-bold" : "text-[var(--status-warning)]"}>
+              <span className={det?.groupPartitionPassed ? "text-[var(--status-success)] font-bold" : "text-[var(--status-warning)]"}>
                 {det?.groupPartitionPassed ? "Disjoint & Complete" : "Overlap"}
               </span>
             </div>
-            <div className="flex items-center justify-between py-1 border-b border-teal-100/60 font-mono text-[11px]">
+            <div className="flex items-center justify-between py-1 border-b border-[var(--border-subtle)] font-mono text-[11px]">
               <span>Evidence Validation:</span>
-              <span className={det?.evidenceValidationPassed === true ? "text-teal-800 font-bold" : det?.evidenceValidationPassed === false ? "text-[var(--status-error)] font-bold" : "text-[var(--text-secondary)]"}>
+              <span className={det?.evidenceValidationPassed === true ? "text-[var(--status-success)] font-bold" : det?.evidenceValidationPassed === false ? "text-[var(--status-error)] font-bold" : "text-[var(--text-secondary)]"}>
                 {det?.evidenceValidationPassed === true ? "Passed" : det?.evidenceValidationPassed === false ? "Review Required" : "Not Checked"}
               </span>
             </div>
@@ -147,7 +147,7 @@ const VerificationPanel = ({
               </span>
             </div>
             <span
-    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${isGeminiVerified ? "text-[var(--status-info-fg)] bg-[var(--status-info-bg)] border-[var(--status-info-border)]" : isGeminiPartial ? "text-[var(--status-warning)] bg-amber-50 border-amber-300" : "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-control)]"}`}
+    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${isGeminiVerified ? "text-[var(--status-info-fg)] bg-[var(--status-info-bg)] border-[var(--status-info-border)]" : isGeminiPartial ? "text-[var(--status-warning)] bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]" : "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-control)]"}`}
   >
               {isGeminiVerified ? "Audit Passed" : isGeminiPartial ? "Partial Audit" : "Review Required"}
             </span>
@@ -184,8 +184,8 @@ const VerificationPanel = ({
         {
     /* Pillar 3: HUMAN EDUCATOR AGENCY */
   }
-        <div className="rounded-xl border border-amber-200 bg-amber-50/20 p-5 space-y-3.5">
-          <div className="flex items-center justify-between pb-2 border-b border-amber-100">
+        <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-5 space-y-3.5">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--status-warning-border)]">
             <div>
               <span className="text-xs font-bold text-[var(--status-warning)] uppercase tracking-wider flex items-center gap-1.5">
                 <UserCheck size={14} className="text-[var(--status-warning)]" />
@@ -195,21 +195,21 @@ const VerificationPanel = ({
                 Educator Decision Authority
               </span>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border text-[var(--status-warning)] bg-amber-50 border-amber-300">
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border text-[var(--status-warning)] bg-[var(--status-warning-bg)] border-[var(--status-warning-border)]">
               {pendingCount > 0 ? `${pendingCount} Review Pending` : "All Reviewed"}
             </span>
           </div>
 
           <div className="space-y-2 text-xs text-[var(--text-primary)]">
-            <div className="flex items-center justify-between py-1 border-b border-amber-100/60 font-mono text-[11px]">
+            <div className="flex items-center justify-between py-1 border-b border-[var(--border-subtle)] font-mono text-[11px]">
               <span>Accepted by Teacher:</span>
               <span className="text-[var(--status-success)] font-bold">{acceptedCount} items</span>
             </div>
-            <div className="flex items-center justify-between py-1 border-b border-amber-100/60 font-mono text-[11px]">
+            <div className="flex items-center justify-between py-1 border-b border-[var(--border-subtle)] font-mono text-[11px]">
               <span>Edited by Teacher:</span>
               <span className="text-[var(--status-info-fg)] font-bold">{editedCount} items</span>
             </div>
-            <div className="flex items-center justify-between py-1 border-b border-amber-100/60 font-mono text-[11px]">
+            <div className="flex items-center justify-between py-1 border-b border-[var(--border-subtle)] font-mono text-[11px]">
               <span>Dismissed by Teacher:</span>
               <span className="text-[var(--text-secondary)] font-bold">{dismissedCount} items</span>
             </div>
