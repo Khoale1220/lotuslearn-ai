@@ -7,7 +7,7 @@
               },
     "authorities":  {
                         "coordinator":  "server/services/pipelineCoordinator.js",
-                        "currentProducer":  "server/services/diagnosisService.js",
+                        "currentProducer":  "server/services/pythonDiagnosisAdapter.js",
                         "existingPythonAdapter":  "server/services/pythonObserverAdapter.js",
                         "modelProvider":  "server/geminiClient.js"
                     },
