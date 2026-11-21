@@ -1,25 +1,7 @@
-import { Type } from '@google/genai';
-import { StageModelTelemetry, generateContentDetailed } from '../geminiClient';
-import {
-  ClassSnapshot,
-  LearningContext,
-  MisconceptionCluster,
-  StudentObservation,
-} from '../../src/types';
-import { DiagnosisResultSchema } from '../schemas/analysisSchemas';
-
-export interface DiagnosisOutput {
-  classSnapshot: ClassSnapshot;
-  misconceptionClusters: MisconceptionCluster[];
-  modelUsed: string;
-  durationMs: number;
-  telemetry?: StageModelTelemetry;
-}
-
-export async function diagnoseClassPatterns(
-  context: LearningContext,
-  observations: StudentObservation[]
-): Promise<DiagnosisOutput> {
+import { Type } from "@google/genai";
+import { generateContentDetailed } from "../geminiClient";
+import { DiagnosisResultSchema } from "../schemas/analysisSchemas";
+async function diagnoseClassPatterns(context, observations) {
   const promptText = `You are the DIAGNOSIS agent in LotusLearn AI.
 Your task is to reason ACROSS the entire classroom's observations to discover class-wide misconception clusters and instructional patterns.
 
@@ -32,16 +14,16 @@ ${context.learningObjective}
 
 === STUDENT OBSERVATIONS DATASET ===
 ${JSON.stringify(
-  observations.map((o) => ({
-    studentId: o.studentId,
-    demonstratedUnderstanding: o.demonstratedUnderstanding,
-    misconceptions: o.misconceptions,
-    evidence: o.supportingEvidence,
-    supportLevel: o.recommendedSupportLevel,
-  })),
-  null,
-  2
-)}
+    observations.map((o) => ({
+      studentId: o.studentId,
+      demonstratedUnderstanding: o.demonstratedUnderstanding,
+      misconceptions: o.misconceptions,
+      evidence: o.supportingEvidence,
+      supportLevel: o.recommendedSupportLevel
+    })),
+    null,
+    2
+  )}
 
 === INSTRUCTIONS ===
 1. Reason across all students. Group individual errors into 2 to 4 distinct, cohesive, high-impact Misconception Clusters.
@@ -62,13 +44,12 @@ ${JSON.stringify(
    - overallRecommendation: executive teaching summary (2 sentences) for the teacher's next class period
 
 Return a JSON object in this exact schema.`;
-
   const genResult = await generateContentDetailed({
-    stageName: 'Stage 2: Diagnosis',
-    stageKey: 'diagnosis',
+    stageName: "Stage 2: Diagnosis",
+    stageKey: "diagnosis",
     contents: promptText,
     config: {
-      responseMimeType: 'application/json',
+      responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
@@ -79,9 +60,9 @@ Return a JSON object in this exact schema.`;
               misconceptionCount: { type: Type.INTEGER },
               strongestConcept: { type: Type.STRING },
               highestPriorityNeed: { type: Type.STRING },
-              overallRecommendation: { type: Type.STRING },
+              overallRecommendation: { type: Type.STRING }
             },
-            required: ['totalSubmissions', 'misconceptionCount', 'strongestConcept', 'highestPriorityNeed', 'overallRecommendation'],
+            required: ["totalSubmissions", "misconceptionCount", "strongestConcept", "highestPriorityNeed", "overallRecommendation"]
           },
           misconceptionClusters: {
             type: Type.ARRAY,
@@ -93,7 +74,7 @@ Return a JSON object in this exact schema.`;
                 explanation: { type: Type.STRING },
                 affectedStudentIds: {
                   type: Type.ARRAY,
-                  items: { type: Type.STRING },
+                  items: { type: Type.STRING }
                 },
                 evidenceExamples: {
                   type: Type.ARRAY,
@@ -102,89 +83,82 @@ Return a JSON object in this exact schema.`;
                     properties: {
                       studentId: { type: Type.STRING },
                       excerpt: { type: Type.STRING },
-                      groundingReason: { type: Type.STRING },
+                      groundingReason: { type: Type.STRING }
                     },
-                    required: ['studentId', 'excerpt', 'groundingReason'],
-                  },
+                    required: ["studentId", "excerpt", "groundingReason"]
+                  }
                 },
                 teachingPriority: { type: Type.STRING },
                 confidence: { type: Type.NUMBER },
-                recommendedInstructionalResponse: { type: Type.STRING },
+                recommendedInstructionalResponse: { type: Type.STRING }
               },
-              required: ['clusterId', 'misconceptionTitle', 'explanation', 'affectedStudentIds', 'evidenceExamples'],
-            },
-          },
+              required: ["clusterId", "misconceptionTitle", "explanation", "affectedStudentIds", "evidenceExamples"]
+            }
+          }
         },
-        required: ['classSnapshot', 'misconceptionClusters'],
+        required: ["classSnapshot", "misconceptionClusters"]
       },
-      systemInstruction:
-        'You are an educational diagnostic strategist. You excel at synthesizing pattern recognition across whole-class student cohorts, anchoring every pattern in grounded student evidence.',
-    },
+      systemInstruction: "You are an educational diagnostic strategist. You excel at synthesizing pattern recognition across whole-class student cohorts, anchoring every pattern in grounded student evidence."
+    }
   });
-
-  let rawJson: any;
+  let rawJson;
   try {
     rawJson = JSON.parse(genResult.text);
   } catch {
-    const cleaned = genResult.text.replace(/```json\n?|\n?```/g, '').trim();
+    const cleaned = genResult.text.replace(/```json\n?|\n?```/g, "").trim();
     try {
       rawJson = JSON.parse(cleaned);
     } catch (parseErr) {
-      throw new Error(`Stage 2 (Diagnosis) JSON malformed: ${(parseErr as Error).message}`);
+      throw new Error(`Stage 2 (Diagnosis) JSON malformed: ${parseErr.message}`);
     }
   }
-
   const parsed = DiagnosisResultSchema.safeParse(rawJson);
   if (!parsed.success) {
     console.error(
       `[LotusLearn AI] Stage 2 Zod validation errors:`,
-      parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ')
+      parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")
     );
     throw new Error(
-      `Stage 2 (Diagnosis) schema validation failed: ${parsed.error.issues[0]?.message || 'Invalid diagnosis output'}`
+      `Stage 2 (Diagnosis) schema validation failed: ${parsed.error.issues[0]?.message || "Invalid diagnosis output"}`
     );
   }
-
   const validatedData = parsed.data;
-
-  const clusters: MisconceptionCluster[] = (validatedData.misconceptionClusters || []).map(
+  const clusters = (validatedData.misconceptionClusters || []).map(
     (c, idx) => {
       const affected = Array.isArray(c.affectedStudentIds) ? c.affectedStudentIds : [];
       const count = affected.length;
-      const percentage = Math.round((count / Math.max(1, observations.length)) * 100);
-
+      const percentage = Math.round(count / Math.max(1, observations.length) * 100);
       return {
         clusterId: c.clusterId || `cluster-${idx + 1}`,
         misconceptionTitle: c.misconceptionTitle || `Misconception ${idx + 1}`,
-        explanation: c.explanation || '',
+        explanation: c.explanation || "",
         affectedStudentIds: affected,
         studentCount: count,
         percentageAffected: percentage,
         evidenceExamples: Array.isArray(c.evidenceExamples) ? c.evidenceExamples : [],
-        teachingPriority: c.teachingPriority || 'high',
-        confidence: typeof c.confidence === 'number' ? c.confidence : 0.93,
-        recommendedInstructionalResponse: c.recommendedInstructionalResponse || '',
-        status: 'pending',
-        teacherDecision: 'pending',
+        teachingPriority: c.teachingPriority || "high",
+        confidence: typeof c.confidence === "number" ? c.confidence : 0.93,
+        recommendedInstructionalResponse: c.recommendedInstructionalResponse || "",
+        status: "pending",
+        teacherDecision: "pending"
       };
     }
   );
-
-  const snapshot: ClassSnapshot = {
+  const snapshot = {
     totalSubmissions: observations.length,
     misconceptionCount: clusters.length,
-    strongestConcept: validatedData.classSnapshot?.strongestConcept || 'Core objective foundation',
-    highestPriorityNeed: validatedData.classSnapshot?.highestPriorityNeed || 'Targeted misconception remediation',
-    overallRecommendation:
-      validatedData.classSnapshot?.overallRecommendation ||
-      'Address the highest-prevalence misconception in tomorrow’s opening diagnostic review.',
+    strongestConcept: validatedData.classSnapshot?.strongestConcept || "Core objective foundation",
+    highestPriorityNeed: validatedData.classSnapshot?.highestPriorityNeed || "Targeted misconception remediation",
+    overallRecommendation: validatedData.classSnapshot?.overallRecommendation || "Address the highest-prevalence misconception in tomorrow’s opening diagnostic review."
   };
-
   return {
     classSnapshot: snapshot,
     misconceptionClusters: clusters,
     modelUsed: genResult.modelUsed,
     durationMs: genResult.durationMs,
-    telemetry: genResult.telemetry,
+    telemetry: genResult.telemetry
   };
 }
+export {
+  diagnoseClassPatterns
+};
