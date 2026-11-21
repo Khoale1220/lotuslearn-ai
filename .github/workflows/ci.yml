@@ -18,14 +18,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python for TypeScript exit ratchet
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Enforce TypeScript exit ratchet
-        run: python scripts/verify_typescript_ratchet.py
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -43,8 +35,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Enforce zero-TypeScript repository gate
+        run: npm run verify:zero-typescript
 
       - name: Set up Python for cross-language Node tests
         uses: actions/setup-python@v5

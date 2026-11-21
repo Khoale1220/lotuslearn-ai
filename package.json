@@ -24,7 +24,8 @@
     "dbt:parse": "dbt parse --project-dir analytics --profiles-dir analytics",
     "dbt:test:unit": "dbt test --project-dir analytics --profiles-dir analytics --select test_type:unit",
     "dbt:build": "dbt build --project-dir analytics --profiles-dir analytics",
-    "dbt:docs": "dbt docs generate --project-dir analytics --profiles-dir analytics"
+    "dbt:docs": "dbt docs generate --project-dir analytics --profiles-dir analytics",
+    "verify:zero-typescript": "node scripts/verify_zero_typescript.js"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

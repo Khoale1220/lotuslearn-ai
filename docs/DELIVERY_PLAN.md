@@ -89,7 +89,7 @@ Every milestone must satisfy the following explicit quality gates before promoti
    - SQLite connections strictly enforce foreign keys (`PRAGMA foreign_keys = ON;`).
 5. **Continuous Integration & Clean Build**:
    - `npm run lint` executes with zero errors.
-   - `npm run typecheck` passes with zero TypeScript diagnostic errors.
+   - `npm run verify:zero-typescript` confirms the repository remains free of TypeScript source and TypeScript execution tooling.
    - `npm test` passes 100% of regression test cases (237 tests across 48 test suites).
    - `npm run lint:python` executes cleanly with zero ruff warnings.
    - `npm run test:python` passes 100% of Python unit and cross-language tests.
