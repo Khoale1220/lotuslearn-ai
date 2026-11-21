@@ -1,0 +1,93 @@
+{
+    "contractVersion":  "stage3-diagnosis.v1",
+    "stage":  {
+                  "number":  3,
+                  "name":  "Gemini Diagnosis",
+                  "ownershipTarget":  "python"
+              },
+    "authorities":  {
+                        "coordinator":  "server/services/pipelineCoordinator.js",
+                        "currentProducer":  "server/services/pythonDiagnosisAdapter.js",
+                        "existingPythonAdapter":  "server/services/pythonObserverAdapter.js",
+                        "modelProvider":  "server/geminiClient.js"
+                    },
+    "request":  {
+                    "transport":  "json-stdio",
+                    "fields":  [
+                                   "context",
+                                   "observations"
+                               ],
+                    "required":  [
+                                     "context",
+                                     "observations"
+                                 ],
+                    "semantics":  {
+                                      "context":  "existing LearningContext-compatible payload",
+                                      "observations":  "existing StudentObservation-compatible array"
+                                  }
+                },
+    "response":  {
+                     "transport":  "json-stdio",
+                     "fields":  [
+                                    "classSnapshot",
+                                    "misconceptionClusters",
+                                    "modelUsed",
+                                    "durationMs",
+                                    "telemetry"
+                                ],
+                     "required":  [
+                                      "classSnapshot",
+                                      "misconceptionClusters",
+                                      "modelUsed",
+                                      "durationMs",
+                                      "telemetry"
+                                  ],
+                     "semantics":  {
+                                       "classSnapshot":  "existing diagnosis class snapshot payload",
+                                       "misconceptionClusters":  "existing diagnosis misconception cluster array",
+                                       "modelUsed":  "existing Stage 3 model identity semantics",
+                                       "durationMs":  "existing Stage 3 duration semantics",
+                                       "telemetry":  "existing Stage 3 telemetry payload"
+                                   }
+                 },
+    "error":  {
+                  "behavior":  "fail_closed",
+                  "preserveExistingPipelineClassification":  true,
+                  "invalidJsonIsFailure":  true,
+                  "nonZeroProcessExitIsFailure":  true,
+                  "missingRequiredResponseFieldIsFailure":  true,
+                  "stdoutRule":  "single JSON response envelope only",
+                  "stderrRule":  "diagnostics only"
+              },
+    "telemetry":  {
+                      "preserveExistingSemantics":  true,
+                      "responseFields":  [
+                                             "modelUsed",
+                                             "durationMs",
+                                             "telemetry"
+                                         ]
+                  },
+    "ownership":  {
+                      "python":  [
+                                     "Stage 3 diagnosis business logic",
+                                     "Stage 3 diagnosis payload construction",
+                                     "Stage 3 diagnosis validation before response"
+                                 ],
+                      "javascript":  [
+                                         "pipeline orchestration",
+                                         "thin process adapter",
+                                         "transport lifecycle",
+                                         "fail-closed boundary enforcement"
+                                     ]
+                  },
+    "invariants":  [
+                       "No TypeScript source or TypeScript toolchain",
+                       "No Stage 4, Stage 5, Stage 6 ownership migration in MIG03",
+                       "No frontend ownership migration in MIG03",
+                       "No database ownership migration in MIG03",
+                       "Preserve current Stage 3 input envelope",
+                       "Preserve current Stage 3 output envelope",
+                       "Preserve current fail-closed behavior",
+                       "Preserve Stage 3 telemetry semantics"
+                   ]
+}
