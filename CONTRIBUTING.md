@@ -42,7 +42,7 @@ This document outlines the engineering standards, architecture invariants, and t
 
 Before submitting a change:
 
-1. **Typecheck**: `npm run typecheck`
+1. **Zero-TypeScript gate**: `npm run verify:zero-typescript`
 2. **Lint**: `npm run lint`
 3. **Automated Tests**: `npm test`
 4. **Production Build**: `npm run build`

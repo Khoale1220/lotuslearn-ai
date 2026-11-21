@@ -120,7 +120,7 @@ npm run dev
 
 ```bash
 # Node typecheck
-npm run typecheck
+npm run verify:zero-typescript
 
 # Node linting
 npm run lint

@@ -14,6 +14,6 @@
 ## Verification
 
 - [ ] `npm run lint` passed
-- [ ] `npm run typecheck` passed
+- [ ] `npm run verify:zero-typescript` passed
 - [ ] `npm test` passed
 - [ ] `npm run build` passed

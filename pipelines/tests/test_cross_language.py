@@ -12,13 +12,13 @@ from lotuslearn_pipeline.storage import AnalyticalDatabase
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-def test_typescript_producer_output_accepted_by_python_pipeline():
+def test_javascript_producer_output_accepted_by_python_pipeline():
     """
     Executes TypeScript export script, captures generated analytical events,
     and asserts that 100% of events pass Python JSON schema validation and zero-PII gates.
     """
-    script_path = REPO_ROOT / "scripts" / "export_demo_events.ts"
-    cmd = ["npx.cmd" if os.name == "nt" else "npx", "tsx", str(script_path)]
+    script_path = REPO_ROOT / "scripts" / "export_demo_events.js"
+    cmd = ["node", str(script_path)]
 
     proc = subprocess.run(
         cmd,
