@@ -1,6 +1,6 @@
 import { Type } from "@google/genai";
-import { generateContentDetailed } from "../geminiClient";
-import { VerificationResultSchema } from "../schemas/analysisSchemas";
+import { generateContentDetailed } from "../geminiClient.js";
+import { VerificationResultSchema } from "../schemas/analysisSchemas.js";
 async function verifyAnalysisPipeline(context, sanitizedSubmissions, normalizedEvidence, observations, misconceptions, groups, interventions, nextLessonPlan, deterministicAudit) {
   const promptText = `You are conducting a SEPARATE GEMINI VERIFICATION PASS (Adversarial Quality & Evidence Auditor) in LotusLearn AI.
 Your job is to rigorously audit the outputs produced by earlier pipeline stages against the ground-truth student submissions and lesson objective.

@@ -2,13 +2,13 @@ import {
   AnalyzeRequestSchema,
   InterventionAdjustSchema,
   VerifyRequestSchema
-} from "../schemas/apiSchemas";
-import { runFullAnalysisPipeline } from "../services/pipelineCoordinator";
-import { adjustIntervention } from "../services/strategyService";
-import { verifyAnalysisPipeline } from "../services/verifierService";
-import { runDeterministicValidation } from "../services/deterministicValidator";
-import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from "../../src/data/demoClassroom";
-import { getPrivacyGateway } from "../services/privacyGateway";
+} from "../schemas/apiSchemas.js";
+import { runFullAnalysisPipeline } from "../services/pipelineCoordinator.js";
+import { adjustIntervention } from "../services/strategyService.js";
+import { verifyAnalysisPipeline } from "../services/verifierService.js";
+import { runDeterministicValidation } from "../services/deterministicValidator.js";
+import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from "../../src/data/demoClassroom.js";
+import { getPrivacyGateway } from "../services/privacyGateway.js";
 class AnalysisController {
   /**
    * GET /api/demo-data

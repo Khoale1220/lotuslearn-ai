@@ -2,11 +2,11 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { z } from "zod";
-import { PipelineError } from "../errors/pipelineErrors";
+import { PipelineError } from "../errors/pipelineErrors.js";
 import {
   NormalizedSourceEvidenceSchema,
   StudentObservationListSchema
-} from "../schemas/analysisSchemas";
+} from "../schemas/analysisSchemas.js";
 const ObserverCliResultSchema = z.object({
   observations: StudentObservationListSchema,
   normalizedEvidence: z.array(NormalizedSourceEvidenceSchema),

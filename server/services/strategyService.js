@@ -1,8 +1,8 @@
 import { Type } from "@google/genai";
-import { generateContentDetailed, generateContentWithRetry } from "../geminiClient";
-import { StrategyResultSchema } from "../schemas/analysisSchemas";
-import { validateInterventionRelationships } from "./deterministicValidator";
-import { PipelineError } from "../errors/pipelineErrors";
+import { generateContentDetailed, generateContentWithRetry } from "../geminiClient.js";
+import { StrategyResultSchema } from "../schemas/analysisSchemas.js";
+import { validateInterventionRelationships } from "./deterministicValidator.js";
+import { PipelineError } from "../errors/pipelineErrors.js";
 async function planTeachingStrategy(context, observations, misconceptions) {
   const activeMisconceptions = misconceptions.filter(
     (m) => m.teacherDecision !== "dismissed" && m.status !== "dismissed"

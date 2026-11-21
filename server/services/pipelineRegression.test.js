@@ -9,23 +9,23 @@ import {
   checkQuoteInSource,
   validateInterventionRelationships,
   migrateLegacyInterventions
-} from "./deterministicValidator";
+} from "./deterministicValidator.js";
 import {
   isExactDemoClassroom,
   canonicalizeDemoPayload,
   computeDatasetFingerprint,
   DEMO_DATASET_SHA256
-} from "./demoFingerprint";
-import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from "../../src/data/demoClassroom";
+} from "./demoFingerprint.js";
+import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from "../../src/data/demoClassroom.js";
 import {
   MisconceptionClusterSchema,
   DifferentiatedInterventionSchema,
   CanonicalInterventionSchema,
   StudentObservationSchema
-} from "../schemas/analysisSchemas";
-import { generateGroundedDemoAnalysis } from "./demoFallbackGenerator";
-import { runFullAnalysisPipeline } from "./pipelineCoordinator";
-import { PipelineError, classifyGeminiError } from "../errors/pipelineErrors";
+} from "../schemas/analysisSchemas.js";
+import { generateGroundedDemoAnalysis } from "./demoFallbackGenerator.js";
+import { runFullAnalysisPipeline } from "./pipelineCoordinator.js";
+import { PipelineError, classifyGeminiError } from "../errors/pipelineErrors.js";
 import {
   generateContentDetailed,
   setGeminiClient,
@@ -34,7 +34,7 @@ import {
   isModelInCooldown,
   getModelCooldown,
   resolveStageRoutingPolicy
-} from "../geminiClient";
+} from "../geminiClient.js";
 import {
   getCodeVerificationBadge,
   getDeterministicMatchDisplay,
@@ -47,29 +47,29 @@ import {
   getPipelineErrorDisplay,
   getCrossDimensionTrustDisplay,
   getPrivacyStatusDisplay
-} from "../../src/utils/verificationDisplay";
+} from "../../src/utils/verificationDisplay.js";
 import {
   PrivacyGateway,
   setPrivacyGateway
-} from "./privacyGateway";
+} from "./privacyGateway.js";
 import {
   DeterministicSensitiveDataProtectionProvider,
   GoogleSensitiveDataProtectionProvider,
   createDefaultSensitiveDataProtectionProvider,
   setSensitiveDataProtectionProvider
-} from "./sensitiveDataProtectionProvider";
-import { analysisController } from "../controllers/analysisController";
-import { runPrivacyEvaluation } from "./privacyEvalSet";
-import { loadAppConfig, resetAppConfig } from "../config";
+} from "./sensitiveDataProtectionProvider.js";
+import { analysisController } from "../controllers/analysisController.js";
+import { runPrivacyEvaluation } from "./privacyEvalSet.js";
+import { loadAppConfig, resetAppConfig } from "../config/index.js";
 import {
   AnalyzeRequestSchema
-} from "../schemas/apiSchemas";
+} from "../schemas/apiSchemas.js";
 import {
   createRateLimiter,
   resetRateLimiterStore,
   cleanupExpiredEntries,
   getRateLimiterStoreSize
-} from "../middleware/rateLimiter";
+} from "../middleware/rateLimiter.js";
 describe("Phase P0 Final Acceptance Audit: Deterministic Fail-Closed Verification", () => {
   const sampleObservations = DEMO_SUBMISSIONS.map((s) => ({
     studentId: s.studentId,

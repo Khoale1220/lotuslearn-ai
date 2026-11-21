@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { classifyGeminiError, PipelineError } from "./errors/pipelineErrors";
+import { classifyGeminiError, PipelineError } from "./errors/pipelineErrors.js";
 const PRIMARY_GEMINI_MODEL = "gemini-3.8-flash";
 const FALLBACK_GEMINI_MODELS = [
   "gemini-3.8-flash",

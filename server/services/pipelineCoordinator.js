@@ -1,13 +1,13 @@
-import { observeSubmissions } from "./pythonObserverAdapter";
-import { diagnoseClassPatterns } from "./diagnosisService";
-import { planTeachingStrategy } from "./strategyService";
-import { verifyAnalysisPipeline } from "./verifierService";
-import { runDeterministicValidation } from "./deterministicValidator";
-import { generateGroundedDemoAnalysis } from "./demoFallbackGenerator";
-import { PRIMARY_GEMINI_MODEL } from "../geminiClient";
-import { getPrivacyGateway } from "./privacyGateway";
-import { isExactDemoClassroom, computeDatasetFingerprint } from "./demoFingerprint";
-import { PipelineError, classifyGeminiError, classifyPrivacyError } from "../errors/pipelineErrors";
+import { observeSubmissions } from "./pythonObserverAdapter.js";
+import { diagnoseClassPatterns } from "./diagnosisService.js";
+import { planTeachingStrategy } from "./strategyService.js";
+import { verifyAnalysisPipeline } from "./verifierService.js";
+import { runDeterministicValidation } from "./deterministicValidator.js";
+import { generateGroundedDemoAnalysis } from "./demoFallbackGenerator.js";
+import { PRIMARY_GEMINI_MODEL } from "../geminiClient.js";
+import { getPrivacyGateway } from "./privacyGateway.js";
+import { isExactDemoClassroom, computeDatasetFingerprint } from "./demoFingerprint.js";
+import { PipelineError, classifyGeminiError, classifyPrivacyError } from "../errors/pipelineErrors.js";
 const DEFAULT_PIPELINE_DEPENDENCIES = {
   observeSubmissions
 };

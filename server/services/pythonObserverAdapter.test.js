@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import assert from "node:assert";
 import { test } from "node:test";
-import { PipelineError } from "../errors/pipelineErrors";
-import { runObserverCli } from "./pythonObserverAdapter";
+import { PipelineError } from "../errors/pipelineErrors.js";
+import { runObserverCli } from "./pythonObserverAdapter.js";
 const fixturePath = resolve(
   process.cwd(),
   "pipelines",

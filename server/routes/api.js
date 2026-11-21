@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { analysisController } from "../controllers/analysisController";
-import { inferenceRateLimiter } from "../middleware/rateLimiter";
+import { analysisController } from "../controllers/analysisController.js";
+import { inferenceRateLimiter } from "../middleware/rateLimiter.js";
 const router = Router();
 router.get("/demo-data", (req, res) => analysisController.getDemoData(req, res));
 router.post("/analyze", inferenceRateLimiter, (req, res) => analysisController.analyze(req, res));

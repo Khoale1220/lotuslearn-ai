@@ -1,6 +1,6 @@
 import { Type } from "@google/genai";
-import { generateContentDetailed } from "../geminiClient";
-import { DiagnosisResultSchema } from "../schemas/analysisSchemas";
+import { generateContentDetailed } from "../geminiClient.js";
+import { DiagnosisResultSchema } from "../schemas/analysisSchemas.js";
 async function diagnoseClassPatterns(context, observations) {
   const promptText = `You are the DIAGNOSIS agent in LotusLearn AI.
 Your task is to reason ACROSS the entire classroom's observations to discover class-wide misconception clusters and instructional patterns.

@@ -4,7 +4,7 @@ import {
   MisconceptionClusterSchema,
   NextLessonPlanSchema,
   StudentObservationSchema
-} from "./analysisSchemas";
+} from "./analysisSchemas.js";
 const LearningContextSchema = z.object({
   subject: z.string().trim().min(1, "Subject is required").max(100, "Subject cannot exceed 100 characters"),
   gradeLevel: z.string().trim().min(1, "Grade level is required").max(50, "Grade level cannot exceed 50 characters"),
