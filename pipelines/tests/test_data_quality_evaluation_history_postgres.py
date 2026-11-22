@@ -454,3 +454,87 @@ def test_unknown_execution_uuid_is_rejected_by_database_fk(conn):
     ).fetchone()
 
     assert row is None
+
+def test_detector_evidence_round_trips_through_postgres_and_exact_replay(conn):
+    from dataclasses import replace
+
+    from lotuslearn_pipeline.data_quality_anomaly import (
+        DetectorComparison,
+        IsolationForestCandidateScore,
+    )
+
+    comparison = DetectorComparison(
+        isolation_forest=IsolationForestCandidateScore(
+            history_size=3,
+            feature_columns=("row_count_delta",),
+            decision_function=-0.25,
+            anomaly_score=0.25,
+            prediction=-1,
+            is_anomaly=True,
+        ),
+        robust_is_anomaly=True,
+        robust_anomaly_metrics=("row_count_delta",),
+        detectors_agree=True,
+    )
+    decision = replace(
+        make_decision(),
+        detector_comparison=comparison,
+    )
+    evaluation_key = "quality-run-detector-evidence-roundtrip-001"
+
+    persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+    )
+
+    first_row = conn.execute(
+        """
+        SELECT detector_evidence
+        FROM data_quality_evaluation_history
+        WHERE evaluation_key = %s
+        """,
+        (evaluation_key,),
+    ).fetchone()
+
+    assert first_row is not None
+    first_evidence = (
+        first_row["detector_evidence"]
+        if hasattr(first_row, "keys")
+        else first_row[0]
+    )
+
+    assert first_evidence is not None
+    assert first_evidence["detectors_agree"] is True
+    assert first_evidence["robust_is_anomaly"] is True
+    assert first_evidence["robust_anomaly_metrics"] == ["row_count_delta"]
+    assert first_evidence["isolation_forest"]["history_size"] == 3
+    assert first_evidence["isolation_forest"]["feature_columns"] == ["row_count_delta"]
+    assert first_evidence["isolation_forest"]["decision_function"] == pytest.approx(-0.25)
+    assert first_evidence["isolation_forest"]["anomaly_score"] == pytest.approx(0.25)
+    assert first_evidence["isolation_forest"]["prediction"] == -1
+    assert first_evidence["isolation_forest"]["is_anomaly"] is True
+
+    persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=decision,
+    )
+
+    replay_row = conn.execute(
+        """
+        SELECT detector_evidence
+        FROM data_quality_evaluation_history
+        WHERE evaluation_key = %s
+        """,
+        (evaluation_key,),
+    ).fetchone()
+
+    assert replay_row is not None
+    replay_evidence = (
+        replay_row["detector_evidence"]
+        if hasattr(replay_row, "keys")
+        else replay_row[0]
+    )
+
+    assert replay_evidence == first_evidence
