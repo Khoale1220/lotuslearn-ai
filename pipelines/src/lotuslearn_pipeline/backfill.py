@@ -66,6 +66,7 @@ class BackfillDecision(str, Enum):
 class BackfillSlotStatus(str, Enum):
     PENDING = "PENDING"
     SKIPPED = "SKIPPED"
+    CANCELLED = "CANCELLED"
     CLAIMED = "CLAIMED"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
@@ -1307,6 +1308,68 @@ def _validate_execution_link(
     raise BackfillConflictError(
         "Execution is not terminal"
     )
+
+
+def cancel_backfill(
+    database_url: str,
+    *,
+    backfill_id,
+) -> None:
+    """Cancel all still-pending slots for one backfill.
+
+    Cancellation is administrative and intentionally narrow:
+
+    - pending slots transition atomically to CANCELLED;
+    - an already-cancelled request is an idempotent no-op;
+    - claimed work fails closed rather than being revoked underneath
+      an active worker;
+    - existing worker terminal states are never rewritten.
+    """
+    backfill_id = _uuid(
+        backfill_id,
+        "backfill_id",
+    )
+
+    with psycopg.connect(database_url) as conn:
+        with conn.transaction():
+            locked_rows = conn.execute(
+                """
+                SELECT
+                    status
+                FROM pipeline_backfill_slots
+                WHERE backfill_id = %s
+                FOR UPDATE
+                """,
+                (backfill_id,),
+            ).fetchall()
+
+            if not locked_rows:
+                raise BackfillConflictError(
+                    "Unknown backfill"
+                )
+
+            if any(
+                row[0] == BackfillSlotStatus.CLAIMED.value
+                for row in locked_rows
+            ):
+                raise BackfillConflictError(
+                    "Cannot cancel backfill with claimed slots"
+                )
+
+            conn.execute(
+                """
+                UPDATE pipeline_backfill_slots
+                SET
+                    status = %s,
+                    finished_at = statement_timestamp()
+                WHERE backfill_id = %s
+                  AND status = 'PENDING'
+                """,
+                (
+                    BackfillSlotStatus.CANCELLED.value,
+                    backfill_id,
+                ),
+            )
 
 
 def complete_backfill_slot(
