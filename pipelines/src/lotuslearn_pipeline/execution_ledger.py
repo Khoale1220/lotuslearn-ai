@@ -54,6 +54,14 @@ ALLOWED_ERROR_CODES = frozenset(
     }
 )
 
+RECOVERY_ERROR_CODES = frozenset(
+    {
+        "STALE_EXECUTION",
+    }
+)
+
+PERSISTED_ERROR_CODES = ALLOWED_ERROR_CODES | RECOVERY_ERROR_CODES
+
 COUNT_FIELDS = (
     "total_attempted",
     "accepted_count",
@@ -187,7 +195,7 @@ class PostgresPipelineExecutionLedger:
 
             if (
                 state == ExecutionStatus.FAILED
-                and record.error_code not in ALLOWED_ERROR_CODES
+                and record.error_code not in PERSISTED_ERROR_CODES
             ):
                 raise ValueError("Invalid failure classification")
 

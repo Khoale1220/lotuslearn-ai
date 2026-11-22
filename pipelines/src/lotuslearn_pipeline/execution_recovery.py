@@ -114,6 +114,50 @@ def _validate_recovery_metadata(
     return normalized_actor, normalized_reason
 
 
+def get_recovery_record(
+    database_url: str,
+    *,
+    execution_id: UUID | str,
+) -> RecoveryRecord | None:
+    """Return immutable recovery audit evidence for one execution."""
+    _validate_database_url(database_url)
+    normalized_execution_id = _uuid(execution_id)
+
+    with psycopg.connect(database_url, row_factory=dict_row) as conn:
+        row = conn.execute(
+            """
+            SELECT
+                recovery_id,
+                execution_id,
+                batch_id,
+                attempt_number,
+                observed_started_at,
+                observed_heartbeat_at,
+                recovered_at,
+                actor,
+                reason
+            FROM pipeline_execution_recoveries
+            WHERE execution_id = %s
+            """,
+            (normalized_execution_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return RecoveryRecord(
+        recovery_id=row["recovery_id"],
+        execution_id=_uuid(row["execution_id"]),
+        batch_id=_uuid(row["batch_id"]),
+        attempt_number=row["attempt_number"],
+        started_at=row["observed_started_at"],
+        heartbeat_at=row["observed_heartbeat_at"],
+        finished_at=row["recovered_at"],
+        actor=row["actor"],
+        reason=row["reason"],
+    )
+
+
 def list_stale_executions(
     database_url: str,
     *,

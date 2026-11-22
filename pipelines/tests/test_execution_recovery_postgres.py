@@ -9,7 +9,12 @@ from uuid import uuid4
 import psycopg
 import pytest
 
+from lotuslearn_pipeline.execution_ledger import (
+    ExecutionStatus,
+    PostgresPipelineExecutionLedger,
+)
 from lotuslearn_pipeline.execution_recovery import (
+    get_recovery_record,
     list_stale_executions,
     recover_stale_executions,
 )
@@ -160,6 +165,27 @@ def test_recovery_fails_stale_execution_and_writes_evidence():
         assert record.actor == "pytest"
         assert record.reason == "integration stale recovery"
         assert record.finished_at >= record.heartbeat_at
+
+        ledger = PostgresPipelineExecutionLedger(url)
+        persisted_execution = ledger.get_execution(execution_id)
+
+        assert persisted_execution is not None
+        assert persisted_execution.status == ExecutionStatus.FAILED
+        assert persisted_execution.error_code == "STALE_EXECUTION"
+
+        persisted_recovery = get_recovery_record(
+            url,
+            execution_id=execution_id,
+        )
+
+        assert persisted_recovery == record
+
+        with pytest.raises(ValueError):
+            ledger.finish_execution(
+                execution_id=execution_id,
+                status=ExecutionStatus.FAILED,
+                error_code="STALE_EXECUTION",
+            )
 
         with psycopg.connect(url) as conn:
             with conn.cursor() as cur:
