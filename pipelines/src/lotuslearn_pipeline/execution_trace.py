@@ -11,6 +11,10 @@ from lotuslearn_pipeline.data_quality_evaluation_history import (
     PersistedQualityEvaluation,
     list_quality_evaluations_for_execution,
 )
+from lotuslearn_pipeline.dataset_lineage import (
+    DatasetLineageEdge,
+    list_dataset_lineage_for_execution,
+)
 from lotuslearn_pipeline.execution_ledger import (
     PipelineExecution,
     PostgresPipelineExecutionLedger,
@@ -28,6 +32,7 @@ class OperationalExecutionTrace:
     execution: PipelineExecution
     recovery: RecoveryRecord | None
     quality_evaluations: tuple[PersistedQualityEvaluation, ...]
+    dataset_lineage: tuple[DatasetLineageEdge, ...]
 
 
 def get_execution_trace(
@@ -35,8 +40,10 @@ def get_execution_trace(
     *,
     execution_id: UUID | str,
     quality_limit: int = 100,
+    lineage_limit: int = 1000,
 ) -> OperationalExecutionTrace | None:
-    """Compose bounded execution, recovery, and quality evidence."""
+    """Compose bounded execution, recovery, quality, and lineage evidence."""
+
     ledger = PostgresPipelineExecutionLedger(database_url)
     execution = ledger.get_execution(execution_id)
 
@@ -55,8 +62,15 @@ def get_execution_trace(
             limit=quality_limit,
         )
 
+        dataset_lineage = list_dataset_lineage_for_execution(
+            conn,
+            execution_id=execution.execution_id,
+            limit=lineage_limit,
+        )
+
     return OperationalExecutionTrace(
         execution=execution,
         recovery=recovery,
         quality_evaluations=quality_evaluations,
+        dataset_lineage=dataset_lineage,
     )
