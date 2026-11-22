@@ -164,7 +164,7 @@ def apply_postgres_migrations(
             """
         )
 
-        with conn.cursor() as cur:
+        with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
                 SELECT
@@ -281,7 +281,7 @@ def get_migration_status(
 
     applied_rows: Dict[str, Any] = {}
 
-    with conn.cursor() as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """
             SELECT EXISTS (
