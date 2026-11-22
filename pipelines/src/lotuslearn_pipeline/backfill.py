@@ -1359,6 +1359,50 @@ def complete_backfill_slot(
 
             slot = _slot_from_row(row)
 
+            # C13: exact terminal completion replay is idempotent.
+            if slot.status in (
+                BackfillSlotStatus.SUCCEEDED,
+                BackfillSlotStatus.FAILED,
+            ):
+                if (
+                    slot.worker_id == worker_id
+                    and slot.fence_token == fence_token
+                    and slot.execution_id is not None
+                    and slot.finished_at is not None
+                ):
+                    execution_row = conn.execute(
+                        """
+                        SELECT
+                            execution_id,
+                            batch_id,
+                            attempt_number,
+                            status,
+                            finished_at
+                        FROM pipeline_executions
+                        WHERE execution_id = %s
+                        """,
+                        (slot.execution_id,),
+                    ).fetchone()
+
+                    if execution_row is None:
+                        raise BackfillConflictError(
+                            "Terminal execution is missing "
+                            "from the durable ledger"
+                        )
+
+                    replay_status = (
+                        _validate_execution_link(
+                            slot,
+                            execution_row,
+                        )
+                    )
+
+                    if (
+                        replay_status is slot.status
+                        and execution_row["finished_at"]
+                        == slot.finished_at
+                    ):
+                        return slot
             if (
                 slot.status
                 is not BackfillSlotStatus.CLAIMED

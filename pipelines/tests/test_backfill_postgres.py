@@ -905,3 +905,390 @@ def test_stale_worker_cannot_complete_reclaimed_slot(pg_url):
     assert summary.pending == 0
     assert summary.claimed == 0
     assert summary.complete is True
+
+
+def test_terminal_completion_exact_replay_is_idempotent(
+    pg_url,
+):
+    start = _start()
+
+    created = create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key(
+            "complete"
+        ),
+        window_start=start,
+        window_end=(
+            start + timedelta(days=1)
+        ),
+        interval=timedelta(days=1),
+        max_active_runs=1,
+    )
+
+    claim = claim_backfill_slots(
+        pg_url,
+        backfill_id=(
+            created.request.backfill_id
+        ),
+        worker_id="worker-complete",
+        lease=timedelta(minutes=5),
+    )[0]
+
+    _insert_terminal_execution(
+        pg_url,
+        claim,
+        "SUCCEEDED",
+    )
+
+    completed = (
+        complete_backfill_slot(
+            pg_url,
+            backfill_id=(
+                created.request.backfill_id
+            ),
+            slot_start=(
+                claim.slot_start
+            ),
+            worker_id=claim.worker_id,
+            fence_token=claim.fence_token,
+        )
+    )
+    # Exact retry of an already committed terminal write must be a no-op.
+    replayed = complete_backfill_slot(
+            pg_url,
+            backfill_id=(
+                created.request.backfill_id
+            ),
+            slot_start=(
+                claim.slot_start
+            ),
+            worker_id=claim.worker_id,
+            fence_token=claim.fence_token,
+        )
+
+    assert replayed == completed
+    assert replayed.status == completed.status
+    assert replayed.worker_id == completed.worker_id
+    assert replayed.fence_token == completed.fence_token
+    assert replayed.execution_id == completed.execution_id
+    assert replayed.finished_at == completed.finished_at
+
+    assert (
+        completed.status
+        is BackfillSlotStatus.SUCCEEDED
+    )
+
+    assert (
+        completed.execution_id
+        == claim.execution_id
+    )
+
+    summary = get_backfill_summary(
+        pg_url,
+        backfill_id=(
+            created.request.backfill_id
+        ),
+    )
+
+    assert summary.succeeded == 1
+    assert summary.pending == 0
+    assert summary.claimed == 0
+    assert summary.complete is True
+
+# C13 terminal replay fail-closed proofs.
+def test_terminal_completion_replay_wrong_worker_is_rejected(
+    pg_url,
+):
+    start = _start()
+
+    created = create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key('complete-wrong-worker'),
+        window_start=start,
+        window_end=(
+            start + timedelta(days=1)
+        ),
+        interval=timedelta(days=1),
+        max_active_runs=1,
+    )
+
+    claim = claim_backfill_slots(
+        pg_url,
+        backfill_id=(
+            created.request.backfill_id
+        ),
+        worker_id="worker-complete",
+        lease=timedelta(minutes=5),
+    )[0]
+
+    _insert_terminal_execution(
+        pg_url,
+        claim,
+        "SUCCEEDED",
+    )
+
+    _completed = (
+        complete_backfill_slot(
+            pg_url,
+            backfill_id=(
+                created.request.backfill_id
+            ),
+            slot_start=(
+                claim.slot_start
+            ),
+            worker_id=claim.worker_id,
+            fence_token=claim.fence_token,
+        )
+    )
+    # Exact retry of an already committed terminal write must be a no-op.
+    from lotuslearn_pipeline.backfill import (
+        BackfillConflictError as C13BackfillConflictError,
+    )
+
+    def terminal_snapshot():
+        with psycopg.connect(pg_url) as conn:
+            return conn.execute(
+                """
+                SELECT
+                    status,
+                    worker_id,
+                    fence_token,
+                    execution_id,
+                    finished_at
+                FROM pipeline_backfill_slots
+                WHERE backfill_id = %s
+                  AND slot_start = %s
+                """,
+                (
+                    created.request.backfill_id,
+                    claim.slot_start,
+                ),
+            ).fetchone()
+
+    before_row = terminal_snapshot()
+    assert before_row is not None
+
+    with pytest.raises(
+        C13BackfillConflictError,
+    ):
+        complete_backfill_slot(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+            slot_start=claim.slot_start,
+            worker_id=f"{claim.worker_id}-wrong",
+            fence_token=claim.fence_token,
+        )
+
+    after_row = terminal_snapshot()
+
+    assert after_row == before_row
+    assert after_row[1] == claim.worker_id
+    assert after_row[2] == claim.fence_token
+
+    print("C13_NEGATIVE_WRONG_WORKER=PASS")
+def test_terminal_completion_replay_wrong_fence_is_rejected(
+    pg_url,
+):
+    start = _start()
+
+    created = create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key('complete-wrong-fence'),
+        window_start=start,
+        window_end=(
+            start + timedelta(days=1)
+        ),
+        interval=timedelta(days=1),
+        max_active_runs=1,
+    )
+
+    claim = claim_backfill_slots(
+        pg_url,
+        backfill_id=(
+            created.request.backfill_id
+        ),
+        worker_id="worker-complete",
+        lease=timedelta(minutes=5),
+    )[0]
+
+    _insert_terminal_execution(
+        pg_url,
+        claim,
+        "SUCCEEDED",
+    )
+
+    _completed = (
+        complete_backfill_slot(
+            pg_url,
+            backfill_id=(
+                created.request.backfill_id
+            ),
+            slot_start=(
+                claim.slot_start
+            ),
+            worker_id=claim.worker_id,
+            fence_token=claim.fence_token,
+        )
+    )
+    # Exact retry of an already committed terminal write must be a no-op.
+    from lotuslearn_pipeline.backfill import (
+        BackfillConflictError as C13BackfillConflictError,
+    )
+
+    def terminal_snapshot():
+        with psycopg.connect(pg_url) as conn:
+            return conn.execute(
+                """
+                SELECT
+                    status,
+                    worker_id,
+                    fence_token,
+                    execution_id,
+                    finished_at
+                FROM pipeline_backfill_slots
+                WHERE backfill_id = %s
+                  AND slot_start = %s
+                """,
+                (
+                    created.request.backfill_id,
+                    claim.slot_start,
+                ),
+            ).fetchone()
+
+    before_row = terminal_snapshot()
+    assert before_row is not None
+
+    with pytest.raises(
+        C13BackfillConflictError,
+    ):
+        complete_backfill_slot(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+            slot_start=claim.slot_start,
+            worker_id=claim.worker_id,
+            fence_token=claim.fence_token + 1,
+        )
+
+    after_row = terminal_snapshot()
+
+    assert after_row == before_row
+    assert after_row[1] == claim.worker_id
+    assert after_row[2] == claim.fence_token
+
+    print("C13_NEGATIVE_WRONG_FENCE=PASS")
+def test_terminal_execution_evidence_is_immutable_across_exact_replay(
+    pg_url,
+):
+    start = _start()
+
+    created = create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key('complete-evidence-drift'),
+        window_start=start,
+        window_end=(
+            start + timedelta(days=1)
+        ),
+        interval=timedelta(days=1),
+        max_active_runs=1,
+    )
+
+    claim = claim_backfill_slots(
+        pg_url,
+        backfill_id=(
+            created.request.backfill_id
+        ),
+        worker_id="worker-complete",
+        lease=timedelta(minutes=5),
+    )[0]
+
+    _insert_terminal_execution(
+        pg_url,
+        claim,
+        "SUCCEEDED",
+    )
+
+    _completed = (
+        complete_backfill_slot(
+            pg_url,
+            backfill_id=(
+                created.request.backfill_id
+            ),
+            slot_start=(
+                claim.slot_start
+            ),
+            worker_id=claim.worker_id,
+            fence_token=claim.fence_token,
+        )
+    )
+    # Exact retry of an already committed terminal write must be a no-op.
+
+    def terminal_snapshot():
+        with psycopg.connect(pg_url) as conn:
+            return conn.execute(
+                """
+                SELECT
+                    status,
+                    worker_id,
+                    fence_token,
+                    execution_id,
+                    finished_at
+                FROM pipeline_backfill_slots
+                WHERE backfill_id = %s
+                  AND slot_start = %s
+                """,
+                (
+                    created.request.backfill_id,
+                    claim.slot_start,
+                ),
+            ).fetchone()
+
+    before_row = terminal_snapshot()
+    assert before_row is not None
+
+    execution_id = before_row[3]
+    assert execution_id is not None
+
+    with pytest.raises(
+        psycopg.errors.CheckViolation,
+        match="TERMINAL_EXECUTION_IMMUTABLE",
+    ):
+        with psycopg.connect(
+            pg_url,
+            autocommit=True,
+        ) as conn:
+            conn.execute(
+                """
+                UPDATE pipeline_executions
+                SET
+                    finished_at =
+                        finished_at +
+                        INTERVAL '1 second'
+                WHERE execution_id = %s
+                """,
+                (execution_id,),
+            )
+
+
+    replayed = complete_backfill_slot(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
+    )
+
+    assert replayed.worker_id == claim.worker_id
+    assert replayed.fence_token == claim.fence_token
+
+    after_row = terminal_snapshot()
+
+    assert after_row == before_row
+    assert after_row[1] == claim.worker_id
+    assert after_row[2] == claim.fence_token
+    assert after_row[4] == before_row[4]
+
+    print("C13_TERMINAL_EVIDENCE_IMMUTABLE=PASS")
