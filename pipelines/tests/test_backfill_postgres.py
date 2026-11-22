@@ -22,6 +22,7 @@ from lotuslearn_pipeline.backfill import (
     get_backfill_summary,
     preview_backfill,
     recover_expired_claims,
+    retry_backfill_slot,
 )
 from lotuslearn_pipeline.postgres import (
     apply_postgres_migrations,
@@ -1597,4 +1598,354 @@ def test_cancel_unknown_backfill_is_rejected(pg_url):
         backfill_module.cancel_backfill(
             pg_url,
             backfill_id=_uuid4(),
+        )
+
+
+def test_c15_failed_slot_controlled_retry_api_is_required():
+    backfill_module = __import__(
+        create_backfill.__module__,
+        fromlist=["retry_backfill_slot"],
+    )
+
+    assert hasattr(
+        backfill_module,
+        "retry_backfill_slot",
+    ), "C15 contract: retry_backfill_slot API is required"
+
+
+# ---------------------------------------------------------------------------
+# DE04 C15 - failed-slot controlled retry behavioral contracts
+# ---------------------------------------------------------------------------
+
+
+def _c15_prepare_claimed_slot(pg_url):
+    start = _start()
+    created = create_backfill(
+            pg_url,
+            pipeline_key=_pipeline_key(),
+            request_key=_request_key(
+                "complete"
+            ),
+            window_start=start,
+            window_end=(
+                start + timedelta(days=1)
+            ),
+            interval=timedelta(days=1),
+            max_active_runs=1,
+        )
+    claim = claim_backfill_slots(
+            pg_url,
+            backfill_id=(
+                created.request.backfill_id
+            ),
+            worker_id="worker-complete",
+            lease=timedelta(minutes=5),
+        )[0]
+    _insert_terminal_execution(
+            pg_url,
+            claim,
+            "SUCCEEDED",
+        )
+    return created, claim
+
+
+def _c15_force_slot_status(
+    pg_url,
+    *,
+    backfill_id,
+    slot_start,
+    status,
+):
+    """Create an exact database state needed by C15 behavior contracts."""
+    with psycopg.connect(
+        pg_url,
+        row_factory=dict_row,
+    ) as conn:
+        with conn.transaction():
+            current = conn.execute(
+                """
+                SELECT *
+                FROM pipeline_backfill_slots
+                WHERE backfill_id = %s
+                  AND slot_start = %s
+                FOR UPDATE
+                """,
+                (
+                    backfill_id,
+                    slot_start,
+                ),
+            ).fetchone()
+
+            assert current is not None
+
+            assignments = [
+                "status = %s",
+            ]
+            parameters = [
+                status,
+            ]
+
+            if status in (
+                "FAILED",
+                "SUCCEEDED",
+            ):
+                if "finished_at" in current:
+                    assignments.append(
+                        "finished_at = statement_timestamp()"
+                    )
+
+            if status == "CANCELLED":
+                for field in (
+                    "worker_id",
+                    "claimed_at",
+                    "lease_expires_at",
+                    "heartbeat_at",
+                    "execution_id",
+                ):
+                    if field in current:
+                        assignments.append(
+                            f"{field} = NULL"
+                        )
+
+                if "finished_at" in current:
+                    assignments.append(
+                        "finished_at = statement_timestamp()"
+                    )
+
+            query = f"""
+                UPDATE pipeline_backfill_slots
+                SET {", ".join(assignments)}
+                WHERE backfill_id = %s
+                  AND slot_start = %s
+                RETURNING *
+            """
+
+            parameters.extend(
+                (
+                    backfill_id,
+                    slot_start,
+                )
+            )
+
+            updated = conn.execute(
+                query,
+                tuple(parameters),
+            ).fetchone()
+
+            assert updated is not None
+
+            return updated
+
+
+def _c15_execution_count(pg_url):
+    with psycopg.connect(
+        pg_url,
+        row_factory=dict_row,
+    ) as conn:
+        row = conn.execute(
+            """
+            SELECT count(*) AS execution_count
+            FROM pipeline_executions
+            """
+        ).fetchone()
+
+    assert row is not None
+    return row["execution_count"]
+
+
+def test_c15_failed_slot_retry_moves_failed_to_pending(
+    pg_url,
+):
+    created, claim = _c15_prepare_claimed_slot(
+        pg_url
+    )
+
+    old_fence = claim.fence_token
+
+    _c15_force_slot_status(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+        status="FAILED",
+    )
+
+    executions_before = _c15_execution_count(
+        pg_url
+    )
+
+    retried = retry_backfill_slot(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+    )
+
+    executions_after = _c15_execution_count(
+        pg_url
+    )
+
+    assert retried.status is BackfillSlotStatus.PENDING
+    assert retried.worker_id is None
+    assert retried.execution_id is None
+    assert retried.finished_at is None
+    assert retried.fence_token == old_fence
+    assert executions_after == executions_before
+
+
+def test_c15_failed_slot_exact_retry_is_idempotent(
+    pg_url,
+):
+    created, claim = _c15_prepare_claimed_slot(
+        pg_url
+    )
+
+    _c15_force_slot_status(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+        status="FAILED",
+    )
+
+    executions_before = _c15_execution_count(
+        pg_url
+    )
+
+    first = retry_backfill_slot(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+    )
+
+    second = retry_backfill_slot(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+    )
+
+    executions_after = _c15_execution_count(
+        pg_url
+    )
+
+    assert first.status is BackfillSlotStatus.PENDING
+    assert second.status is BackfillSlotStatus.PENDING
+    assert second == first
+    assert executions_after == executions_before
+
+
+def test_c15_failed_slot_reclaim_advances_fence_generation(
+    pg_url,
+):
+    created, claim = _c15_prepare_claimed_slot(
+        pg_url
+    )
+
+    old_fence = claim.fence_token
+
+    _c15_force_slot_status(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+        status="FAILED",
+    )
+
+    retried = retry_backfill_slot(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+    )
+
+    assert retried.status is BackfillSlotStatus.PENDING
+    assert retried.fence_token == old_fence
+
+    reclaimed_slots = claim_backfill_slots(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        worker_id='worker-c15-reclaim',
+        lease=timedelta(minutes=5),
+    )
+
+    assert reclaimed_slots
+
+    reclaim = next(
+        slot
+        for slot in reclaimed_slots
+        if slot.slot_start == claim.slot_start
+    )
+
+    assert reclaim.worker_id == "worker-c15-reclaim"
+    assert reclaim.fence_token == old_fence + 1
+
+
+def test_c15_claimed_slot_retry_fails_closed(
+    pg_url,
+):
+    created, claim = _c15_prepare_claimed_slot(
+        pg_url
+    )
+
+    with pytest.raises(BackfillConflictError):
+        retry_backfill_slot(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+            slot_start=claim.slot_start,
+        )
+
+
+def test_c15_succeeded_slot_retry_fails_closed(
+    pg_url,
+):
+    created, claim = _c15_prepare_claimed_slot(
+        pg_url
+    )
+
+    _c15_force_slot_status(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+        status="SUCCEEDED",
+    )
+
+    with pytest.raises(BackfillConflictError):
+        retry_backfill_slot(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+            slot_start=claim.slot_start,
+        )
+
+
+def test_c15_cancelled_slot_retry_fails_closed(
+    pg_url,
+):
+    created, claim = _c15_prepare_claimed_slot(
+        pg_url
+    )
+
+    _c15_force_slot_status(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+        status="CANCELLED",
+    )
+
+    with pytest.raises(BackfillConflictError):
+        retry_backfill_slot(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+            slot_start=claim.slot_start,
+        )
+
+
+def test_c15_unknown_slot_retry_fails_closed(
+    pg_url,
+):
+    from uuid import uuid4
+
+    created, claim = _c15_prepare_claimed_slot(
+        pg_url
+    )
+
+    with pytest.raises(BackfillConflictError):
+        retry_backfill_slot(
+            pg_url,
+            backfill_id=uuid4(),
+            slot_start=claim.slot_start,
         )
