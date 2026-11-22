@@ -1372,6 +1372,88 @@ def cancel_backfill(
             )
 
 
+def retry_backfill_slot(
+    database_url: str,
+    *,
+    backfill_id: UUID | str,
+    slot_start: datetime,
+) -> BackfillSlot:
+    """Return failed backfill work to pending for controlled retry."""
+    backfill_id = _uuid(
+        backfill_id,
+        "backfill_id",
+    )
+    slot_start = _timestamp(
+        slot_start,
+        "slot_start",
+    )
+
+    with psycopg.connect(
+        database_url,
+        row_factory=dict_row,
+    ) as conn:
+        with conn.transaction():
+            row = conn.execute(
+                """
+                SELECT *
+                FROM pipeline_backfill_slots
+                WHERE backfill_id = %s
+                  AND slot_start = %s
+                FOR UPDATE
+                """,
+                (
+                    backfill_id,
+                    slot_start,
+                ),
+            ).fetchone()
+
+            if row is None:
+                raise BackfillConflictError(
+                    "Unknown backfill slot"
+                )
+
+            slot = _slot_from_row(row)
+
+            if slot.status is BackfillSlotStatus.PENDING:
+                return slot
+
+            if slot.status is not BackfillSlotStatus.FAILED:
+                raise BackfillConflictError(
+                    "Backfill slot cannot be retried "
+                    f"from status {slot.status.value}"
+                )
+
+            updated = conn.execute(
+                """
+                UPDATE
+                    pipeline_backfill_slots
+                SET
+                    status = %s,
+                    worker_id = NULL,
+                    claimed_at = NULL,
+                    lease_expires_at = NULL,
+                    execution_id = NULL,
+                    finished_at = NULL
+                WHERE backfill_id = %s
+                  AND slot_start = %s
+                  AND status = 'FAILED'
+                RETURNING *
+                """,
+                (
+                    BackfillSlotStatus.PENDING.value,
+                    backfill_id,
+                    slot_start,
+                ),
+            ).fetchone()
+
+            if updated is None:
+                raise BackfillConflictError(
+                    "Backfill slot retry lost state authority"
+                )
+
+            return _slot_from_row(updated)
+
+
 def complete_backfill_slot(
     database_url: str,
     *,
