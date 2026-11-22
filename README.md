@@ -56,8 +56,8 @@ Student Submissions (Text / Images)
 
 ## Stack
 
-- Frontend: React 19, TypeScript, Tailwind CSS, Lucide Icons, Vite
-- Backend: Node.js, Express, tsx
+- Frontend: React 19, JavaScript/JSX, Tailwind CSS, Lucide Icons, Vite
+- Backend: Node.js, Express, JavaScript
 - AI & Reasoning: Google Gen AI SDK (`@google/genai`), Gemini 3.8 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash-Lite
 - Privacy & Sanitization: Google Cloud Sensitive Data Protection (REST v2) with deterministic local provider
 - Validation: Zod and JSON Schema Draft 2020-12
@@ -70,7 +70,7 @@ Student Submissions (Text / Images)
 The data engineering milestones establish a verifiable analytical event contract, transactional idempotency, dual-backend persistence, and a governed dbt transformation layer for the LotusLearn analytical pipeline:
 
 1. Canonical Analytical Contract (`contracts/analytical_event.schema.json`): Authored in JSON Schema Draft 2020-12. Specifies strictly typed event envelopes for `ANALYSIS_INGESTED`, `FINDING_IDENTIFIED`, `GROUP_FORMED`, `VERIFICATION_AUDITED`, and `DECISION_RECORDED`. Zero student text, raw names, emails, phone numbers, or credentials can enter the schema.
-2. **Python Analytical Producer** (`pipelines/src/lotuslearn_pipeline/analytical_event_producer.py`): Canonical owner of deterministic, idempotent analytical-event production, preserving SHA-256 event-ID and authentic domain-timestamp contracts. The former TypeScript producer was retired after parity certification and zero-runtime-consumer cutover.
+2. **Python Analytical Producer** (`pipelines/src/lotuslearn_pipeline/analytical_event_producer.py`): Canonical owner of deterministic, idempotent analytical-event production, preserving SHA-256 event-ID and authentic domain-timestamp contracts. The legacy producer was retired after parity certification and zero-runtime-consumer cutover.
 3. Python Ingestion Gate (`pipelines/src/lotuslearn_pipeline/ingestion.py`): Validates incoming event payloads against Draft 2020-12 schemas using `importlib.resources` and enforces fail-closed zero-PII checks. Categorizes records into accepted, duplicate, conflict, and rejected with safe diagnostic error codes that never echo sensitive payload text.
 4. Relational Storage and Authoritative Metrics:
    - SQLite Backend (`pipelines/src/lotuslearn_pipeline/storage.py`): Enforces `PRAGMA foreign_keys = ON;` on every database connection. Serves fast local development and hermetic CI unit tests.
@@ -119,7 +119,7 @@ npm run dev
 ## Quality Gates and Verification
 
 ```bash
-# Node typecheck
+# Zero-TypeScript repository policy
 npm run verify:zero-typescript
 
 # Node linting
