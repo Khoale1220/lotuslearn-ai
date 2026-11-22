@@ -172,6 +172,94 @@ def _record_from_row(
     )
 
 
+
+def get_quality_evaluation(
+    conn: Connection[Any],
+    *,
+    evaluation_key: str,
+) -> PersistedQualityEvaluation | None:
+    """Return one immutable quality-evaluation record by idempotency key."""
+    if not isinstance(evaluation_key, str):
+        raise TypeError("evaluation_key must be a string")
+
+    key = evaluation_key.strip()
+
+    if not key:
+        raise ValueError("evaluation_key must not be empty")
+
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            """
+            SELECT
+                evaluation_key, execution_id,
+                decision_fingerprint,
+                reconciliation_fingerprint,
+                evaluation_status,
+                reconciliation_status,
+                history_size,
+                analytics_ready,
+                reasons,
+                feature_columns,
+                detector_evidence,
+                payload,
+                created_at
+            FROM data_quality_evaluation_history
+            WHERE evaluation_key = %s
+            """,
+            (key,),
+        )
+        row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return _record_from_row(row)
+
+
+def list_quality_evaluations_for_execution(
+    conn: Connection[Any],
+    *,
+    execution_id: UUID,
+    limit: int = 100,
+) -> tuple[PersistedQualityEvaluation, ...]:
+    """Return bounded immutable quality evidence linked to one execution."""
+    if not isinstance(execution_id, UUID):
+        raise TypeError("execution_id must be a UUID")
+
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        raise TypeError("limit must be an integer")
+
+    if limit < 1 or limit > 1000:
+        raise ValueError("limit must be between 1 and 1000")
+
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            """
+            SELECT
+                evaluation_key, execution_id,
+                decision_fingerprint,
+                reconciliation_fingerprint,
+                evaluation_status,
+                reconciliation_status,
+                history_size,
+                analytics_ready,
+                reasons,
+                feature_columns,
+                detector_evidence,
+                payload,
+                created_at
+            FROM data_quality_evaluation_history
+            WHERE execution_id = %s
+            ORDER BY created_at ASC, evaluation_key ASC
+            LIMIT %s
+            """,
+            (execution_id, limit),
+        )
+        rows = cursor.fetchall()
+
+    return tuple(_record_from_row(row) for row in rows)
+
+
 def persist_quality_evaluation(
     conn: Connection[Any],
     *,
@@ -324,6 +412,8 @@ __all__ = [
     "PersistedQualityEvaluation",
     "QualityEvaluationConflictError",
     "QualityEvaluationPersistenceDisposition",
+    "get_quality_evaluation",
+    "list_quality_evaluations_for_execution",
     "persist_quality_evaluation",
     "quality_evaluation_fingerprint",
     "quality_evaluation_payload",

@@ -15,6 +15,8 @@ from lotuslearn_pipeline.data_quality_evaluation import (
 from lotuslearn_pipeline.data_quality_evaluation_history import (
     QualityEvaluationConflictError,
     QualityEvaluationPersistenceDisposition,
+    get_quality_evaluation,
+    list_quality_evaluations_for_execution,
     persist_quality_evaluation,
 )
 from lotuslearn_pipeline.postgres import apply_postgres_migrations
@@ -538,3 +540,152 @@ def test_detector_evidence_round_trips_through_postgres_and_exact_replay(conn):
     )
 
     assert replay_evidence == first_evidence
+
+
+
+# DE04 C6 operational evidence read-model contracts
+
+
+def test_get_quality_evaluation_returns_persisted_record(conn):
+    from uuid import uuid4
+
+    execution_id = _f4b_create_execution(conn)
+    evaluation_key = f"c6-get-{uuid4()}"
+
+    persisted = persist_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+        decision=make_decision(),
+        execution_id=execution_id,
+    )
+
+    loaded = get_quality_evaluation(
+        conn,
+        evaluation_key=evaluation_key,
+    )
+
+    assert loaded == persisted.record
+    assert loaded is not None
+    assert loaded.evaluation_key == evaluation_key
+    assert loaded.execution_id == execution_id
+
+
+def test_get_quality_evaluation_returns_none_for_unknown_key(conn):
+    from uuid import uuid4
+
+    loaded = get_quality_evaluation(
+        conn,
+        evaluation_key=f"c6-missing-{uuid4()}",
+    )
+
+    assert loaded is None
+
+
+def test_get_quality_evaluation_validates_key(conn):
+    with pytest.raises(TypeError):
+        get_quality_evaluation(
+            conn,
+            evaluation_key=123,  # type: ignore[arg-type]
+        )
+
+    with pytest.raises(ValueError):
+        get_quality_evaluation(
+            conn,
+            evaluation_key="   ",
+        )
+
+
+def test_list_quality_evaluations_for_execution_is_filtered_and_bounded(conn):
+    from uuid import uuid4
+
+    execution_id = _f4b_create_execution(conn)
+    other_execution_id = _f4b_create_execution(conn)
+
+    first_key = f"c6-list-001-{uuid4()}"
+    second_key = f"c6-list-002-{uuid4()}"
+    third_key = f"c6-list-003-{uuid4()}"
+    other_key = f"c6-list-other-{uuid4()}"
+
+    first = persist_quality_evaluation(
+        conn,
+        evaluation_key=first_key,
+        decision=make_decision(),
+        execution_id=execution_id,
+    )
+
+    persist_quality_evaluation(
+        conn,
+        evaluation_key=other_key,
+        decision=make_decision(),
+        execution_id=other_execution_id,
+    )
+
+    second = persist_quality_evaluation(
+        conn,
+        evaluation_key=second_key,
+        decision=make_decision(),
+        execution_id=execution_id,
+    )
+
+    persist_quality_evaluation(
+        conn,
+        evaluation_key=third_key,
+        decision=make_decision(),
+        execution_id=execution_id,
+    )
+
+    records = list_quality_evaluations_for_execution(
+        conn,
+        execution_id=execution_id,
+        limit=2,
+    )
+
+    assert len(records) == 2
+    assert records[0] == first.record
+    assert records[1] == second.record
+    assert all(
+        record.execution_id == execution_id
+        for record in records
+    )
+
+
+def test_list_quality_evaluations_for_execution_returns_empty_tuple(conn):
+    from uuid import uuid4
+
+    records = list_quality_evaluations_for_execution(
+        conn,
+        execution_id=uuid4(),
+    )
+
+    assert records == ()
+
+
+@pytest.mark.parametrize(
+    ("limit", "error"),
+    [
+        (True, TypeError),
+        (0, ValueError),
+        (1001, ValueError),
+    ],
+)
+def test_list_quality_evaluations_for_execution_validates_limit(
+    conn,
+    limit,
+    error,
+):
+    from uuid import uuid4
+
+    with pytest.raises(error):
+        list_quality_evaluations_for_execution(
+            conn,
+            execution_id=uuid4(),
+            limit=limit,
+        )
+
+
+def test_list_quality_evaluations_for_execution_requires_uuid(conn):
+    with pytest.raises(TypeError):
+        list_quality_evaluations_for_execution(
+            conn,
+            execution_id="not-a-uuid",  # type: ignore[arg-type]
+        )
