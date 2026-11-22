@@ -461,6 +461,8 @@ def test_terminal_execution_links_back_to_slot(
             slot_start=(
                 claim.slot_start
             ),
+            worker_id=claim.worker_id,
+            fence_token=claim.fence_token,
         )
     )
 
@@ -506,6 +508,25 @@ def test_expired_unstarted_claim_is_requeued(
         max_active_runs=1,
     )
 
+    # C12-B: persisted fence generation starts at zero.
+    with psycopg.connect(pg_url) as c12_conn:
+        c12_initial_fences = c12_conn.execute(
+            """
+            SELECT fence_token
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+            ORDER BY slot_start
+            """,
+            (created.request.backfill_id,),
+        ).fetchall()
+
+    assert c12_initial_fences
+    assert all(
+        row[0] == 0
+        for row in c12_initial_fences
+    )
+    print("C12_PROOF_INITIAL_FENCE=0")
+
     claim = claim_backfill_slots(
         pg_url,
         backfill_id=(
@@ -514,6 +535,9 @@ def test_expired_unstarted_claim_is_requeued(
         worker_id="worker-expired",
         lease=timedelta(minutes=5),
     )[0]
+
+    assert claim.fence_token == 1
+    print(f"C12_PROOF_FIRST_CLAIM_FENCE={claim.fence_token}")
 
     with psycopg.connect(
         pg_url,
@@ -542,6 +566,26 @@ def test_expired_unstarted_claim_is_requeued(
         ),
     )
 
+    # Recovery revokes ownership but must preserve generation.
+    with psycopg.connect(pg_url) as c12_conn:
+        c12_recovery_fence = c12_conn.execute(
+            """
+            SELECT fence_token
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+              AND slot_start = %s
+            """
+            ,
+            (
+                created.request.backfill_id,
+                claim.slot_start,
+            ),
+        ).fetchone()
+
+    assert c12_recovery_fence is not None
+    assert c12_recovery_fence[0] == 1
+    print("C12_PROOF_RECOVERY_FENCE=1")
+
     assert len(actions) == 1
 
     assert (
@@ -559,6 +603,10 @@ def test_expired_unstarted_claim_is_requeued(
     )
 
     assert len(reclaimed) == 1
+
+    assert reclaimed[0].fence_token == 2
+    assert reclaimed[0].fence_token == claim.fence_token + 1
+    print(f"C12_PROOF_RECLAIM_FENCE={reclaimed[0].fence_token}")
 
     assert (
         reclaimed[0].attempt_number
@@ -628,6 +676,8 @@ def test_failed_only_reprocessing_semantics(
         slot_start=(
             claims[0].slot_start
         ),
+        worker_id=claims[0].worker_id,
+        fence_token=claims[0].fence_token,
     )
 
     complete_backfill_slot(
@@ -638,6 +688,8 @@ def test_failed_only_reprocessing_semantics(
         slot_start=(
             claims[1].slot_start
         ),
+        worker_id=claims[1].worker_id,
+        fence_token=claims[1].fence_token,
     )
 
     preview = preview_backfill(
@@ -719,3 +771,137 @@ def test_c11_indexes_are_installed(
     }
 
     assert actual == expected
+
+def test_stale_worker_cannot_complete_reclaimed_slot(pg_url):
+    from lotuslearn_pipeline.backfill import (
+        BackfillConflictError as C12BackfillConflictError,
+    )
+
+    start = _start()
+    created = create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key("complete"),
+        window_start=start,
+        window_end=start + timedelta(days=1),
+        interval=timedelta(days=1),
+        max_active_runs=1,
+    )
+    claim = claim_backfill_slots(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        worker_id="worker-complete",
+        lease=timedelta(minutes=5),
+    )[0]
+    stale_claim = claim
+    assert stale_claim.worker_id is not None
+    assert stale_claim.fence_token >= 1
+    print(f"C12_PROOF_GENERATION_A={stale_claim.fence_token}")
+    with psycopg.connect(pg_url, autocommit=True) as c12_conn:
+        expired = c12_conn.execute(
+            """
+        UPDATE pipeline_backfill_slots
+        SET
+            claimed_at =
+                statement_timestamp()
+                - INTERVAL '2 minutes',
+            lease_expires_at =
+                statement_timestamp()
+                - INTERVAL '1 minute'
+        WHERE backfill_id = %s
+          AND slot_start = %s
+          AND status = 'CLAIMED'
+          AND worker_id = %s
+          AND fence_token = %s
+        RETURNING fence_token
+        """,
+            (
+                created.request.backfill_id,
+                stale_claim.slot_start,
+                stale_claim.worker_id,
+                stale_claim.fence_token,
+            ),
+        ).fetchone()
+    assert expired is not None
+    assert expired[0] == stale_claim.fence_token
+    recovery_actions = recover_expired_claims(
+        pg_url, backfill_id=created.request.backfill_id
+    )
+    assert recovery_actions
+    c12_reclaimed = claim_backfill_slots(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        worker_id="worker-c12-current",
+        lease=timedelta(minutes=5),
+    )
+    assert len(c12_reclaimed) == 1
+    claim = c12_reclaimed[0]
+    assert claim.slot_start == stale_claim.slot_start
+    assert claim.worker_id == "worker-c12-current"
+    assert claim.fence_token == stale_claim.fence_token + 1
+    print(f"C12_PROOF_GENERATION_B={claim.fence_token}")
+    print("C12_PROOF_RECOVERY_RECLAIM=PASS")
+    _insert_terminal_execution(pg_url, claim, "SUCCEEDED")
+    with pytest.raises(C12BackfillConflictError):
+        complete_backfill_slot(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+            slot_start=stale_claim.slot_start,
+            worker_id=stale_claim.worker_id,
+            fence_token=stale_claim.fence_token,
+        )
+    print("C12_PROOF_STALE_TERMINAL_WRITE_REJECTED=PASS")
+    with psycopg.connect(pg_url, autocommit=True) as c12_conn:
+        current_owner = c12_conn.execute(
+            """
+        SELECT
+            status,
+            worker_id,
+            fence_token
+        FROM pipeline_backfill_slots
+        WHERE backfill_id = %s
+          AND slot_start = %s
+        """,
+            (created.request.backfill_id, claim.slot_start),
+        ).fetchone()
+    assert current_owner is not None
+    assert current_owner[0] == "CLAIMED"
+    assert current_owner[1] == claim.worker_id
+    assert current_owner[2] == claim.fence_token
+    print("C12_PROOF_CURRENT_OWNER_PRESERVED=PASS")
+    completed = complete_backfill_slot(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        slot_start=claim.slot_start,
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
+    )
+    with psycopg.connect(pg_url, autocommit=True) as c12_conn:
+        terminal_row = c12_conn.execute(
+            """
+        SELECT
+            status,
+            worker_id,
+            fence_token,
+            finished_at
+        FROM pipeline_backfill_slots
+        WHERE backfill_id = %s
+          AND slot_start = %s
+        """,
+            (created.request.backfill_id, claim.slot_start),
+        ).fetchone()
+    assert terminal_row is not None
+    assert terminal_row[0] != "CLAIMED"
+    assert terminal_row[1] == claim.worker_id
+    assert terminal_row[2] == claim.fence_token
+    assert terminal_row[3] is not None
+    print("C12_PROOF_CURRENT_TERMINAL_WRITE_ACCEPTED=PASS")
+    print(f"C12_PROOF_FENCE_SEQUENCE={stale_claim.fence_token}_TO_{claim.fence_token}")
+    print("C12_PROOF_END_TO_END_FENCING=PASS")
+    assert completed.status is BackfillSlotStatus.SUCCEEDED
+    assert completed.execution_id == claim.execution_id
+    summary = get_backfill_summary(pg_url, backfill_id=created.request.backfill_id)
+    assert summary.succeeded == 1
+    assert summary.pending == 0
+    assert summary.claimed == 0
+    assert summary.complete is True

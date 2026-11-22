@@ -1,4 +1,4 @@
-﻿"""Safe PostgreSQL orchestration for bounded LotusLearn backfills.
+"""Safe PostgreSQL orchestration for bounded LotusLearn backfills.
 
 This is an operational control plane, not a second business-data pipeline.
 
@@ -118,6 +118,9 @@ class BackfillSlot:
     claimed_at: datetime | None
     lease_expires_at: datetime | None
     finished_at: datetime | None
+
+
+    fence_token: int = 0
 
 
 @dataclass(frozen=True)
@@ -585,6 +588,7 @@ def _slot_from_row(
                 row["lease_expires_at"]
             ),
             finished_at=row["finished_at"],
+            fence_token=row["fence_token"],
         )
     except (
         KeyError,
@@ -1205,6 +1209,7 @@ def claim_backfill_slots(
                     UPDATE
                         pipeline_backfill_slots
                     SET
+                        fence_token = fence_token + 1,
                         status = 'CLAIMED',
                         attempt_number = %s,
                         batch_id = %s,
@@ -1309,6 +1314,8 @@ def complete_backfill_slot(
     *,
     backfill_id: UUID | str,
     slot_start: datetime,
+    worker_id: str,
+    fence_token: int,
 ) -> BackfillSlot:
     """Link a claim to its terminal durable ledger execution."""
 
@@ -1403,6 +1410,8 @@ def complete_backfill_slot(
                 WHERE backfill_id = %s
                   AND slot_start = %s
                   AND status = 'CLAIMED'
+                  AND worker_id = %s
+                  AND fence_token = %s
                 RETURNING *
                 """,
                 (
@@ -1410,6 +1419,8 @@ def complete_backfill_slot(
                     execution_row["finished_at"],
                     backfill_id,
                     slot_start,
+                    worker_id,
+                    fence_token,
                 ),
             ).fetchone()
 
