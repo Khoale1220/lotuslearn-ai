@@ -1372,6 +1372,79 @@ def cancel_backfill(
             )
 
 
+def reconcile_backfill_slots(
+    database_url: str,
+    *,
+    backfill_id: UUID | str,
+) -> tuple[BackfillSlot, ...]:
+    """Repair stale ownership metadata on PENDING backfill slots.
+
+    This administrative reconciliation is intentionally narrower than
+    recovery, cancellation, terminal completion, and failed-slot retry.
+
+    Only PENDING rows are repair candidates. Fence history is preserved,
+    terminal states are untouched, and no pipeline execution is created.
+    """
+
+    # C16: hold slot authority through reconciliation.
+    with database_url.transaction():
+        authority_rows = database_url.execute(
+            """
+            SELECT status
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+            FOR UPDATE
+            """,
+            (backfill_id,),
+        ).fetchall()
+
+        if not authority_rows:
+            raise BackfillConflictError(
+                f"Unknown backfill_id: {backfill_id}"
+            )
+
+        if any(
+            row["status"] == "CLAIMED"
+            for row in authority_rows
+        ):
+            raise BackfillConflictError(
+                f"Backfill {backfill_id} has claimed work"
+            )
+
+        rows = database_url.execute(
+            """
+            UPDATE pipeline_backfill_slots
+            SET
+                worker_id = NULL,
+                lease_expires_at = NULL,
+                execution_id = NULL,
+                finished_at = NULL
+            WHERE backfill_id = %s
+              AND status = 'PENDING'
+              AND (
+                    (
+                        lease_expires_at IS NOT NULL
+                        AND lease_expires_at <= statement_timestamp()
+                    )
+                    OR (
+                        lease_expires_at IS NULL
+                        AND (
+                            worker_id IS NOT NULL
+                            OR execution_id IS NOT NULL
+                            OR finished_at IS NOT NULL
+                        )
+                    )
+                )
+            RETURNING *
+            """,
+            (backfill_id,),
+        ).fetchall()
+
+    return tuple(
+        _slot_from_row(row)
+        for row in rows
+    )
+
 def retry_backfill_slot(
     database_url: str,
     *,
