@@ -1292,3 +1292,309 @@ def test_terminal_execution_evidence_is_immutable_across_exact_replay(
     assert after_row[4] == before_row[4]
 
     print("C13_TERMINAL_EVIDENCE_IMMUTABLE=PASS")
+
+
+def test_pending_backfill_cancellation_is_durable_and_unclaimable(pg_url):
+    from datetime import datetime as _datetime
+    from datetime import timedelta as _timedelta
+    from datetime import timezone as _timezone
+
+    import psycopg as _psycopg
+
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    start = _datetime(
+        2037,
+        1,
+        1,
+        tzinfo=_timezone.utc,
+    )
+
+    created = backfill_module.create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key("c14-cancel"),
+        window_start=start,
+        window_end=start + _timedelta(days=2),
+        interval=_timedelta(days=1),
+        max_active_runs=1,
+    )
+
+    cancel_backfill = getattr(
+        backfill_module,
+        "cancel_backfill",
+    )
+
+    cancel_backfill(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+    )
+
+    with _psycopg.connect(pg_url) as conn:
+        rows_before_replay = conn.execute(
+            """
+            SELECT
+                status,
+                worker_id,
+                claimed_at,
+                lease_expires_at,
+                fence_token
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+            ORDER BY slot_start
+            """,
+            (created.request.backfill_id,),
+        ).fetchall()
+
+    assert len(rows_before_replay) == 2
+
+    assert all(
+        row[0] == "CANCELLED"
+        for row in rows_before_replay
+    )
+
+    assert all(
+        row[1] is None
+        for row in rows_before_replay
+    )
+
+    assert all(
+        row[2] is None
+        for row in rows_before_replay
+    )
+
+    assert all(
+        row[3] is None
+        for row in rows_before_replay
+    )
+
+    assert all(
+        row[4] == 0
+        for row in rows_before_replay
+    )
+
+    claims = backfill_module.claim_backfill_slots(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        worker_id="worker-after-cancel",
+        lease=_timedelta(minutes=5),
+    )
+
+    assert not claims
+
+    cancel_backfill(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+    )
+
+    with _psycopg.connect(pg_url) as conn:
+        rows_after_replay = conn.execute(
+            """
+            SELECT
+                status,
+                worker_id,
+                claimed_at,
+                lease_expires_at,
+                fence_token
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+            ORDER BY slot_start
+            """,
+            (created.request.backfill_id,),
+        ).fetchall()
+
+    assert rows_after_replay == rows_before_replay
+def test_backfill_cancellation_with_claimed_slot_is_atomic_fail_closed(
+    pg_url,
+):
+    from datetime import datetime as _datetime
+    from datetime import timedelta as _timedelta
+    from datetime import timezone as _timezone
+
+    import psycopg as _psycopg
+    import pytest as _pytest
+
+    from lotuslearn_pipeline import backfill as backfill_module
+    from lotuslearn_pipeline.backfill import (
+        BackfillConflictError as C14BackfillConflictError,
+    )
+
+    start = _datetime(
+        2037,
+        2,
+        1,
+        tzinfo=_timezone.utc,
+    )
+
+    created = backfill_module.create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key("c14-claimed-atomic"),
+        window_start=start,
+        window_end=start + _timedelta(days=2),
+        interval=_timedelta(days=1),
+        max_active_runs=1,
+    )
+
+    claims = backfill_module.claim_backfill_slots(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        worker_id="worker-c14-active",
+        lease=_timedelta(minutes=5),
+    )
+
+    assert len(claims) == 1
+
+    with _psycopg.connect(pg_url) as conn:
+        before = conn.execute(
+            """
+            SELECT
+                slot_start,
+                status,
+                worker_id,
+                fence_token,
+                claimed_at,
+                lease_expires_at,
+                finished_at
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+            ORDER BY slot_start
+            """,
+            (created.request.backfill_id,),
+        ).fetchall()
+
+    assert sum(row[1] == "CLAIMED" for row in before) == 1
+    assert sum(row[1] == "PENDING" for row in before) == 1
+
+    with _pytest.raises(C14BackfillConflictError):
+        backfill_module.cancel_backfill(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+        )
+
+    with _psycopg.connect(pg_url) as conn:
+        after = conn.execute(
+            """
+            SELECT
+                slot_start,
+                status,
+                worker_id,
+                fence_token,
+                claimed_at,
+                lease_expires_at,
+                finished_at
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+            ORDER BY slot_start
+            """,
+            (created.request.backfill_id,),
+        ).fetchall()
+
+    assert after == before
+
+
+def test_backfill_cancellation_preserves_terminal_slots(pg_url):
+    from datetime import datetime as _datetime
+    from datetime import timedelta as _timedelta
+    from datetime import timezone as _timezone
+
+    import psycopg as _psycopg
+
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    start = _datetime(
+        2037,
+        3,
+        1,
+        tzinfo=_timezone.utc,
+    )
+
+    created = backfill_module.create_backfill(
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key("c14-terminal-preserve"),
+        window_start=start,
+        window_end=start + _timedelta(days=2),
+        interval=_timedelta(days=1),
+        max_active_runs=1,
+    )
+
+    with _psycopg.connect(pg_url) as conn:
+        with conn.transaction():
+            terminal_before = conn.execute(
+                """
+                UPDATE pipeline_backfill_slots
+                SET
+                    status = 'SKIPPED',
+                    finished_at = statement_timestamp()
+                WHERE backfill_id = %s
+                  AND slot_start = (
+                      SELECT MIN(slot_start)
+                      FROM pipeline_backfill_slots
+                      WHERE backfill_id = %s
+                  )
+                RETURNING
+                    slot_start,
+                    status,
+                    worker_id,
+                    fence_token,
+                    finished_at
+                """,
+                (
+                    created.request.backfill_id,
+                    created.request.backfill_id,
+                ),
+            ).fetchone()
+
+    assert terminal_before is not None
+    assert terminal_before[1] == "SKIPPED"
+
+    backfill_module.cancel_backfill(
+        pg_url,
+        backfill_id=created.request.backfill_id,
+    )
+
+    with _psycopg.connect(pg_url) as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                slot_start,
+                status,
+                worker_id,
+                fence_token,
+                finished_at
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+            ORDER BY slot_start
+            """,
+            (created.request.backfill_id,),
+        ).fetchall()
+
+    assert len(rows) == 2
+    assert sum(row[1] == "SKIPPED" for row in rows) == 1
+    assert sum(row[1] == "CANCELLED" for row in rows) == 1
+
+    terminal_after = next(
+        row
+        for row in rows
+        if row[1] == "SKIPPED"
+    )
+
+    assert terminal_after == terminal_before
+
+
+def test_cancel_unknown_backfill_is_rejected(pg_url):
+    from uuid import uuid4 as _uuid4
+
+    import pytest as _pytest
+
+    from lotuslearn_pipeline import backfill as backfill_module
+    from lotuslearn_pipeline.backfill import (
+        BackfillConflictError as C14BackfillConflictError,
+    )
+
+    with _pytest.raises(C14BackfillConflictError):
+        backfill_module.cancel_backfill(
+            pg_url,
+            backfill_id=_uuid4(),
+        )
