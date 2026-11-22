@@ -1949,3 +1949,502 @@ def test_c15_unknown_slot_retry_fails_closed(
             backfill_id=uuid4(),
             slot_start=claim.slot_start,
         )
+def test_c16_reconcile_backfill_slots_api_is_required():
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    assert hasattr(
+        backfill_module,
+        "reconcile_backfill_slots",
+    ), "C16 contract: reconcile_backfill_slots API is required"
+
+
+# ---------------------------------------------------------------------------
+# C16_RECONCILIATION_MATRIX_FROZEN
+#
+# Administrative reconciliation is deliberately narrower than recovery,
+# cancellation, terminal completion, and failed-slot retry.
+#
+# Authority:
+#   C11 owns expired-claim recovery.
+#   C12 owns lease/fence authority.
+#   C13 owns terminal completion and exact terminal replay.
+#   C14 owns cancellation.
+#   C15 owns FAILED -> PENDING controlled retry.
+#
+# C16 matrix:
+#
+#   PENDING + stale transient ownership
+#       -> repair transient ownership only
+#
+#   PENDING + already clean
+#       -> exact no-op
+#
+#   CLAIMED
+#       -> fail closed
+#
+#   SUCCEEDED / FAILED / CANCELLED
+#       -> no-op; terminal/history authority remains sealed
+#
+#   unknown slot / unsupported state
+#       -> fail closed
+#
+# Reconciliation MUST NOT:
+#   - create a pipeline execution
+#   - advance or reset fence history
+#   - perform FAILED retry
+#   - perform cancellation
+#   - rewrite terminal history
+#   - manufacture worker authority
+#
+# Exact replay after successful reconciliation must be idempotent.
+# ---------------------------------------------------------------------------
+
+
+# C16_BEHAVIORAL_BOUNDARY_REDS_INSTALLED
+
+def test_c16_reconcile_api_does_not_exist_without_explicit_domain_implementation():
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    assert hasattr(
+        backfill_module,
+        "reconcile_backfill_slots",
+    ), "C16 contract: reconcile_backfill_slots API is required"
+
+
+def test_c16_reconciliation_must_not_create_execution_authority():
+    import inspect
+
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    reconcile = getattr(
+        backfill_module,
+        "reconcile_backfill_slots",
+        None,
+    )
+
+    assert reconcile is not None, (
+        "C16 contract: reconcile_backfill_slots API is required"
+    )
+
+    source = inspect.getsource(reconcile)
+
+    assert "INSERT INTO pipeline_executions" not in source
+    assert "start_execution(" not in source
+
+
+def test_c16_reconciliation_must_not_reimplement_failed_retry():
+    import inspect
+
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    reconcile = getattr(
+        backfill_module,
+        "reconcile_backfill_slots",
+        None,
+    )
+
+    assert reconcile is not None, (
+        "C16 contract: reconcile_backfill_slots API is required"
+    )
+
+    source = inspect.getsource(reconcile)
+
+    assert "retry_backfill_slot(" not in source
+
+
+def test_c16_reconciliation_must_not_reimplement_cancellation():
+    import inspect
+
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    reconcile = getattr(
+        backfill_module,
+        "reconcile_backfill_slots",
+        None,
+    )
+
+    assert reconcile is not None, (
+        "C16 contract: reconcile_backfill_slots API is required"
+    )
+
+    source = inspect.getsource(reconcile)
+
+    assert "cancel_backfill(" not in source
+    assert "cancel_backfill_slot(" not in source
+
+
+def test_c16_reconciliation_must_not_delegate_expired_claim_recovery():
+    import inspect
+
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    reconcile = getattr(
+        backfill_module,
+        "reconcile_backfill_slots",
+        None,
+    )
+
+    assert reconcile is not None, (
+        "C16 contract: reconcile_backfill_slots API is required"
+    )
+
+    source = inspect.getsource(reconcile)
+
+    assert "recover_expired_claims(" not in source
+
+def _c16_seed_claimed(pg_url):
+    start = _start()
+    created = create_backfill(
+            pg_url,
+            pipeline_key=_pipeline_key(),
+            request_key=_request_key("complete"),
+            window_start=start,
+            window_end=start + timedelta(days=1),
+            interval=timedelta(days=1),
+            max_active_runs=1,
+        )
+    claim = claim_backfill_slots(
+            pg_url,
+            backfill_id=created.request.backfill_id,
+            worker_id="worker-complete",
+            lease=timedelta(minutes=5),
+        )[0]
+    return created, claim
+
+def _c16_reconcile(pg_url, backfill_id):
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        return backfill_module.reconcile_backfill_slots(
+            conn,
+            backfill_id=backfill_id,
+        )
+
+# C16_POSTGRES_BEHAVIORAL_CONTRACTS_V2
+#
+# C16 is administrative reconciliation only.
+# It must not reimplement:
+# C11 recovery,
+# C12 fencing,
+# C13 terminal replay,
+# C14 cancellation,
+# C15 FAILED-slot retry.
+
+
+def _c16_claimed_row(conn, backfill_id):
+    row = conn.execute(
+        """
+        SELECT
+            ctid::text AS c16_tid,
+            *
+        FROM pipeline_backfill_slots
+        WHERE backfill_id = %s
+          AND status = 'CLAIMED'
+        LIMIT 1
+        """,
+        (backfill_id,),
+    ).fetchone()
+
+    assert row is not None
+
+    return row
+
+
+def _c16_snapshot(conn, backfill_id):
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM pipeline_backfill_slots
+        WHERE backfill_id = %s
+        ORDER BY ctid
+        """,
+        (backfill_id,),
+    ).fetchall()
+
+    return tuple(dict(row) for row in rows)
+
+
+def test_c16_postgres_repairs_only_stale_pending_and_preserves_scope(
+    pg_url,
+):
+    created, _claim = _c16_seed_claimed(pg_url)
+    other_created, _other_claim = _c16_seed_claimed(pg_url)
+
+    backfill_id = created.request.backfill_id
+    other_id = other_created.request.backfill_id
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        claimed = _c16_claimed_row(
+            conn,
+            backfill_id,
+        )
+
+        original_fence = claimed["fence_token"]
+
+        other_before = _c16_snapshot(
+            conn,
+            other_id,
+        )
+
+        conn.execute(
+            """
+            UPDATE pipeline_backfill_slots
+            SET
+                status = 'PENDING',
+                worker_id = 'c16-stale-owner',
+                lease_expires_at = (
+                    statement_timestamp()
+                    - interval '5 minutes'
+                )
+            WHERE ctid = %s::tid
+            """,
+            (claimed["c16_tid"],),
+        )
+
+    repaired = _c16_reconcile(
+        pg_url,
+        backfill_id,
+    )
+
+    assert repaired
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        repaired_row = conn.execute(
+            """
+            SELECT *
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+              AND status = 'PENDING'
+            LIMIT 1
+            """,
+            (backfill_id,),
+        ).fetchone()
+
+        other_after = _c16_snapshot(
+            conn,
+            other_id,
+        )
+
+    assert repaired_row is not None
+    assert repaired_row["worker_id"] is None
+    assert repaired_row["lease_expires_at"] is None
+    assert repaired_row["execution_id"] is None
+    assert repaired_row["finished_at"] is None
+    assert repaired_row["fence_token"] == original_fence
+
+    assert other_after == other_before
+
+
+def test_c16_postgres_exact_replay_is_idempotent(
+    pg_url,
+):
+    created, _claim = _c16_seed_claimed(pg_url)
+
+    backfill_id = created.request.backfill_id
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        claimed = _c16_claimed_row(
+            conn,
+            backfill_id,
+        )
+
+        conn.execute(
+            """
+            UPDATE pipeline_backfill_slots
+            SET
+                status = 'PENDING',
+                worker_id = 'c16-stale-replay',
+                lease_expires_at = (
+                    statement_timestamp()
+                    - interval '5 minutes'
+                )
+            WHERE ctid = %s::tid
+            """,
+            (claimed["c16_tid"],),
+        )
+
+    first = _c16_reconcile(
+        pg_url,
+        backfill_id,
+    )
+
+    second = _c16_reconcile(
+        pg_url,
+        backfill_id,
+    )
+
+    assert first
+    assert second == ()
+
+
+def test_c16_postgres_claimed_and_unknown_fail_closed(
+    pg_url,
+):
+    from uuid import uuid4
+
+    from lotuslearn_pipeline import backfill as backfill_module
+
+    created, _claim = _c16_seed_claimed(pg_url)
+
+    backfill_id = created.request.backfill_id
+
+    with pytest.raises(
+        backfill_module.BackfillConflictError,
+    ):
+        _c16_reconcile(
+            pg_url,
+            backfill_id,
+        )
+
+    with pytest.raises(
+        backfill_module.BackfillConflictError,
+    ):
+        _c16_reconcile(
+            pg_url,
+            uuid4(),
+        )
+
+
+@pytest.mark.parametrize(
+    "terminal_status",
+    (
+        "FAILED",
+        "SUCCEEDED",
+        "CANCELLED",
+    ),
+)
+def test_c16_postgres_terminal_slots_are_immutable(
+    pg_url,
+    terminal_status,
+):
+    created, _claim = _c16_seed_claimed(pg_url)
+
+    backfill_id = created.request.backfill_id
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        claimed = _c16_claimed_row(
+            conn,
+            backfill_id,
+        )
+
+        conn.execute(
+            """
+            UPDATE pipeline_backfill_slots
+            SET
+                status = %s,
+                worker_id = NULL,
+                lease_expires_at = NULL,
+                finished_at = statement_timestamp()
+            WHERE ctid = %s::tid
+            """,
+            (
+                terminal_status,
+                claimed["c16_tid"],
+            ),
+        )
+
+        before = _c16_snapshot(
+            conn,
+            backfill_id,
+        )
+
+    result = _c16_reconcile(
+        pg_url,
+        backfill_id,
+    )
+
+    assert result == ()
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        after = _c16_snapshot(
+            conn,
+            backfill_id,
+        )
+
+    assert after == before
+
+
+def test_c16_postgres_fresh_pending_authority_is_not_reconciled(
+    pg_url,
+):
+    created, _claim = _c16_seed_claimed(pg_url)
+
+    backfill_id = created.request.backfill_id
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        claimed = _c16_claimed_row(
+            conn,
+            backfill_id,
+        )
+
+        original_fence = claimed["fence_token"]
+
+        conn.execute(
+            """
+            UPDATE pipeline_backfill_slots
+            SET
+                status = 'PENDING',
+                worker_id = 'c16-fresh-owner',
+                lease_expires_at = (
+                    statement_timestamp()
+                    + interval '5 minutes'
+                )
+            WHERE ctid = %s::tid
+            """,
+            (claimed["c16_tid"],),
+        )
+
+    result = _c16_reconcile(
+        pg_url,
+        backfill_id,
+    )
+
+    assert result == ()
+
+    with psycopg.connect(
+        pg_url,
+        autocommit=True,
+        row_factory=dict_row,
+    ) as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM pipeline_backfill_slots
+            WHERE backfill_id = %s
+              AND worker_id = 'c16-fresh-owner'
+            LIMIT 1
+            """,
+            (backfill_id,),
+        ).fetchone()
+
+    assert row is not None
+    assert row["lease_expires_at"] is not None
+    assert row["fence_token"] == original_fence
