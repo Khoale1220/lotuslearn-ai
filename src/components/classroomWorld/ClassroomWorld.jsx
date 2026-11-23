@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { stepPlayerMovement } from "./playerMovement.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
+import { createClassroomObstacles } from "./classroomObstacles.js";
 
 import {
   CLASSROOM_WORLD_FIXTURE,
@@ -43,6 +44,10 @@ function ClassroomWorld() {
 
     const student = CLASSROOM_WORLD_FIXTURE.students[0];
     const seat = seatToWorld(student.seatIndex);
+
+    const classroomObstacles = createClassroomObstacles({
+      fixture: CLASSROOM_WORLD_FIXTURE
+    });
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x17151f);
@@ -216,7 +221,7 @@ function ClassroomWorld() {
             minZ: -ROOM_LIMIT,
             maxZ: ROOM_LIMIT
           },
-          obstacles: []
+          obstacles: classroomObstacles
         });
 
         camera.position.x = resolvedPosition.x;
