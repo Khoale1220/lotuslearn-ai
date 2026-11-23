@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import ClassroomWorld from "./components/classroomWorld/ClassroomWorld.jsx";
+import { createStudentIntelligenceBridge } from "./components/classroomWorld/studentIntelligenceBridge.js";
 import { useState, useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
@@ -277,6 +279,39 @@ function App() {
     }
     setCurrentView(target);
   };
+  const classroomIntelligenceStore = useMemo(() => {
+    if (!activeAnalysis) {
+      return createStudentIntelligenceBridge({
+        observations: [],
+        misconceptionClusters: [],
+        interventions: [],
+        analysisVersion: "lotuslearn-empty",
+        sourceType: "lotuslearn-analysis"
+      });
+    }
+
+    return createStudentIntelligenceBridge({
+      observations: Array.isArray(activeAnalysis.studentObservations)
+        ? activeAnalysis.studentObservations
+        : [],
+      misconceptionClusters: Array.isArray(activeAnalysis.misconceptionClusters)
+        ? activeAnalysis.misconceptionClusters
+        : [],
+      interventions: Array.isArray(activeAnalysis.interventions)
+        ? activeAnalysis.interventions
+        : [],
+      analysisVersion: String(
+        activeAnalysis.analysisVersion ??
+        activeAnalysis.version ??
+        "lotuslearn-analysis"
+      ),
+      sourceType: String(
+        activeAnalysis.sourceType ??
+        activeAnalysis.context?.sourceType ??
+        "lotuslearn-analysis"
+      )
+    });
+  }, [activeAnalysis]);
   return <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex font-sans transition-colors">
       {
     /* Persistent Desktop Sidebar */
@@ -396,7 +431,7 @@ function App() {
     onUpdateMisconceptionStatus={handleUpdateMisconceptionStatus}
     onUpdateInterventionStatus={handleUpdateInterventionStatus}
   />}
-        {currentView === "classroom-world" && <ClassroomWorld />}
+        {currentView === "classroom-world" && <ClassroomWorld intelligenceStore={classroomIntelligenceStore} />}
         </main>
 
         {

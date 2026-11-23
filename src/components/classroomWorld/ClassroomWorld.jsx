@@ -4,14 +4,16 @@ import { PointerLockControls } from "three/addons/controls/PointerLockControls.j
 import { stepPlayerMovement } from "./playerMovement.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
+import { createDynamicStudentRoster } from "./studentRoster.js";
+import { createStudentSceneRoster } from "./studentSceneRoster.js";
 
 import {
   CLASSROOM_WORLD_FIXTURE,
   INTERACTION_DISTANCE,
   PIXEL_RENDER_CONFIG,
-  seatToWorld
 } from "./classroomWorldContract.js";
 
+import { ALLOWED_FIELDS } from "./studentIntelligenceContract.js";
 import "./classroomWorld.css";
 
 const MOVE_SPEED = 3.5;
@@ -29,25 +31,147 @@ function addBox(scene, size, position, color) {
 
   return mesh;
 }
+function createCollisionObstaclesFromRoster(roster) {
+  if (!Array.isArray(roster)) {
+    throw new TypeError("roster must be an array");
+  }
 
-function ClassroomWorld() {
+  return createClassroomObstacles({
+    fixture: {
+      ...CLASSROOM_WORLD_FIXTURE,
+      students: roster.map((student) => ({
+        studentKey: student.studentKey,
+        displayLabel: student.displayLabel,
+        seatIndex: student.seatIndex
+      }))
+    }
+  });
+}
+
+function formatStudentHudLabel(field) {
+  return field
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function formatStudentHudValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0
+      ? value.map((item) => String(item)).join(" • ")
+      : "—";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "YES" : "NO";
+  }
+
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    if (value >= 0 && value <= 1) {
+      return `${Math.round(value * 100)}%`;
+    }
+
+    return String(value);
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
+function createStudentHudRows(student) {
+  if (!student) {
+    return [];
+  }
+
+  return ALLOWED_FIELDS
+    .filter(
+      (field) =>
+        field !== "studentKey" &&
+        field !== "displayLabel"
+    )
+    .map((field) => ({
+      field,
+      label: formatStudentHudLabel(field),
+      value: formatStudentHudValue(student[field])
+    }));
+}
+function ClassroomWorld({ intelligenceStore = null }) {
   const hostRef = useRef(null);
   const controlsRef = useRef(null);
+  const intelligenceStoreRef = useRef(intelligenceStore);
+  const sceneRosterRef = useRef(null);
+  const collisionObstaclesRef = useRef([]);
+
+  useEffect(() => {
+    intelligenceStoreRef.current = intelligenceStore;
+
+    const sceneRoster = sceneRosterRef.current;
+
+    if (!sceneRoster) {
+      return;
+    }
+
+    const roster = intelligenceStore
+      ? createDynamicStudentRoster(intelligenceStore)
+      : [];
+
+    const nextCollisionObstacles =
+      createCollisionObstaclesFromRoster(roster);
+
+    sceneRoster.sync(roster);
+
+    collisionObstaclesRef.current =
+      nextCollisionObstacles;
+
+    setSelectedStudent((currentStudent) => {
+      if (!currentStudent) {
+        return currentStudent;
+      }
+
+      if (
+        !intelligenceStore ||
+        typeof intelligenceStore.has !== "function" ||
+        typeof intelligenceStore.requireStudent !== "function"
+      ) {
+        return null;
+      }
+
+      if (
+        !intelligenceStore.has(
+          currentStudent.studentKey
+        )
+      ) {
+        return null;
+      }
+
+      return intelligenceStore.requireStudent(
+        currentStudent.studentKey
+      );
+    });
+  }, [intelligenceStore]);
 
   const [isLocked, setIsLocked] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const selectedStudentHudRows =
+    createStudentHudRows(selectedStudent);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return undefined;
 
-    const student = CLASSROOM_WORLD_FIXTURE.students[0];
-    const seat = seatToWorld(student.seatIndex);
 
-    const classroomObstacles = createClassroomObstacles({
-      fixture: CLASSROOM_WORLD_FIXTURE
-    });
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x17151f);
@@ -118,29 +242,147 @@ function ClassroomWorld() {
       0x76533b
     );
 
-    const body = addBox(
+    const interactiveMeshes = [];
+
+    const sceneRoster = createStudentSceneRoster({
       scene,
-      { x: 0.65, y: 0.9, z: 0.38 },
-      { x: seat.x, y: 1.15, z: seat.z },
-      0x365da8
+      interactiveMeshes,
+
+      createStudentMesh() {
+        const seat = {
+          x: 0,
+          z: 0
+        };
+
+      const body = addBox(
+        scene,
+        { x: 0.65, y: 0.9, z: 0.38 },
+        { x: seat.x, y: 1.15, z: seat.z },
+        0x365da8
+      );
+
+      const head = addBox(
+        scene,
+        { x: 0.48, y: 0.48, z: 0.48 },
+        { x: seat.x, y: 1.84, z: seat.z },
+        0xd6a978
+      );
+
+
+        scene.remove(body);
+        scene.remove(head);
+
+        const visualRoot =
+          new THREE.Group();
+
+        visualRoot.add(body);
+        visualRoot.add(head);
+
+        const interactionBounds =
+          new THREE.Box3().setFromObject(
+            visualRoot
+          );
+
+        if (interactionBounds.isEmpty()) {
+          throw new Error(
+            "student visual bounds must not be empty"
+          );
+        }
+
+        const interactionSize =
+          new THREE.Vector3();
+
+        const interactionCenter =
+          new THREE.Vector3();
+
+        interactionBounds.getSize(
+          interactionSize
+        );
+
+        interactionBounds.getCenter(
+          interactionCenter
+        );
+
+        const interactionMesh =
+          new THREE.Mesh(
+            new THREE.BoxGeometry(
+              Math.max(
+                interactionSize.x,
+                0.01
+              ),
+              Math.max(
+                interactionSize.y,
+                0.01
+              ),
+              Math.max(
+                interactionSize.z,
+                0.01
+              )
+            ),
+            new THREE.MeshBasicMaterial({
+              transparent: true,
+              opacity: 0,
+              depthWrite: false,
+              colorWrite: false
+            })
+          );
+
+        interactionMesh.geometry.translate(
+          interactionCenter.x,
+          interactionCenter.y,
+          interactionCenter.z
+        );
+
+        interactionMesh.add(body);
+        interactionMesh.add(head);
+
+        return interactionMesh;
+      },
+
+      disposeStudentMesh(studentMesh) {
+        studentMesh.traverse((object) => {
+          object.geometry?.dispose();
+
+          if (!object.material) {
+            return;
+          }
+
+          const materials =
+            Array.isArray(object.material)
+              ? object.material
+              : [object.material];
+
+          for (const material of materials) {
+            material?.dispose();
+          }
+        });
+      }
+    });
+
+    sceneRosterRef.current =
+      sceneRoster;
+
+    const initialStore =
+      intelligenceStoreRef.current;
+
+    const initialRoster =
+      initialStore
+        ? createDynamicStudentRoster(
+            initialStore
+          )
+        : [];
+
+    const initialCollisionObstacles =
+      createCollisionObstaclesFromRoster(
+        initialRoster
+      );
+
+    sceneRoster.sync(
+      initialRoster
     );
 
-    const head = addBox(
-      scene,
-      { x: 0.48, y: 0.48, z: 0.48 },
-      { x: seat.x, y: 1.84, z: seat.z },
-      0xd6a978
-    );
-
-    const interactiveMeshes = [body, head];
-
-    for (const mesh of interactiveMeshes) {
-      mesh.userData = {
-        studentKey: student.studentKey,
-        displayLabel: student.displayLabel
-      };
-    }
-
+    collisionObstaclesRef.current =
+      initialCollisionObstacles;
     const raycaster = new THREE.Raycaster();
     raycaster.far = INTERACTION_DISTANCE;
 
@@ -152,13 +394,32 @@ function ClassroomWorld() {
     let animationFrame = 0;
 
     const onKeyDown = (event) => {
+      if (event.code === "Escape") {
+        setSelectedStudent(null);
+        return;
+      }
       keys.add(event.code);
 
       if (event.code === "KeyE" && controls.isLocked && activeStudent) {
-        setSelectedStudent({
-          studentKey: activeStudent.studentKey,
-          displayLabel: activeStudent.displayLabel
-        });
+        const store = intelligenceStoreRef.current;
+
+        if (
+          !store ||
+          typeof store.has !== "function" ||
+          typeof store.requireStudent !== "function"
+        ) {
+          setSelectedStudent(null);
+          return;
+        }
+
+        if (!store.has(activeStudent.studentKey)) {
+          setSelectedStudent(null);
+          return;
+        }
+
+        setSelectedStudent(
+          store.requireStudent(activeStudent.studentKey)
+        );
       }
     };
 
@@ -221,7 +482,7 @@ function ClassroomWorld() {
             minZ: -ROOM_LIMIT,
             maxZ: ROOM_LIMIT
           },
-          obstacles: classroomObstacles
+          obstacles: collisionObstaclesRef.current
         });
 
         camera.position.x = resolvedPosition.x;
@@ -260,6 +521,9 @@ function ClassroomWorld() {
       controls.dispose();
       controlsRef.current = null;
 
+      sceneRoster.dispose();
+      sceneRosterRef.current = null;
+      collisionObstaclesRef.current = [];
       scene.traverse((object) => {
         object.geometry?.dispose();
 
@@ -317,17 +581,64 @@ function ClassroomWorld() {
       )}
 
       {selectedStudent && (
-        <aside className="cw-world__student-card">
-          <button
-            type="button"
-            onClick={() => setSelectedStudent(null)}
-          >
-            ×
-          </button>
+        <aside
+          className="cw-world__student-card cw-world__student-hud"
+          role="dialog"
+          aria-label="Student intelligence"
+        >
+          <div
+            className="cw-world__student-hud-scanline"
+            aria-hidden="true"
+          />
 
-          <small>DEMO STUDENT</small>
-          <strong>{selectedStudent.displayLabel}</strong>
-          <span>{selectedStudent.studentKey}</span>
+          <header className="cw-world__student-hud-header">
+            <div>
+              <small>
+                LOTUSLEARN // STUDENT INTELLIGENCE
+              </small>
+
+              <strong>
+                {selectedStudent.displayLabel}
+              </strong>
+
+              <span>
+                {selectedStudent.studentKey}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="cw-world__student-hud-close"
+              onClick={() => setSelectedStudent(null)}
+              aria-label="Close student intelligence"
+            >
+              X
+            </button>
+          </header>
+
+          <div
+            className="cw-world__student-hud-divider"
+            aria-hidden="true"
+          />
+
+          <dl className="cw-world__student-hud-grid">
+            {selectedStudentHudRows.map(
+              ({ field, label, value }) => (
+                <div
+                  className="cw-world__student-hud-row"
+                  key={field}
+                >
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              )
+            )}
+          </dl>
+
+          <footer className="cw-world__student-hud-footer">
+            <span>[E] INSPECT</span>
+            <span>[ESC] CLOSE</span>
+          </footer>
         </aside>
       )}
     </section>
