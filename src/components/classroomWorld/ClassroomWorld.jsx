@@ -1,3 +1,6 @@
+import {
+  createClassroomOceanSkyWorldV15
+} from "./classroomOceanSkyWorldV15.js";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
@@ -324,6 +327,11 @@ function ClassroomWorld({
     camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
     camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
     scene.add(camera);
+
+    const classroomOceanSkyWorldV15 =
+      createClassroomOceanSkyWorldV15({
+        scene
+      });
 
     const renderer = new THREE.WebGLRenderer({
       antialias: false,
@@ -889,6 +897,11 @@ function ClassroomWorld({
         camera
       });
 
+      classroomOceanSkyWorldV15.tick({
+        timestamp,
+        camera
+      });
+
       renderer.render(scene, camera);
 
       classroomInputStateTimelineV13.observeState();
@@ -957,6 +970,8 @@ function ClassroomWorld({
       classroomLightingV2.dispose();
       classroomArchitectureV2.dispose();
       classroomVisualSystem.dispose();
+      classroomOceanSkyWorldV15.dispose();
+
       renderer.dispose();
       renderer.domElement.remove();
     };
