@@ -17,7 +17,10 @@ import { createClassroomPerformanceBudget } from "./classroomPerformanceBudget.j
 import { createClassroom64BitVisualUpgrade } from "./classroom64BitVisualUpgrade.js";
 import { createClassroomRoomGeometryV3 } from "./classroomRoomGeometryV3.js";
 import { createClassroomCharacterV3 } from "./classroomCharacterV3.js";
-import { createClassroomRetroFpsPipeline } from "./classroomRetroFpsPipeline.js";
+import {
+  RETRO_TEACHER_INTERVENTION_UI_EVENT,
+  createClassroomRetroFpsPipeline
+} from "./classroomRetroFpsPipeline.js";
 import { createClassroomRetroCompositionV4 } from "./classroomRetroCompositionV4.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
@@ -670,7 +673,7 @@ function ClassroomWorld({
 
       classroomStudentVisualV2.tick();
       classroomCharacterV3.tick();
-      classroomRetroCompositionV4.tick(camera);
+      classroomRetroCompositionV4.tick(camera, timestamp);
       classroomExteriorDepthV2.update(camera);
       classroomPerformanceBudget.sample();
 
@@ -679,7 +682,9 @@ function ClassroomWorld({
           classroomInteractionFeedbackV2.getCurrentIdentity(),
 
         controlsLocked:
-          controls.isLocked
+          controls.isLocked,
+
+        timestamp
       });
 
       if (controls.isLocked) {
@@ -941,12 +946,36 @@ function ClassroomWorld({
             className="classroom-world__teacher-intervention-trigger"
             disabled={teacherInterventionStatus?.phase === "pending"}
             aria-busy={teacherInterventionStatus?.phase === "pending"}
-            onClick={() =>
+            onClick={(...eventArgs) => {
+                  if (
+                    typeof globalThis.dispatchEvent === "function" &&
+                    typeof globalThis.CustomEvent === "function"
+                  ) {
+                    globalThis.dispatchEvent(
+                      new globalThis.CustomEvent(
+                        RETRO_TEACHER_INTERVENTION_UI_EVENT,
+                        {
+                          detail: {
+                            studentKey:
+                              selectedStudent?.studentKey ??
+                              null
+                          }
+                        }
+                      )
+                    );
+                  }
+
+                  const originalOnClick =
+                    (() =>
                     emitTeacherInterventionCommand({
                       studentKey: selectedStudent.studentKey,
                       actionType: "probe_understanding",
-                    })
-                  }
+                    }));
+
+                  return originalOnClick(
+                    ...eventArgs
+                  );
+                }}
           >
             {teacherInterventionStatus?.phase === "pending"
               ? "SAVING..."

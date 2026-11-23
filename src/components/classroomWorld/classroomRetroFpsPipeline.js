@@ -33,6 +33,9 @@ const RETRO_FPS_PROFILE =
       "dos-fps"
   });
 
+const RETRO_TEACHER_INTERVENTION_UI_EVENT =
+  "lotuslearn:teacher-intervention-ui";
+
 const TEXTURE_PROPERTIES =
   Object.freeze([
     "map",
@@ -160,6 +163,55 @@ function applyRetroTextureSampling(
 function getRetroFpsProfile() {
   return {
     ...RETRO_FPS_PROFILE
+  };
+}
+
+function computeTeacherToolPose({
+  timestamp = 0,
+  targeted = false,
+  interventionActive = false
+}) {
+  const phase =
+    Number.isFinite(timestamp)
+      ? timestamp * 0.007
+      : 0;
+
+  const idleBob =
+    Math.round(
+      Math.sin(phase) * 2
+    );
+
+  const targetLift =
+    targeted
+      ? -9
+      : 0;
+
+  const interventionKick =
+    interventionActive
+      ? -7
+      : 0;
+
+  const x =
+    interventionActive
+      ? 5
+      : 0;
+
+  const y =
+    idleBob +
+    targetLift +
+    interventionKick;
+
+  const rotation =
+    interventionActive
+      ? -2
+      : targeted
+        ? -1
+        : 0;
+
+  return {
+    x,
+    y,
+    rotation
   };
 }
 
@@ -814,6 +866,29 @@ function createClassroomRetroFpsPipeline({
     "box-shadow:2px 2px 0 #08090a"
   ].join(";");
 
+  const statusBadge =
+    documentObject.createElement(
+      "div"
+    );
+
+  statusBadge.textContent =
+    "READY";
+
+  statusBadge.style.cssText = [
+    "position:absolute",
+    "right:12px",
+    "top:12px",
+    "min-width:116px",
+    "padding:5px 8px",
+    "font-size:11px",
+    "text-align:center",
+    "letter-spacing:.04em",
+    "color:#dce7cf",
+    "background:#17271f",
+    "border:2px solid #7ea56e",
+    "box-shadow:2px 2px 0 #08090a"
+  ].join(";");
+
   const hud =
     documentObject.createElement(
       "div"
@@ -924,6 +999,10 @@ function createClassroomRetroFpsPipeline({
   );
 
   overlay.appendChild(
+    statusBadge
+  );
+
+  overlay.appendChild(
     teacherCanvas
   );
 
@@ -938,9 +1017,77 @@ function createClassroomRetroFpsPipeline({
   let previousTarget =
     null;
 
+  let targetFlashUntil =
+    0;
+
+  let interventionFlashUntil =
+    0;
+
+  let lastInterventionStudentKey =
+    null;
+
+  function nowMilliseconds() {
+    return (
+      globalThis.performance
+        ?.now
+        ?.() ??
+      Date.now()
+    );
+  }
+
+  function notifyIntervention(
+    studentKey,
+    timestamp =
+      nowMilliseconds()
+  ) {
+    lastInterventionStudentKey =
+      studentKey
+        ? String(studentKey)
+        : "STUDENT";
+
+    interventionFlashUntil =
+      timestamp +
+      900;
+
+    statusBadge.textContent =
+      `REQUESTED: ${lastInterventionStudentKey}`;
+
+    statusBadge.style.color =
+      "#fff0a8";
+
+    statusBadge.style.background =
+      "#5b451a";
+
+    statusBadge.style.borderColor =
+      "#f0ca55";
+  }
+
+  function onInterventionUiEvent(
+    event
+  ) {
+    notifyIntervention(
+      event?.detail
+        ?.studentKey ??
+      null
+    );
+  }
+
+  if (
+    typeof globalThis
+      .addEventListener ===
+      "function"
+  ) {
+    globalThis.addEventListener(
+      RETRO_TEACHER_INTERVENTION_UI_EVENT,
+      onInterventionUiEvent
+    );
+  }
+
   function updateHud({
     targetIdentity,
-    controlsLocked
+    controlsLocked,
+    timestamp =
+      nowMilliseconds()
   }) {
     const normalizedTarget =
       targetIdentity
@@ -956,6 +1103,10 @@ function createClassroomRetroFpsPipeline({
       previousTarget =
         normalizedTarget;
 
+      targetFlashUntil =
+        timestamp +
+        220;
+
       drawTeacherClipboard({
         canvas:
           teacherCanvas,
@@ -967,10 +1118,49 @@ function createClassroomRetroFpsPipeline({
       });
     }
 
+    const interventionActive =
+      timestamp <
+      interventionFlashUntil;
+
+    const targetFlashActive =
+      timestamp <
+      targetFlashUntil;
+
+    const pose =
+      computeTeacherToolPose({
+        timestamp,
+        targeted:
+          Boolean(
+            normalizedTarget
+          ),
+        interventionActive
+      });
+
+    teacherCanvas.style.transformOrigin =
+      "100% 100%";
+
+    teacherCanvas.style.transform =
+      (
+        `translate(${pose.x}px, ${pose.y}px) ` +
+        `rotate(${pose.rotation}deg)`
+      );
+
     targetCell.textContent =
       normalizedTarget
         ? `TARGET: ${normalizedTarget}`
         : "TARGET: NONE";
+
+    targetCell.style.background =
+      targetFlashActive
+        ? "#66551c"
+        : normalizedTarget
+          ? "#243d55"
+          : "transparent";
+
+    targetCell.style.color =
+      targetFlashActive
+        ? "#fff0a8"
+        : "#f4e7aa";
 
     controlsCell.textContent =
       controlsLocked
@@ -980,6 +1170,53 @@ function createClassroomRetroFpsPipeline({
               : "WASD MOVE  |  MOUSE LOOK"
           )
         : "CLICK VIEW TO ENTER";
+
+    if (
+      interventionActive
+    ) {
+      statusBadge.textContent =
+        `REQUESTED: ${
+          lastInterventionStudentKey ??
+          "STUDENT"
+        }`;
+
+      statusBadge.style.color =
+        "#fff0a8";
+
+      statusBadge.style.background =
+        "#5b451a";
+
+      statusBadge.style.borderColor =
+        "#f0ca55";
+    }
+    else if (
+      normalizedTarget
+    ) {
+      statusBadge.textContent =
+        "TARGET LOCK";
+
+      statusBadge.style.color =
+        "#d7ebff";
+
+      statusBadge.style.background =
+        "#20394d";
+
+      statusBadge.style.borderColor =
+        "#6e9ab6";
+    }
+    else {
+      statusBadge.textContent =
+        "READY";
+
+      statusBadge.style.color =
+        "#dce7cf";
+
+      statusBadge.style.background =
+        "#17271f";
+
+      statusBadge.style.borderColor =
+        "#7ea56e";
+    }
   }
 
   let disposed =
@@ -1142,6 +1379,17 @@ function createClassroomRetroFpsPipeline({
       }
 
       if (
+        typeof globalThis
+          .removeEventListener ===
+          "function"
+      ) {
+        globalThis.removeEventListener(
+          RETRO_TEACHER_INTERVENTION_UI_EVENT,
+          onInterventionUiEvent
+        );
+      }
+
+      if (
         overlay.parentElement
       ) {
         overlay.parentElement
@@ -1161,8 +1409,10 @@ function createClassroomRetroFpsPipeline({
 
 export {
   RETRO_FPS_PROFILE,
+  RETRO_TEACHER_INTERVENTION_UI_EVENT,
   applyRetroTextureSampling,
   computeRetroRenderSize,
+  computeTeacherToolPose,
   createClassroomRetroFpsPipeline,
   getRetroFpsProfile
 };

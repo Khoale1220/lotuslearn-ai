@@ -62,7 +62,7 @@ test(
 
         const compositionIndex =
           worldSource.indexOf(
-            "classroomRetroCompositionV4.tick(camera);"
+            "classroomRetroCompositionV4.tick(camera, timestamp);"
           );
 
         assert.ok(

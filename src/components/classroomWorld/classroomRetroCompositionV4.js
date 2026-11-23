@@ -58,6 +58,48 @@ function getRetroCompositionV4Profile() {
   };
 }
 
+function computeRetroStudentIdlePose({
+  timestamp = 0,
+  index = 0
+}) {
+  const safeTimestamp =
+    Number.isFinite(timestamp)
+      ? timestamp
+      : 0;
+
+  const safeIndex =
+    Number.isFinite(index)
+      ? index
+      : 0;
+
+  const phase =
+    safeTimestamp *
+    0.0022 +
+    safeIndex *
+    0.79;
+
+  return {
+    bob:
+      Math.sin(phase) *
+      0.014,
+
+    sway:
+      Math.sin(
+        phase *
+        0.63
+      ) *
+      0.006,
+
+    scaleY:
+      1 +
+      Math.sin(
+        phase *
+        0.81
+      ) *
+      0.008
+  };
+}
+
 function createPixelData({
   width,
   height,
@@ -2108,7 +2150,8 @@ function createClassroomRetroCompositionV4({
   }
 
   function updateStudentBillboards(
-    camera
+    camera,
+    timestamp = 0
   ) {
     if (
       !camera ||
@@ -2140,6 +2183,13 @@ function createClassroomRetroCompositionV4({
         record.variant
       ] += 1;
 
+      const idlePose =
+        computeRetroStudentIdlePose({
+          timestamp,
+          index:
+            record.index
+        });
+
       setInstance({
         mesh,
         index:
@@ -2147,12 +2197,14 @@ function createClassroomRetroCompositionV4({
 
         position: {
           x:
-            record.position.x,
+            record.position.x +
+            idlePose.sway,
 
           y:
             record.position.y -
             record.height *
-            0.07,
+            0.07 +
+            idlePose.bob,
 
           z:
             record.position.z
@@ -2165,7 +2217,8 @@ function createClassroomRetroCompositionV4({
 
           y:
             record.height *
-            1.12,
+            1.12 *
+            idlePose.scaleY,
 
           z: 1
         },
@@ -2186,7 +2239,8 @@ function createClassroomRetroCompositionV4({
   }
 
   function tick(
-    camera
+    camera,
+    timestamp = 0
   ) {
     if (disposed) {
       return;
@@ -2208,7 +2262,8 @@ function createClassroomRetroCompositionV4({
      * Billboard orientation follows camera every frame.
      */
     updateStudentBillboards(
-      camera
+      camera,
+      timestamp
     );
   }
 
@@ -2331,6 +2386,7 @@ function createClassroomRetroCompositionV4({
 
 export {
   RETRO_COMPOSITION_V4_PROFILE,
+  computeRetroStudentIdlePose,
   createClassroomRetroCompositionV4,
   createRetroMaterialTextureSet,
   getRetroCompositionV4Profile

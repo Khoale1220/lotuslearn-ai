@@ -56,7 +56,7 @@ test(
 
         assert.match(
           worldSource,
-          /onClick=\{\(\)\s*=>\s*emitTeacherInterventionCommand\(/u,
+          /onClick=\{\(\.\.\.eventArgs\)\s*=>\s*\{[\s\S]*?RETRO_TEACHER_INTERVENTION_UI_EVENT[\s\S]*?originalOnClick[\s\S]*?emitTeacherInterventionCommand\([\s\S]*?probe_understanding/u,
         );
       },
     );
