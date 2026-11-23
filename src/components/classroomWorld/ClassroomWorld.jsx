@@ -106,7 +106,10 @@ function createStudentHudRows(student) {
       value: formatStudentHudValue(student[field])
     }));
 }
-function ClassroomWorld({ intelligenceStore = null }) {
+function ClassroomWorld({
+  intelligenceStore = null,
+  onTeacherIntervention = null
+}) {
   const hostRef = useRef(null);
   const controlsRef = useRef(null);
   const intelligenceStoreRef = useRef(intelligenceStore);
@@ -164,6 +167,93 @@ function ClassroomWorld({ intelligenceStore = null }) {
   const [isLocked, setIsLocked] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  const emitTeacherInterventionCommand = (input) => {
+    if (
+      typeof onTeacherIntervention !==
+      "function"
+    ) {
+      return null;
+    }
+
+    if (
+      !input ||
+      typeof input !== "object" ||
+      Array.isArray(input)
+    ) {
+      throw new TypeError(
+        "teacher intervention intent must be a plain object"
+      );
+    }
+
+    const allowedFields = [
+      "studentKey",
+      "actionType",
+      "analysisKey"
+    ];
+
+    for (const field of Object.keys(input)) {
+      if (!allowedFields.includes(field)) {
+        throw new TypeError(
+          `Unsupported world intervention intent field: ${field}`
+        );
+      }
+    }
+
+    if (
+      typeof input.studentKey !== "string" ||
+      !input.studentKey.trim()
+    ) {
+      throw new TypeError(
+        "studentKey must be a non-empty string"
+      );
+    }
+
+    if (
+      typeof input.actionType !== "string" ||
+      !input.actionType.trim()
+    ) {
+      throw new TypeError(
+        "actionType must be a non-empty string"
+      );
+    }
+
+    let analysisKey;
+
+    if (
+      input.analysisKey !== undefined &&
+      input.analysisKey !== null
+    ) {
+      if (
+        typeof input.analysisKey !== "string" ||
+        !input.analysisKey.trim()
+      ) {
+        throw new TypeError(
+          "analysisKey must be a non-empty string when provided"
+        );
+      }
+
+      analysisKey =
+        input.analysisKey.trim();
+    }
+
+    const command =
+      Object.freeze({
+        studentKey:
+          input.studentKey.trim(),
+
+        actionType:
+          input.actionType.trim(),
+
+        ...(analysisKey
+          ? { analysisKey }
+          : {})
+      });
+
+    return onTeacherIntervention(
+      command
+    );
+  };
   const selectedStudentHudRows =
     createStudentHudRows(selectedStudent);
 
