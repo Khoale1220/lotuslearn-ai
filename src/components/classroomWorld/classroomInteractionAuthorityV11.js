@@ -398,10 +398,7 @@ function windowShadeIdentity(
     return `window-shade-instance-${intersection.instanceId}`;
   }
 
-  return (
-    object?.uuid ??
-    "window-shade"
-  );
+  return null;
 }
 
 function sortInteractionCandidates(
@@ -834,7 +831,8 @@ function createClassroomInteractionAuthorityV11({
   characterVisualIntegration,
   windowShadeSystem,
   onTeacherIntervention,
-  windowObject
+  windowObject,
+  auditObserver = null
 }) {
   if (
     !scene?.isScene
@@ -918,6 +916,50 @@ function createClassroomInteractionAuthorityV11({
   let pickSequence =
     0;
 
+  let auditFailureCount =
+    0;
+
+  let lastAuditError =
+    null;
+
+  function notifyAudit(
+    method,
+    payload
+  ) {
+    if (
+      !auditObserver ||
+      typeof auditObserver[
+        method
+      ] !==
+        "function"
+    ) {
+      return;
+    }
+
+    try {
+      auditObserver[
+        method
+      ](
+        payload
+      );
+    }
+    catch (error) {
+      /*
+       * Audit is observational.
+       * It must never mutate gameplay authority.
+       */
+      auditFailureCount +=
+        1;
+
+      lastAuditError =
+        error instanceof Error
+          ? error.message
+          : String(
+              error
+            );
+    }
+  }
+
   function collectCandidates() {
     raycaster.setFromCamera(
       centerNdc,
@@ -991,6 +1033,10 @@ function createClassroomInteractionAuthorityV11({
               intersection
             );
 
+          if (!identity) {
+            return null;
+          }
+
           return {
             interactionType:
               "window-shade",
@@ -1024,6 +1070,15 @@ function createClassroomInteractionAuthorityV11({
     lastCandidate =
       candidates[0] ??
       null;
+
+    notifyAudit(
+      "recordDecision",
+      {
+        pickSequence,
+        candidate:
+          lastCandidate
+      }
+    );
 
     return lastCandidate;
   }
@@ -1080,6 +1135,16 @@ function createClassroomInteractionAuthorityV11({
         command
       };
 
+      notifyAudit(
+        "recordActivation",
+        {
+          pickSequence,
+          candidate,
+          result:
+            lastActivation
+        }
+      );
+
       return {
         ...lastActivation,
 
@@ -1106,6 +1171,16 @@ function createClassroomInteractionAuthorityV11({
         interactionKey:
           candidate.interactionKey
       };
+
+      notifyAudit(
+        "recordActivation",
+        {
+          pickSequence,
+          candidate,
+          result:
+            lastActivation
+        }
+      );
 
       return {
         ...lastActivation,
@@ -1211,6 +1286,10 @@ function createClassroomInteractionAuthorityV11({
         windowShadeObjects.length,
 
       pickSequence,
+
+      auditFailureCount,
+
+      lastAuditError,
 
       lastCandidate:
         lastCandidate

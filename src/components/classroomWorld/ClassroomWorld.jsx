@@ -38,6 +38,10 @@ import {
 import {
   createClassroomInteractionAuthorityV11
 } from "./classroomInteractionAuthorityV11.js";
+
+import {
+  createClassroomInteractionReplayAuditV12
+} from "./classroomInteractionReplayAuditV12.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -446,6 +450,9 @@ function ClassroomWorld({
           document
       });
 
+    const classroomInteractionReplayAuditV12 =
+      createClassroomInteractionReplayAuditV12();
+
     const classroomInteractionAuthorityV11 =
       createClassroomInteractionAuthorityV11({
         scene,
@@ -462,6 +469,9 @@ function ClassroomWorld({
             emitTeacherInterventionCommand(
               command
             ),
+
+        auditObserver:
+          classroomInteractionReplayAuditV12,
 
         windowObject:
           window
@@ -908,6 +918,8 @@ function ClassroomWorld({
       classroomRuntimeObservabilityV7.dispose();
       classroomRetroFpsPipeline.dispose();
       classroomInteractionAuthorityV11.dispose();
+
+      classroomInteractionReplayAuditV12.dispose();
 
       classroomCharacterVisualIntegrationV10.dispose();
 
