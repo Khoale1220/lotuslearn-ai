@@ -15,6 +15,8 @@ import { createClassroomExteriorDepthV2 } from "./classroomExteriorDepthV2.js";
 import { createClassroomInteractionFeedbackV2 } from "./classroomInteractionFeedbackV2.js";
 import { createClassroomPerformanceBudget } from "./classroomPerformanceBudget.js";
 import { createClassroom64BitVisualUpgrade } from "./classroom64BitVisualUpgrade.js";
+import { createClassroomRoomGeometryV3 } from "./classroomRoomGeometryV3.js";
+import { createClassroomCharacterV3 } from "./classroomCharacterV3.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -377,6 +379,18 @@ function ClassroomWorld({
         documentObject: document
       });
 
+    const classroomRoomGeometryV3 =
+      createClassroomRoomGeometryV3({
+        scene,
+        materials:
+          classroomVisualSystem.materials
+      });
+
+    const classroomCharacterV3 =
+      createClassroomCharacterV3({
+        scene
+      });
+
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
@@ -639,6 +653,7 @@ function ClassroomWorld({
         timer.getDelta();
 
       classroomStudentVisualV2.tick();
+      classroomCharacterV3.tick();
       classroomExteriorDepthV2.update(camera);
       classroomPerformanceBudget.sample();
 
@@ -773,6 +788,8 @@ function ClassroomWorld({
         }
       });
 
+      classroomCharacterV3.dispose();
+      classroomRoomGeometryV3.dispose();
       classroom64BitVisualUpgrade.dispose();
       classroomPerformanceBudget.dispose();
       classroomInteractionFeedbackV2.dispose();
