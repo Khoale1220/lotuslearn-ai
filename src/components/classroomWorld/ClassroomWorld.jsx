@@ -22,6 +22,10 @@ import {
   createClassroomRetroFpsPipeline
 } from "./classroomRetroFpsPipeline.js";
 import { createClassroomRetroCompositionV4 } from "./classroomRetroCompositionV4.js";
+
+import {
+  createClassroomFinalContentV6
+} from "./classroomFinalContentV6.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -410,6 +414,16 @@ function ClassroomWorld({
           classroomVisualSystem.materials
       });
 
+    const classroomFinalContentV6 =
+      createClassroomFinalContentV6({
+        scene,
+        camera,
+        host,
+        documentObject:
+          document
+      });
+
+
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
@@ -674,6 +688,13 @@ function ClassroomWorld({
       classroomStudentVisualV2.tick();
       classroomCharacterV3.tick();
       classroomRetroCompositionV4.tick(camera, timestamp);
+
+      classroomFinalContentV6.tick({
+        timestamp,
+        camera,
+        controlsLocked:
+          controls.isLocked
+      });
       classroomExteriorDepthV2.update(camera);
       classroomPerformanceBudget.sample();
 
@@ -819,6 +840,8 @@ function ClassroomWorld({
       });
 
       classroomRetroCompositionV4.dispose();
+
+      classroomFinalContentV6.dispose();
       classroomRetroFpsPipeline.dispose();
       classroomCharacterV3.dispose();
       classroomRoomGeometryV3.dispose();
