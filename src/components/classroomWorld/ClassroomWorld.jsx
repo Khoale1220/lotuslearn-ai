@@ -268,9 +268,14 @@ function ClassroomWorld({
     scene.background = new THREE.Color(0x17151f);
     scene.fog = new THREE.Fog(0x17151f, 12, 24);
 
+    const teacherAnchor = Object.freeze({
+      x: 0,
+      z: 0,
+    });
+
     const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 50);
-    camera.position.set(seat.x + 2.5, PLAYER_HEIGHT, 5.5);
-    camera.lookAt(seat.x, 1.4, seat.z);
+    camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
+    camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
     scene.add(camera);
 
     const renderer = new THREE.WebGLRenderer({
@@ -329,7 +334,7 @@ function ClassroomWorld({
     addBox(
       scene,
       { x: 1.6, y: 0.12, z: 0.85 },
-      { x: seat.x, y: 0.82, z: seat.z + 0.45 },
+      { x: teacherAnchor.x, y: 0.82, z: teacherAnchor.z + 0.45 },
       0x76533b
     );
 
