@@ -14,6 +14,7 @@ import { createStudentVisualV2 } from "./classroomStudentVisualV2.js";
 import { createClassroomExteriorDepthV2 } from "./classroomExteriorDepthV2.js";
 import { createClassroomInteractionFeedbackV2 } from "./classroomInteractionFeedbackV2.js";
 import { createClassroomPerformanceBudget } from "./classroomPerformanceBudget.js";
+import { createClassroom64BitVisualUpgrade } from "./classroom64BitVisualUpgrade.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -365,6 +366,15 @@ function ClassroomWorld({
     const classroomPerformanceBudget =
       createClassroomPerformanceBudget({
         renderer
+      });
+
+    const classroom64BitVisualUpgrade =
+      createClassroom64BitVisualUpgrade({
+        renderer,
+        scene,
+        materials:
+          classroomVisualSystem.materials,
+        documentObject: document
       });
 
     const controls = new PointerLockControls(camera, renderer.domElement);
@@ -763,6 +773,7 @@ function ClassroomWorld({
         }
       });
 
+      classroom64BitVisualUpgrade.dispose();
       classroomPerformanceBudget.dispose();
       classroomInteractionFeedbackV2.dispose();
       classroomExteriorDepthV2.dispose();
