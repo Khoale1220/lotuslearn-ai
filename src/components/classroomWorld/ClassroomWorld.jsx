@@ -14,6 +14,7 @@ import { createStudentVisualV2 } from "./classroomStudentVisualV2.js";
 import { createClassroomExteriorDepthV2 } from "./classroomExteriorDepthV2.js";
 import { createClassroomInteractionFeedbackV2 } from "./classroomInteractionFeedbackV2.js";
 import { createClassroomPerformanceBudget } from "./classroomPerformanceBudget.js";
+import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
 import { createDynamicStudentRoster } from "./studentRoster.js";
@@ -632,13 +633,10 @@ function ClassroomWorld({
       classroomPerformanceBudget.sample();
 
       if (controls.isLocked) {
-        const forward =
-          (keys.has("KeyW") ? 1 : 0) -
-          (keys.has("KeyS") ? 1 : 0);
-
-        const sideways =
-          (keys.has("KeyD") ? 1 : 0) -
-          (keys.has("KeyA") ? 1 : 0);
+        const movementInput =
+          createThreeCameraMovementInput(
+            keys
+          );
 
         const previousPosition = {
           x: camera.position.x,
@@ -653,19 +651,8 @@ function ClassroomWorld({
             velocity:
               playerVelocity,
 
-            input: {
-              forward:
-                forward > 0,
-
-              backward:
-                forward < 0,
-
-              right:
-                sideways > 0,
-
-              left:
-                sideways < 0
-            },
+            input:
+              movementInput,
 
             yaw:
               camera.rotation.y,
