@@ -1,3 +1,4 @@
+import { createClassroomOceanAtmosphereDepthV19 } from "./classroomOceanAtmosphereDepthV19.js";
 import { createClassroomSeagullFlocksV18 } from "./classroomSeagullFlocksV18.js";
 import { createClassroomCargoShipLanesV17 } from "./classroomCargoShipLanesV17.js";
 import { createClassroomOceanVistaV16 } from "./classroomOceanVistaV16.js";
@@ -509,6 +510,14 @@ function ClassroomWorld({
           classroomOceanSkyWorldV15
       });
 
+    const classroomOceanAtmosphereDepthV19 =
+      createClassroomOceanAtmosphereDepthV19({
+        scene,
+        camera,
+        oceanWorld:
+          classroomOceanSkyWorldV15
+      });
+
 const classroomInteractionAuthorityV11 =
       createClassroomInteractionAuthorityV11({
         scene,
@@ -921,6 +930,10 @@ const classroomInteractionAuthorityV11 =
         setTargetLabel(activeStudent?.displayLabel || "");
       }
 
+    classroomOceanAtmosphereDepthV19.tick({
+      deltaSeconds: delta
+    });
+
     classroomSeagullFlocksV18.tick({
       deltaSeconds: delta
     });
@@ -1012,6 +1025,7 @@ const classroomInteractionAuthorityV11 =
       classroomLightingV2.dispose();
       classroomArchitectureV2.dispose();
       classroomVisualSystem.dispose();
+      classroomOceanAtmosphereDepthV19.dispose();
       classroomSeagullFlocksV18.dispose();
       classroomCargoShipLanesV17.dispose();
       classroomOceanVistaV16.dispose();
