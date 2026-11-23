@@ -1,3 +1,4 @@
+import { createClassroomSeagullFlocksV18 } from "./classroomSeagullFlocksV18.js";
 import { createClassroomCargoShipLanesV17 } from "./classroomCargoShipLanesV17.js";
 import { createClassroomOceanVistaV16 } from "./classroomOceanVistaV16.js";
 import {
@@ -500,6 +501,14 @@ function ClassroomWorld({
           classroomOceanSkyWorldV15
       });
 
+    const classroomSeagullFlocksV18 =
+      createClassroomSeagullFlocksV18({
+        scene,
+        camera,
+        oceanWorld:
+          classroomOceanSkyWorldV15
+      });
+
 const classroomInteractionAuthorityV11 =
       createClassroomInteractionAuthorityV11({
         scene,
@@ -912,6 +921,10 @@ const classroomInteractionAuthorityV11 =
         setTargetLabel(activeStudent?.displayLabel || "");
       }
 
+    classroomSeagullFlocksV18.tick({
+      deltaSeconds: delta
+    });
+
     classroomCargoShipLanesV17.tick({
       deltaSeconds: delta
     });
@@ -999,6 +1012,7 @@ const classroomInteractionAuthorityV11 =
       classroomLightingV2.dispose();
       classroomArchitectureV2.dispose();
       classroomVisualSystem.dispose();
+      classroomSeagullFlocksV18.dispose();
       classroomCargoShipLanesV17.dispose();
       classroomOceanVistaV16.dispose();
       classroomOceanSkyWorldV15.dispose();
