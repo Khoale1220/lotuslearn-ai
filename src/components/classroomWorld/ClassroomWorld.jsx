@@ -17,6 +17,7 @@ import { createClassroomPerformanceBudget } from "./classroomPerformanceBudget.j
 import { createClassroom64BitVisualUpgrade } from "./classroom64BitVisualUpgrade.js";
 import { createClassroomRoomGeometryV3 } from "./classroomRoomGeometryV3.js";
 import { createClassroomCharacterV3 } from "./classroomCharacterV3.js";
+import { createClassroomRetroFpsPipeline } from "./classroomRetroFpsPipeline.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -391,6 +392,13 @@ function ClassroomWorld({
         scene
       });
 
+    const classroomRetroFpsPipeline =
+      createClassroomRetroFpsPipeline({
+        renderer,
+        scene,
+        documentObject: document
+      });
+
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
@@ -657,6 +665,14 @@ function ClassroomWorld({
       classroomExteriorDepthV2.update(camera);
       classroomPerformanceBudget.sample();
 
+      classroomRetroFpsPipeline.updateHud({
+        targetIdentity:
+          classroomInteractionFeedbackV2.getCurrentIdentity(),
+
+        controlsLocked:
+          controls.isLocked
+      });
+
       if (controls.isLocked) {
         const movementInput =
           createThreeCameraMovementInput(
@@ -788,6 +804,7 @@ function ClassroomWorld({
         }
       });
 
+      classroomRetroFpsPipeline.dispose();
       classroomCharacterV3.dispose();
       classroomRoomGeometryV3.dispose();
       classroom64BitVisualUpgrade.dispose();
