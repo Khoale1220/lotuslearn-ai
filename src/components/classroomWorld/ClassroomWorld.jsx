@@ -42,6 +42,10 @@ import {
 import {
   createClassroomInteractionReplayAuditV12
 } from "./classroomInteractionReplayAuditV12.js";
+
+import {
+  createClassroomInputStateTimelineV13
+} from "./classroomInputStateTimelineV13.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -452,6 +456,21 @@ function ClassroomWorld({
 
     const classroomInteractionReplayAuditV12 =
       createClassroomInteractionReplayAuditV12();
+
+    const classroomInputStateTimelineV13 =
+      createClassroomInputStateTimelineV13({
+        windowObject:
+          window,
+
+        camera,
+        controls,
+
+        readInteractionFingerprint:
+          () =>
+            classroomInteractionReplayAuditV12
+              .getSnapshot()
+              .finalFingerprint
+      });
 
     const classroomInteractionAuthorityV11 =
       createClassroomInteractionAuthorityV11({
@@ -872,6 +891,8 @@ function ClassroomWorld({
 
       renderer.render(scene, camera);
 
+      classroomInputStateTimelineV13.observeState();
+
       classroomRuntimeObservabilityV7.observeFrame({
         timestamp
       });
@@ -918,6 +939,7 @@ function ClassroomWorld({
       classroomRuntimeObservabilityV7.dispose();
       classroomRetroFpsPipeline.dispose();
       classroomInteractionAuthorityV11.dispose();
+      classroomInputStateTimelineV13.dispose();
 
       classroomInteractionReplayAuditV12.dispose();
 
