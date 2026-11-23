@@ -30,9 +30,14 @@ function addBox(scene, size, position, color) {
   return mesh;
 }
 
-function ClassroomWorld() {
+function ClassroomWorld({ intelligenceStore = null }) {
   const hostRef = useRef(null);
   const controlsRef = useRef(null);
+  const intelligenceStoreRef = useRef(intelligenceStore);
+
+  useEffect(() => {
+    intelligenceStoreRef.current = intelligenceStore;
+  }, [intelligenceStore]);
 
   const [isLocked, setIsLocked] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
@@ -155,10 +160,25 @@ function ClassroomWorld() {
       keys.add(event.code);
 
       if (event.code === "KeyE" && controls.isLocked && activeStudent) {
-        setSelectedStudent({
-          studentKey: activeStudent.studentKey,
-          displayLabel: activeStudent.displayLabel
-        });
+        const store = intelligenceStoreRef.current;
+
+        if (
+          !store ||
+          typeof store.has !== "function" ||
+          typeof store.requireStudent !== "function"
+        ) {
+          setSelectedStudent(null);
+          return;
+        }
+
+        if (!store.has(activeStudent.studentKey)) {
+          setSelectedStudent(null);
+          return;
+        }
+
+        setSelectedStudent(
+          store.requireStudent(activeStudent.studentKey)
+        );
       }
     };
 
