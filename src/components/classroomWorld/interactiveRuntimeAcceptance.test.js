@@ -162,10 +162,18 @@ test("CW04 D1.6 interactive runtime acceptance", async (t) => {
   );
 
   await t.test(
-    "student interaction remains deterministic demo data only",
+    "student interaction resolves sanitized runtime intelligence only",
     () => {
-      assertContains("DEMO STUDENT");
-      assertContains("No real student data");
+      assertContains("requireStudent");
+        assertContains("studentKey");
+        assert.doesNotMatch(
+          worldSource,
+          /\brawSubmission\b/
+        );
+        assert.doesNotMatch(
+          worldSource,
+          /\brawSubmissions\b/
+        );
 
       assert.match(
         worldSource,
