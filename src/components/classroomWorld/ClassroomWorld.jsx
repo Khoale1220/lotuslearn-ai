@@ -4,12 +4,13 @@ import { PointerLockControls } from "three/addons/controls/PointerLockControls.j
 import { stepPlayerMovement } from "./playerMovement.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
+import { createDynamicStudentRoster } from "./studentRoster.js";
+import { createStudentSceneRoster } from "./studentSceneRoster.js";
 
 import {
   CLASSROOM_WORLD_FIXTURE,
   INTERACTION_DISTANCE,
   PIXEL_RENDER_CONFIG,
-  seatToWorld
 } from "./classroomWorldContract.js";
 
 import "./classroomWorld.css";
@@ -29,14 +30,76 @@ function addBox(scene, size, position, color) {
 
   return mesh;
 }
+function createCollisionObstaclesFromRoster(roster) {
+  if (!Array.isArray(roster)) {
+    throw new TypeError("roster must be an array");
+  }
+
+  return createClassroomObstacles({
+    fixture: {
+      ...CLASSROOM_WORLD_FIXTURE,
+      students: roster.map((student) => ({
+        studentKey: student.studentKey,
+        displayLabel: student.displayLabel,
+        seatIndex: student.seatIndex
+      }))
+    }
+  });
+}
 
 function ClassroomWorld({ intelligenceStore = null }) {
   const hostRef = useRef(null);
   const controlsRef = useRef(null);
   const intelligenceStoreRef = useRef(intelligenceStore);
+  const sceneRosterRef = useRef(null);
+  const collisionObstaclesRef = useRef([]);
 
   useEffect(() => {
     intelligenceStoreRef.current = intelligenceStore;
+
+    const sceneRoster = sceneRosterRef.current;
+
+    if (!sceneRoster) {
+      return;
+    }
+
+    const roster = intelligenceStore
+      ? createDynamicStudentRoster(intelligenceStore)
+      : [];
+
+    const nextCollisionObstacles =
+      createCollisionObstaclesFromRoster(roster);
+
+    sceneRoster.sync(roster);
+
+    collisionObstaclesRef.current =
+      nextCollisionObstacles;
+
+    setSelectedStudent((currentStudent) => {
+      if (!currentStudent) {
+        return currentStudent;
+      }
+
+      if (
+        !intelligenceStore ||
+        typeof intelligenceStore.has !== "function" ||
+        typeof intelligenceStore.requireStudent !== "function"
+      ) {
+        return null;
+      }
+
+      if (
+        !intelligenceStore.has(
+          currentStudent.studentKey
+        )
+      ) {
+        return null;
+      }
+
+      return intelligenceStore.requireStudent(
+        currentStudent.studentKey
+      );
+    });
   }, [intelligenceStore]);
 
   const [isLocked, setIsLocked] = useState(false);
@@ -47,12 +110,7 @@ function ClassroomWorld({ intelligenceStore = null }) {
     const host = hostRef.current;
     if (!host) return undefined;
 
-    const student = CLASSROOM_WORLD_FIXTURE.students[0];
-    const seat = seatToWorld(student.seatIndex);
 
-    const classroomObstacles = createClassroomObstacles({
-      fixture: CLASSROOM_WORLD_FIXTURE
-    });
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x17151f);
@@ -123,29 +181,147 @@ function ClassroomWorld({ intelligenceStore = null }) {
       0x76533b
     );
 
-    const body = addBox(
+    const interactiveMeshes = [];
+
+    const sceneRoster = createStudentSceneRoster({
       scene,
-      { x: 0.65, y: 0.9, z: 0.38 },
-      { x: seat.x, y: 1.15, z: seat.z },
-      0x365da8
+      interactiveMeshes,
+
+      createStudentMesh() {
+        const seat = {
+          x: 0,
+          z: 0
+        };
+
+      const body = addBox(
+        scene,
+        { x: 0.65, y: 0.9, z: 0.38 },
+        { x: seat.x, y: 1.15, z: seat.z },
+        0x365da8
+      );
+
+      const head = addBox(
+        scene,
+        { x: 0.48, y: 0.48, z: 0.48 },
+        { x: seat.x, y: 1.84, z: seat.z },
+        0xd6a978
+      );
+
+
+        scene.remove(body);
+        scene.remove(head);
+
+        const visualRoot =
+          new THREE.Group();
+
+        visualRoot.add(body);
+        visualRoot.add(head);
+
+        const interactionBounds =
+          new THREE.Box3().setFromObject(
+            visualRoot
+          );
+
+        if (interactionBounds.isEmpty()) {
+          throw new Error(
+            "student visual bounds must not be empty"
+          );
+        }
+
+        const interactionSize =
+          new THREE.Vector3();
+
+        const interactionCenter =
+          new THREE.Vector3();
+
+        interactionBounds.getSize(
+          interactionSize
+        );
+
+        interactionBounds.getCenter(
+          interactionCenter
+        );
+
+        const interactionMesh =
+          new THREE.Mesh(
+            new THREE.BoxGeometry(
+              Math.max(
+                interactionSize.x,
+                0.01
+              ),
+              Math.max(
+                interactionSize.y,
+                0.01
+              ),
+              Math.max(
+                interactionSize.z,
+                0.01
+              )
+            ),
+            new THREE.MeshBasicMaterial({
+              transparent: true,
+              opacity: 0,
+              depthWrite: false,
+              colorWrite: false
+            })
+          );
+
+        interactionMesh.geometry.translate(
+          interactionCenter.x,
+          interactionCenter.y,
+          interactionCenter.z
+        );
+
+        interactionMesh.add(body);
+        interactionMesh.add(head);
+
+        return interactionMesh;
+      },
+
+      disposeStudentMesh(studentMesh) {
+        studentMesh.traverse((object) => {
+          object.geometry?.dispose();
+
+          if (!object.material) {
+            return;
+          }
+
+          const materials =
+            Array.isArray(object.material)
+              ? object.material
+              : [object.material];
+
+          for (const material of materials) {
+            material?.dispose();
+          }
+        });
+      }
+    });
+
+    sceneRosterRef.current =
+      sceneRoster;
+
+    const initialStore =
+      intelligenceStoreRef.current;
+
+    const initialRoster =
+      initialStore
+        ? createDynamicStudentRoster(
+            initialStore
+          )
+        : [];
+
+    const initialCollisionObstacles =
+      createCollisionObstaclesFromRoster(
+        initialRoster
+      );
+
+    sceneRoster.sync(
+      initialRoster
     );
 
-    const head = addBox(
-      scene,
-      { x: 0.48, y: 0.48, z: 0.48 },
-      { x: seat.x, y: 1.84, z: seat.z },
-      0xd6a978
-    );
-
-    const interactiveMeshes = [body, head];
-
-    for (const mesh of interactiveMeshes) {
-      mesh.userData = {
-        studentKey: student.studentKey,
-        displayLabel: student.displayLabel
-      };
-    }
-
+    collisionObstaclesRef.current =
+      initialCollisionObstacles;
     const raycaster = new THREE.Raycaster();
     raycaster.far = INTERACTION_DISTANCE;
 
@@ -241,7 +417,7 @@ function ClassroomWorld({ intelligenceStore = null }) {
             minZ: -ROOM_LIMIT,
             maxZ: ROOM_LIMIT
           },
-          obstacles: classroomObstacles
+          obstacles: collisionObstaclesRef.current
         });
 
         camera.position.x = resolvedPosition.x;
@@ -280,6 +456,9 @@ function ClassroomWorld({ intelligenceStore = null }) {
       controls.dispose();
       controlsRef.current = null;
 
+      sceneRoster.dispose();
+      sceneRosterRef.current = null;
+      collisionObstaclesRef.current = [];
       scene.traverse((object) => {
         object.geometry?.dispose();
 

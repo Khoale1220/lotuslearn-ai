@@ -118,7 +118,7 @@ test("CW04 D1.6 interactive runtime acceptance", async (t) => {
 
       assert.match(
         worldSource,
-        /obstacles\s*:\s*classroomObstacles/,
+        /obstacles\s*:\s*collisionObstaclesRef\.current/,
         "collision runtime must consume classroom obstacle geometry"
       );
 
