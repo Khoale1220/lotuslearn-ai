@@ -143,6 +143,19 @@ const Sidebar = ({
             <ShieldCheck size={15} className={isCurrent("privacy") ? "text-[var(--shell-active-indicator)]" : "text-[var(--shell-text-muted)]"} />
             <span>Privacy and Boundaries</span>
           </button>
+        <button
+  onClick={() => handleNav("classroom-world")}
+  aria-current={isCurrent("classroom-world") ? "page" : void 0}
+  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition font-medium ${isCurrent("classroom-world") ? "bg-[var(--shell-surface)] text-[var(--shell-text)] font-semibold border-l-2 border-[var(--shell-active-indicator)] pl-2.5" : "text-[var(--shell-text-muted)] hover:bg-[var(--shell-surface)] hover:text-[var(--shell-text)]"}`}
+>
+  <span
+    aria-hidden="true"
+    className={`w-[15px] text-center text-[9px] font-black ${isCurrent("classroom-world") ? "text-[var(--shell-active-indicator)]" : "text-[var(--shell-text-muted)]"}`}
+  >
+    3D
+  </span>
+  <span>Classroom World</span>
+</button>
         </nav>
 
         {

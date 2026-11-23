@@ -1,3 +1,4 @@
+import ClassroomWorld from "./components/classroomWorld/ClassroomWorld.jsx";
 import { useState, useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
@@ -395,6 +396,7 @@ function App() {
     onUpdateMisconceptionStatus={handleUpdateMisconceptionStatus}
     onUpdateInterventionStatus={handleUpdateInterventionStatus}
   />}
+        {currentView === "classroom-world" && <ClassroomWorld />}
         </main>
 
         {
