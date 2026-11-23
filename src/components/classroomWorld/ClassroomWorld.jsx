@@ -262,7 +262,7 @@ function ClassroomWorld() {
 
       <div className="cw-world__hud">
         <strong>CLASSROOM WORLD // CW03</strong>
-        <span>WASD MOVE · MOUSE LOOK · ESC RELEASE</span>
+        <span>WASD MOVE Â· MOUSE LOOK Â· ESC RELEASE</span>
       </div>
 
       <div className="cw-world__crosshair">+</div>
@@ -299,7 +299,7 @@ function ClassroomWorld() {
             type="button"
             onClick={() => setSelectedStudent(null)}
           >
-            ×
+            Ã—
           </button>
 
           <small>DEMO STUDENT</small>
