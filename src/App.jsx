@@ -1,3 +1,4 @@
+import { persistTeacherInterventionCommand } from "./components/classroomWorld/teacherInterventionClient.js";
 import { useMemo } from "react";
 import ClassroomWorld from "./components/classroomWorld/ClassroomWorld.jsx";
 import {
@@ -53,6 +54,8 @@ function App() {
     setLastTeacherIntervention(
       intervention
     );
+
+    void persistTeacherInterventionCommand(intervention).catch(() => undefined);
 
     return intervention;
   };

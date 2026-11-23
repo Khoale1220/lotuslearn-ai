@@ -720,7 +720,16 @@ function ClassroomWorld({
                 >
                   <dt>{label}</dt>
                   <dd>{value}</dd>
-                </div>
+                      {selectedStudent && typeof onTeacherIntervention === "function" ? (
+        <button
+          type="button"
+          className="classroom-world__teacher-intervention-trigger"
+          onClick={() => onTeacherIntervention(selectedStudent.studentKey)}
+        >
+          APPLY INTERVENTION
+        </button>
+      ) : null}
+</div>
               )
             )}
           </dl>

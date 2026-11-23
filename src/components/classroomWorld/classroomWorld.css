@@ -321,3 +321,31 @@
     gap: 4px;
   }
 }
+
+.classroom-world__teacher-intervention-trigger {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  min-width: 190px;
+  padding: 10px 14px;
+  border: 2px solid currentColor;
+  border-radius: 0;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  image-rendering: pixelated;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.75);
+}
+
+.classroom-world__teacher-intervention-trigger:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.75);
+}
+
+.classroom-world__teacher-intervention-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
