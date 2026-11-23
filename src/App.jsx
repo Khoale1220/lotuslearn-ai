@@ -1,4 +1,10 @@
 import { persistTeacherInterventionCommand } from "./components/classroomWorld/teacherInterventionClient.js";
+import {
+  createFailureTeacherInterventionStatus,
+  createIdleTeacherInterventionStatus,
+  createPendingTeacherInterventionStatus,
+  createSuccessTeacherInterventionStatus,
+} from "./components/classroomWorld/teacherInterventionStatus.js";
 import { useMemo } from "react";
 import ClassroomWorld from "./components/classroomWorld/ClassroomWorld.jsx";
 import {
@@ -21,6 +27,9 @@ import { HowItWorksModal } from "./components/HowItWorksModal";
 import { DEMO_CONTEXT, DEMO_SUBMISSIONS } from "./data/demoClassroom";
 import { getCanonicalTeacherDecision } from "./utils/verificationDisplay";
 function App() {
+  const [teacherInterventionStatus, setTeacherInterventionStatus] = useState(
+    () => createIdleTeacherInterventionStatus(),
+  );
   const [currentView, setCurrentView] = useState("overview");
   const [activeAnalysis, setActiveAnalysis] = useState(null);
   const [, setLastTeacherIntervention] = useState(null);
@@ -55,7 +64,25 @@ function App() {
       intervention
     );
 
-    void persistTeacherInterventionCommand(intervention).catch(() => undefined);
+    setTeacherInterventionStatus(
+      createPendingTeacherInterventionStatus(),
+    );
+
+    void persistTeacherInterventionCommand(
+      intervention,
+    )
+      .then(() => {
+        setTeacherInterventionStatus(
+          createSuccessTeacherInterventionStatus(),
+        );
+      })
+      .catch((error) => {
+        setTeacherInterventionStatus(
+          createFailureTeacherInterventionStatus(
+            error,
+          ),
+        );
+      });
 
     return intervention;
   };
@@ -472,7 +499,8 @@ function App() {
     onUpdateMisconceptionStatus={handleUpdateMisconceptionStatus}
     onUpdateInterventionStatus={handleUpdateInterventionStatus}
   />}
-        {currentView === "classroom-world" && <ClassroomWorld onTeacherIntervention={handleTeacherIntervention} intelligenceStore={classroomIntelligenceStore} />}
+        {currentView === "classroom-world" && <ClassroomWorld onTeacherIntervention={handleTeacherIntervention}
+          teacherInterventionStatus={teacherInterventionStatus} intelligenceStore={classroomIntelligenceStore} />}
         </main>
 
         {

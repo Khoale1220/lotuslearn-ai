@@ -107,6 +107,7 @@ function createStudentHudRows(student) {
     }));
 }
 function ClassroomWorld({
+  teacherInterventionStatus = null,
   intelligenceStore = null,
   onTeacherIntervention = null
 }) {
@@ -721,13 +722,31 @@ function ClassroomWorld({
                   <dt>{label}</dt>
                   <dd>{value}</dd>
                       {selectedStudent && typeof onTeacherIntervention === "function" ? (
-        <button
-          type="button"
-          className="classroom-world__teacher-intervention-trigger"
-          onClick={() => onTeacherIntervention(selectedStudent.studentKey)}
-        >
-          APPLY INTERVENTION
-        </button>
+        <div className="classroom-world__teacher-intervention">
+          <button
+            type="button"
+            className="classroom-world__teacher-intervention-trigger"
+            disabled={teacherInterventionStatus?.phase === "pending"}
+            aria-busy={teacherInterventionStatus?.phase === "pending"}
+            onClick={() => onTeacherIntervention(selectedStudent.studentKey)}
+          >
+            {teacherInterventionStatus?.phase === "pending"
+              ? "SAVING..."
+              : "APPLY INTERVENTION"}
+          </button>
+
+          {teacherInterventionStatus?.phase &&
+          teacherInterventionStatus.phase !== "idle" ? (
+            <div
+              className="classroom-world__teacher-intervention-status"
+              role="status"
+              aria-live="polite"
+              data-phase={teacherInterventionStatus.phase}
+            >
+              {teacherInterventionStatus.message}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 </div>
               )
