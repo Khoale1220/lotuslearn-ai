@@ -1,5 +1,9 @@
 import { useMemo } from "react";
 import ClassroomWorld from "./components/classroomWorld/ClassroomWorld.jsx";
+import {
+  createTeacherInterventionCommand,
+  materializeTeacherIntervention
+} from "./components/classroomWorld/teacherInterventionCommand.js";
 import { createStudentIntelligenceBridge } from "./components/classroomWorld/studentIntelligenceBridge.js";
 import { useState, useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
@@ -18,6 +22,40 @@ import { getCanonicalTeacherDecision } from "./utils/verificationDisplay";
 function App() {
   const [currentView, setCurrentView] = useState("overview");
   const [activeAnalysis, setActiveAnalysis] = useState(null);
+  const [, setLastTeacherIntervention] = useState(null);
+
+  const handleTeacherIntervention = (input) => {
+    const command =
+      createTeacherInterventionCommand(input);
+
+    const intervention =
+      materializeTeacherIntervention(
+        command,
+        {
+          createInterventionKey: () => {
+            if (
+              typeof globalThis.crypto?.randomUUID !==
+              "function"
+            ) {
+              throw new Error(
+                "Secure intervention key generation unavailable"
+              );
+            }
+
+            return `intervention-${globalThis.crypto.randomUUID()}`;
+          },
+
+          nowIso: () =>
+            new Date().toISOString()
+        }
+      );
+
+    setLastTeacherIntervention(
+      intervention
+    );
+
+    return intervention;
+  };
   const [rawSubmissions, setRawSubmissions] = useState([]);
   const [cachedSubmissions, setCachedSubmissions] = useState([]);
   const [activeContext, setActiveContext] = useState(null);
@@ -431,7 +469,7 @@ function App() {
     onUpdateMisconceptionStatus={handleUpdateMisconceptionStatus}
     onUpdateInterventionStatus={handleUpdateInterventionStatus}
   />}
-        {currentView === "classroom-world" && <ClassroomWorld intelligenceStore={classroomIntelligenceStore} />}
+        {currentView === "classroom-world" && <ClassroomWorld onTeacherIntervention={handleTeacherIntervention} intelligenceStore={classroomIntelligenceStore} />}
         </main>
 
         {
