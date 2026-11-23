@@ -9,6 +9,8 @@ import { createClassroomVisualSystem } from "./classroomVisualSystem.js";
 import { createClassroomArchitectureV2 } from "./classroomArchitectureV2.js";
 import { createClassroomFurnitureV2 } from "./classroomFurnitureV2.js";
 import { createClassroomLightingV2 } from "./classroomLightingV2.js";
+import { createEnvironmentDetailV2 } from "./classroomEnvironmentDetailV2.js";
+import { createStudentVisualV2 } from "./classroomStudentVisualV2.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
 import { createDynamicStudentRoster } from "./studentRoster.js";
@@ -331,6 +333,18 @@ function ClassroomWorld({
         scene
       });
 
+    const classroomEnvironmentDetailV2 =
+      createEnvironmentDetailV2({
+        scene,
+        materials:
+          classroomVisualSystem.materials
+      });
+
+    const classroomStudentVisualV2 =
+      createStudentVisualV2({
+        scene
+      });
+
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
@@ -592,6 +606,8 @@ function ClassroomWorld({
       const delta =
         timer.getDelta();
 
+      classroomStudentVisualV2.tick();
+
       if (controls.isLocked) {
         const forward =
           (keys.has("KeyW") ? 1 : 0) -
@@ -729,6 +745,8 @@ function ClassroomWorld({
         }
       });
 
+      classroomStudentVisualV2.dispose();
+      classroomEnvironmentDetailV2.dispose();
       classroomFurnitureV2.dispose();
       classroomLightingV2.dispose();
       classroomArchitectureV2.dispose();
