@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
 
@@ -7,9 +7,16 @@ const source = fs.readFileSync(
   "utf8"
 );
 
-describe("CW04 deterministic runtime integration contract", () => {
-  it("routes runtime movement through the deterministic movement model", () => {
-    assert.match(source, /stepPlayerMovement\s*\(\s*\{/);
+describe("CW06 velocity runtime integration contract", () => {
+  it("routes runtime movement through the velocity locomotion model", () => {
+    assert.match(
+      source,
+      /stepPlayerLocomotion\s*\(\s*\{/
+    );
+    assert.match(
+      source,
+      /velocity:\s*playerVelocity/
+    );
     assert.match(source, /deltaSeconds:\s*delta/);
     assert.match(source, /yaw:\s*camera\.rotation\.y/);
   });
@@ -47,11 +54,15 @@ describe("CW04 deterministic runtime integration contract", () => {
     assert.match(source, /controlsRef\.current\?\.lock\s*\(/);
   });
 
-  it("executes movement before collision resolution", () => {
-    const movementIndex = source.indexOf("stepPlayerMovement({");
+  it("executes movement before collision and velocity feedback", () => {
+    const movementIndex = source.indexOf("stepPlayerLocomotion({");
     const collisionIndex = source.indexOf("resolvePlayerCollision({");
+    const velocityIndex = source.indexOf(
+      "resolveVelocityAfterCollision({"
+    );
 
     assert.ok(movementIndex >= 0);
     assert.ok(collisionIndex > movementIndex);
+    assert.ok(velocityIndex > collisionIndex);
   });
 });

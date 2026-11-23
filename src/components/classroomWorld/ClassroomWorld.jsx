@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-import { stepPlayerMovement } from "./playerMovement.js";
+import {
+  resolveVelocityAfterCollision,
+  stepPlayerLocomotion
+} from "./playerLocomotion.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
 import { createDynamicStudentRoster } from "./studentRoster.js";
@@ -16,7 +19,7 @@ import {
 import { ALLOWED_FIELDS } from "./studentIntelligenceContract.js";
 import "./classroomWorld.css";
 
-const MOVE_SPEED = 3.5;
+const POINTER_SPEED = 0.7;
 const PLAYER_HEIGHT = 1.65;
 const ROOM_LIMIT = 7.2;
 
@@ -298,7 +301,7 @@ function ClassroomWorld({
     host.appendChild(renderer.domElement);
 
     const controls = new PointerLockControls(camera, renderer.domElement);
-    controls.pointerSpeed = 0.8;
+    controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
 
     const onLock = () => setIsLocked(true);
@@ -486,7 +489,13 @@ function ClassroomWorld({
 
     const center = new THREE.Vector2(0, 0);
     const keys = new Set();
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
+
+    let playerVelocity = {
+      x: 0,
+      z: 0
+    };
 
     let activeStudent = null;
     let animationFrame = 0;
@@ -543,10 +552,14 @@ function ClassroomWorld({
     resizeObserver.observe(host);
     resizeCamera();
 
-    const animate = () => {
-      animationFrame = requestAnimationFrame(animate);
+    const animate = (timestamp) => {
+      animationFrame =
+        requestAnimationFrame(animate);
 
-      const delta = Math.min(clock.getDelta(), 0.05);
+      timer.update(timestamp);
+
+      const delta =
+        timer.getDelta();
 
       if (controls.isLocked) {
         const forward =
@@ -562,33 +575,77 @@ function ClassroomWorld({
           z: camera.position.z
         };
 
-        const proposedPosition = stepPlayerMovement({
-          position: previousPosition,
-          input: {
-            forward: forward > 0,
-            backward: forward < 0,
-            right: sideways > 0,
-            left: sideways < 0
-          },
-          yaw: camera.rotation.y,
-          deltaSeconds: delta
-        });
+        const locomotion =
+          stepPlayerLocomotion({
+            position:
+              previousPosition,
 
-        const resolvedPosition = resolvePlayerCollision({
-          previousPosition,
-          proposedPosition,
-          bounds: {
-            minX: -ROOM_LIMIT,
-            maxX: ROOM_LIMIT,
-            minZ: -ROOM_LIMIT,
-            maxZ: ROOM_LIMIT
-          },
-          obstacles: collisionObstaclesRef.current
-        });
+            velocity:
+              playerVelocity,
 
-        camera.position.x = resolvedPosition.x;
-        camera.position.z = resolvedPosition.z;
-        camera.position.y = PLAYER_HEIGHT;
+            input: {
+              forward:
+                forward > 0,
+
+              backward:
+                forward < 0,
+
+              right:
+                sideways > 0,
+
+              left:
+                sideways < 0
+            },
+
+            yaw:
+              camera.rotation.y,
+
+            deltaSeconds:
+              delta
+          });
+
+        const proposedPosition =
+          locomotion.position;
+
+        const resolvedPosition =
+          resolvePlayerCollision({
+            previousPosition,
+            proposedPosition,
+
+            bounds: {
+              minX: -ROOM_LIMIT,
+              maxX: ROOM_LIMIT,
+              minZ: -ROOM_LIMIT,
+              maxZ: ROOM_LIMIT
+            },
+
+            obstacles:
+              collisionObstaclesRef.current
+          });
+
+        playerVelocity =
+          resolveVelocityAfterCollision({
+            previousPosition,
+            proposedPosition,
+            resolvedPosition,
+
+            velocity:
+              locomotion.velocity
+          });
+
+        camera.position.x =
+          resolvedPosition.x;
+
+        camera.position.z =
+          resolvedPosition.z;
+
+        camera.position.y =
+          PLAYER_HEIGHT;
+      } else {
+        playerVelocity = {
+          x: 0,
+          z: 0
+        };
       }
 
       raycaster.setFromCamera(center, camera);
@@ -607,10 +664,12 @@ function ClassroomWorld({
       renderer.render(scene, camera);
     };
 
-    animate();
+    animationFrame =
+      requestAnimationFrame(animate);
 
     return () => {
       cancelAnimationFrame(animationFrame);
+      timer.dispose();
       resizeObserver.disconnect();
 
       window.removeEventListener("keydown", onKeyDown);
