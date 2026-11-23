@@ -44,7 +44,7 @@ test(
       () => {
         const matches =
           worldSource.match(
-            /\bemitTeacherInterventionCommand\b/g
+            /const\s+emitTeacherInterventionCommand\s*=/g
           ) ?? [];
 
         assert.equal(

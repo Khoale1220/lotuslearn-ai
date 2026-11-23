@@ -56,7 +56,7 @@ test(
 
         assert.match(
           worldSource,
-          /onClick=\{\(\)\s*=>\s*onTeacherIntervention\(/u,
+          /onClick=\{\(\)\s*=>\s*emitTeacherInterventionCommand\(/u,
         );
       },
     );
@@ -66,7 +66,7 @@ test(
       () => {
         assert.match(
           worldSource,
-          /onTeacherIntervention\(\s*selectedStudent(?:\?\.)?\.studentKey\s*\)/u,
+          /studentKey:\s*selectedStudent(?:\?\.)?\.studentKey[\s\S]*?actionType:\s*"probe_understanding"/u,
         );
       },
     );

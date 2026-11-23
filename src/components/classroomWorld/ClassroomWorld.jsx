@@ -166,6 +166,8 @@ function ClassroomWorld({
   }, [intelligenceStore]);
 
   const [isLocked, setIsLocked] = useState(false);
+
+  const [hasEntered, setHasEntered] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
 
@@ -513,9 +515,12 @@ function ClassroomWorld({
           return;
         }
 
-        setSelectedStudent(
-          store.requireStudent(activeStudent.studentKey)
-        );
+        controls.unlock();
+      keys.clear();
+
+      setSelectedStudent(
+        store.requireStudent(activeStudent.studentKey)
+      );
       }
     };
 
@@ -641,7 +646,19 @@ function ClassroomWorld({
 
   return (
     <section className="cw-world">
-      <div ref={hostRef} className="cw-world__viewport" />
+      <div
+        ref={hostRef}
+        className="cw-world__viewport"
+        onClick={() => {
+          if (
+            hasEntered &&
+            !selectedStudent &&
+            !isLocked
+          ) {
+            controlsRef.current?.lock();
+          }
+        }}
+      />
 
       <div className="cw-world__hud">
         <strong>CLASSROOM WORLD // CW03</strong>
@@ -656,7 +673,7 @@ function ClassroomWorld({
         </div>
       )}
 
-      {!isLocked && (
+      {!hasEntered && (
         <div className="cw-world__entry">
           <div className="cw-world__entry-card">
             <small>CW03 RENDERING SPIKE</small>
@@ -668,7 +685,10 @@ function ClassroomWorld({
 
             <button
               type="button"
-              onClick={() => controlsRef.current?.lock()}
+              onClick={() => {
+                setHasEntered(true);
+                controlsRef.current?.lock();
+              }}
             >
               ENTER CLASSROOM
             </button>
@@ -733,7 +753,12 @@ function ClassroomWorld({
             className="classroom-world__teacher-intervention-trigger"
             disabled={teacherInterventionStatus?.phase === "pending"}
             aria-busy={teacherInterventionStatus?.phase === "pending"}
-            onClick={() => onTeacherIntervention(selectedStudent.studentKey)}
+            onClick={() =>
+                    emitTeacherInterventionCommand({
+                      studentKey: selectedStudent.studentKey,
+                      actionType: "probe_understanding",
+                    })
+                  }
           >
             {teacherInterventionStatus?.phase === "pending"
               ? "SAVING..."
