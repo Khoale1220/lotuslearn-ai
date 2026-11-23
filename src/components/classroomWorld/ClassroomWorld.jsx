@@ -11,6 +11,9 @@ import { createClassroomFurnitureV2 } from "./classroomFurnitureV2.js";
 import { createClassroomLightingV2 } from "./classroomLightingV2.js";
 import { createEnvironmentDetailV2 } from "./classroomEnvironmentDetailV2.js";
 import { createStudentVisualV2 } from "./classroomStudentVisualV2.js";
+import { createClassroomExteriorDepthV2 } from "./classroomExteriorDepthV2.js";
+import { createClassroomInteractionFeedbackV2 } from "./classroomInteractionFeedbackV2.js";
+import { createClassroomPerformanceBudget } from "./classroomPerformanceBudget.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
 import { createDynamicStudentRoster } from "./studentRoster.js";
@@ -345,6 +348,24 @@ function ClassroomWorld({
         scene
       });
 
+    const classroomExteriorDepthV2 =
+      createClassroomExteriorDepthV2({
+        scene,
+        documentObject: document
+      });
+
+    const classroomInteractionFeedbackV2 =
+      createClassroomInteractionFeedbackV2({
+        renderer,
+        scene,
+        documentObject: document
+      });
+
+    const classroomPerformanceBudget =
+      createClassroomPerformanceBudget({
+        renderer
+      });
+
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
@@ -607,6 +628,8 @@ function ClassroomWorld({
         timer.getDelta();
 
       classroomStudentVisualV2.tick();
+      classroomExteriorDepthV2.update(camera);
+      classroomPerformanceBudget.sample();
 
       if (controls.isLocked) {
         const forward =
@@ -697,6 +720,14 @@ function ClassroomWorld({
 
       raycaster.setFromCamera(center, camera);
 
+      classroomInteractionFeedbackV2.update({
+        raycaster,
+        scene,
+        camera,
+        controlsLocked:
+          controls.isLocked
+      });
+
       const hit = raycaster
         .intersectObjects(interactiveMeshes, false)
         .find((candidate) => candidate.distance <= INTERACTION_DISTANCE);
@@ -745,6 +776,9 @@ function ClassroomWorld({
         }
       });
 
+      classroomPerformanceBudget.dispose();
+      classroomInteractionFeedbackV2.dispose();
+      classroomExteriorDepthV2.dispose();
       classroomStudentVisualV2.dispose();
       classroomEnvironmentDetailV2.dispose();
       classroomFurnitureV2.dispose();
