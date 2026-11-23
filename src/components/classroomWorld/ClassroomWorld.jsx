@@ -34,6 +34,10 @@ import {
 import {
   createClassroomCharacterVisualIntegrationV10
 } from "./classroomCharacterVisualIntegrationV10.js";
+
+import {
+  createClassroomInteractionAuthorityV11
+} from "./classroomInteractionAuthorityV11.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -441,6 +445,28 @@ function ClassroomWorld({
         documentObject:
           document
       });
+
+    const classroomInteractionAuthorityV11 =
+      createClassroomInteractionAuthorityV11({
+        scene,
+        camera,
+
+        characterVisualIntegration:
+          classroomCharacterVisualIntegrationV10,
+
+        windowShadeSystem:
+          classroomFinalContentV6,
+
+        onTeacherIntervention:
+          (command) =>
+            emitTeacherInterventionCommand(
+              command
+            ),
+
+        windowObject:
+          window
+      });
+
 
     const classroomRuntimeObservabilityV7 =
       createClassroomRuntimeObservabilityV7({
@@ -881,6 +907,8 @@ function ClassroomWorld({
 
       classroomRuntimeObservabilityV7.dispose();
       classroomRetroFpsPipeline.dispose();
+      classroomInteractionAuthorityV11.dispose();
+
       classroomCharacterVisualIntegrationV10.dispose();
 
       classroomCharacterV3.dispose();
