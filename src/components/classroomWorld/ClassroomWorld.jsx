@@ -13,6 +13,7 @@ import {
   PIXEL_RENDER_CONFIG,
 } from "./classroomWorldContract.js";
 
+import { ALLOWED_FIELDS } from "./studentIntelligenceContract.js";
 import "./classroomWorld.css";
 
 const MOVE_SPEED = 3.5;
@@ -47,6 +48,64 @@ function createCollisionObstaclesFromRoster(roster) {
   });
 }
 
+function formatStudentHudLabel(field) {
+  return field
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function formatStudentHudValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0
+      ? value.map((item) => String(item)).join(" • ")
+      : "—";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "YES" : "NO";
+  }
+
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    if (value >= 0 && value <= 1) {
+      return `${Math.round(value * 100)}%`;
+    }
+
+    return String(value);
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
+function createStudentHudRows(student) {
+  if (!student) {
+    return [];
+  }
+
+  return ALLOWED_FIELDS
+    .filter(
+      (field) =>
+        field !== "studentKey" &&
+        field !== "displayLabel"
+    )
+    .map((field) => ({
+      field,
+      label: formatStudentHudLabel(field),
+      value: formatStudentHudValue(student[field])
+    }));
+}
 function ClassroomWorld({ intelligenceStore = null }) {
   const hostRef = useRef(null);
   const controlsRef = useRef(null);
@@ -105,6 +164,8 @@ function ClassroomWorld({ intelligenceStore = null }) {
   const [isLocked, setIsLocked] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const selectedStudentHudRows =
+    createStudentHudRows(selectedStudent);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -333,6 +394,10 @@ function ClassroomWorld({ intelligenceStore = null }) {
     let animationFrame = 0;
 
     const onKeyDown = (event) => {
+      if (event.code === "Escape") {
+        setSelectedStudent(null);
+        return;
+      }
       keys.add(event.code);
 
       if (event.code === "KeyE" && controls.isLocked && activeStudent) {
@@ -516,17 +581,64 @@ function ClassroomWorld({ intelligenceStore = null }) {
       )}
 
       {selectedStudent && (
-        <aside className="cw-world__student-card">
-          <button
-            type="button"
-            onClick={() => setSelectedStudent(null)}
-          >
-            ×
-          </button>
+        <aside
+          className="cw-world__student-card cw-world__student-hud"
+          role="dialog"
+          aria-label="Student intelligence"
+        >
+          <div
+            className="cw-world__student-hud-scanline"
+            aria-hidden="true"
+          />
 
-          <small>DEMO STUDENT</small>
-          <strong>{selectedStudent.displayLabel}</strong>
-          <span>{selectedStudent.studentKey}</span>
+          <header className="cw-world__student-hud-header">
+            <div>
+              <small>
+                LOTUSLEARN // STUDENT INTELLIGENCE
+              </small>
+
+              <strong>
+                {selectedStudent.displayLabel}
+              </strong>
+
+              <span>
+                {selectedStudent.studentKey}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="cw-world__student-hud-close"
+              onClick={() => setSelectedStudent(null)}
+              aria-label="Close student intelligence"
+            >
+              X
+            </button>
+          </header>
+
+          <div
+            className="cw-world__student-hud-divider"
+            aria-hidden="true"
+          />
+
+          <dl className="cw-world__student-hud-grid">
+            {selectedStudentHudRows.map(
+              ({ field, label, value }) => (
+                <div
+                  className="cw-world__student-hud-row"
+                  key={field}
+                >
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              )
+            )}
+          </dl>
+
+          <footer className="cw-world__student-hud-footer">
+            <span>[E] INSPECT</span>
+            <span>[ESC] CLOSE</span>
+          </footer>
         </aside>
       )}
     </section>
