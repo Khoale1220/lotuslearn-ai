@@ -30,6 +30,10 @@ import {
 import {
   createClassroomRuntimeObservabilityV7
 } from "./classroomRuntimeObservabilityV7.js";
+
+import {
+  createClassroomCharacterVisualIntegrationV10
+} from "./classroomCharacterVisualIntegrationV10.js";
 import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
@@ -403,6 +407,17 @@ function ClassroomWorld({
       createClassroomCharacterV3({
         scene
       });
+
+    const classroomCharacterVisualIntegrationV10 =
+      createClassroomCharacterVisualIntegrationV10({
+        scene,
+        camera,
+        legacyCharacterSystem:
+          classroomCharacterV3,
+        documentObject:
+          document
+      });
+
 
     const classroomRetroFpsPipeline =
       createClassroomRetroFpsPipeline({
@@ -814,6 +829,11 @@ function ClassroomWorld({
         setTargetLabel(activeStudent?.displayLabel || "");
       }
 
+      classroomCharacterVisualIntegrationV10.tick({
+        timestamp,
+        camera
+      });
+
       renderer.render(scene, camera);
 
       classroomRuntimeObservabilityV7.observeFrame({
@@ -861,6 +881,8 @@ function ClassroomWorld({
 
       classroomRuntimeObservabilityV7.dispose();
       classroomRetroFpsPipeline.dispose();
+      classroomCharacterVisualIntegrationV10.dispose();
+
       classroomCharacterV3.dispose();
       classroomRoomGeometryV3.dispose();
       classroom64BitVisualUpgrade.dispose();
