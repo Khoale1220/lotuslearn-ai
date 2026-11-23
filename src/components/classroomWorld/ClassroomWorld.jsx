@@ -7,6 +7,8 @@ import {
 } from "./playerLocomotion.js";
 import { createClassroomVisualSystem } from "./classroomVisualSystem.js";
 import { createClassroomArchitectureV2 } from "./classroomArchitectureV2.js";
+import { createClassroomFurnitureV2 } from "./classroomFurnitureV2.js";
+import { createClassroomLightingV2 } from "./classroomLightingV2.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
 import { createDynamicStudentRoster } from "./studentRoster.js";
@@ -314,6 +316,19 @@ function ClassroomWorld({
         materials:
           classroomVisualSystem.materials,
         documentObject: document
+      });
+
+    const classroomFurnitureV2 =
+      createClassroomFurnitureV2({
+        scene,
+        materials:
+          classroomVisualSystem.materials
+      });
+
+    const classroomLightingV2 =
+      createClassroomLightingV2({
+        renderer,
+        scene
       });
 
     const controls = new PointerLockControls(camera, renderer.domElement);
@@ -714,6 +729,8 @@ function ClassroomWorld({
         }
       });
 
+      classroomFurnitureV2.dispose();
+      classroomLightingV2.dispose();
       classroomArchitectureV2.dispose();
       classroomVisualSystem.dispose();
       renderer.dispose();
