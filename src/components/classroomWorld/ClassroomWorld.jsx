@@ -5,6 +5,8 @@ import {
   resolveVelocityAfterCollision,
   stepPlayerLocomotion
 } from "./playerLocomotion.js";
+import { createClassroomVisualSystem } from "./classroomVisualSystem.js";
+import { createClassroomArchitectureV2 } from "./classroomArchitectureV2.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
 import { createDynamicStudentRoster } from "./studentRoster.js";
@@ -299,6 +301,20 @@ function ClassroomWorld({
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.className = "cw-world__canvas";
     host.appendChild(renderer.domElement);
+
+    const classroomVisualSystem =
+      createClassroomVisualSystem({
+        renderer,
+        scene
+      });
+
+    const classroomArchitectureV2 =
+      createClassroomArchitectureV2({
+        scene,
+        materials:
+          classroomVisualSystem.materials,
+        documentObject: document
+      });
 
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
@@ -698,6 +714,8 @@ function ClassroomWorld({
         }
       });
 
+      classroomArchitectureV2.dispose();
+      classroomVisualSystem.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
