@@ -1,3 +1,4 @@
+import { createClassroomTeacherDeskHeadphonesV19A } from "./classroomTeacherDeskHeadphonesV19A.js";
 import { createClassroomOceanAtmosphereDepthV19 } from "./classroomOceanAtmosphereDepthV19.js";
 import { createClassroomSeagullFlocksV18 } from "./classroomSeagullFlocksV18.js";
 import { createClassroomCargoShipLanesV17 } from "./classroomCargoShipLanesV17.js";
@@ -543,6 +544,12 @@ const classroomInteractionAuthorityV11 =
       });
 
 
+    const classroomTeacherDeskHeadphonesV19A =
+      createClassroomTeacherDeskHeadphonesV19A({
+        scene,
+        teacherAnchor
+      });
+
     const classroomRuntimeObservabilityV7 =
       createClassroomRuntimeObservabilityV7({
         renderer,
@@ -1001,6 +1008,8 @@ const classroomInteractionAuthorityV11 =
       });
 
       classroomRetroCompositionV4.dispose();
+
+      classroomTeacherDeskHeadphonesV19A.dispose();
 
       classroomFinalContentV6.dispose();
 
