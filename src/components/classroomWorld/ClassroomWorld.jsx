@@ -1,3 +1,4 @@
+import { createClassroomOceanVistaV16 } from "./classroomOceanVistaV16.js";
 import {
   createClassroomOceanSkyWorldV15
 } from "./classroomOceanSkyWorldV15.js";
@@ -480,7 +481,17 @@ function ClassroomWorld({
               .finalFingerprint
       });
 
-    const classroomInteractionAuthorityV11 =
+        const classroomOceanVistaV16 =
+      createClassroomOceanVistaV16({
+        scene,
+        camera,
+        windowShadeSystem:
+          classroomFinalContentV6,
+        oceanWorld:
+          classroomOceanSkyWorldV15
+      });
+
+const classroomInteractionAuthorityV11 =
       createClassroomInteractionAuthorityV11({
         scene,
         camera,
@@ -489,7 +500,7 @@ function ClassroomWorld({
           classroomCharacterVisualIntegrationV10,
 
         windowShadeSystem:
-          classroomFinalContentV6,
+          classroomOceanVistaV16.windowShadeSystem,
 
         onTeacherIntervention:
           (command) =>
@@ -892,7 +903,12 @@ function ClassroomWorld({
         setTargetLabel(activeStudent?.displayLabel || "");
       }
 
-      classroomCharacterVisualIntegrationV10.tick({
+      classroomOceanVistaV16.tick({
+      timestamp,
+      deltaSeconds: delta
+    });
+
+    classroomCharacterVisualIntegrationV10.tick({
         timestamp,
         camera
       });
@@ -970,6 +986,7 @@ function ClassroomWorld({
       classroomLightingV2.dispose();
       classroomArchitectureV2.dispose();
       classroomVisualSystem.dispose();
+      classroomOceanVistaV16.dispose();
       classroomOceanSkyWorldV15.dispose();
 
       renderer.dispose();
