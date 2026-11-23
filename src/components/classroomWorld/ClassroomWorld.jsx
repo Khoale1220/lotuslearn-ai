@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+import { stepPlayerMovement } from "./playerMovement.js";
+import { resolvePlayerCollision } from "./playerCollision.js";
 
 import {
   CLASSROOM_WORLD_FIXTURE,
@@ -188,21 +190,37 @@ function ClassroomWorld() {
           (keys.has("KeyD") ? 1 : 0) -
           (keys.has("KeyA") ? 1 : 0);
 
-        controls.moveForward(forward * MOVE_SPEED * delta);
-        controls.moveRight(sideways * MOVE_SPEED * delta);
+        const previousPosition = {
+          x: camera.position.x,
+          z: camera.position.z
+        };
 
-        camera.position.x = THREE.MathUtils.clamp(
-          camera.position.x,
-          -ROOM_LIMIT,
-          ROOM_LIMIT
-        );
+        const proposedPosition = stepPlayerMovement({
+          position: previousPosition,
+          input: {
+            forward: forward > 0,
+            backward: forward < 0,
+            right: sideways > 0,
+            left: sideways < 0
+          },
+          yaw: camera.rotation.y,
+          deltaSeconds: delta
+        });
 
-        camera.position.z = THREE.MathUtils.clamp(
-          camera.position.z,
-          -ROOM_LIMIT,
-          ROOM_LIMIT
-        );
+        const resolvedPosition = resolvePlayerCollision({
+          previousPosition,
+          proposedPosition,
+          bounds: {
+            minX: -ROOM_LIMIT,
+            maxX: ROOM_LIMIT,
+            minZ: -ROOM_LIMIT,
+            maxZ: ROOM_LIMIT
+          },
+          obstacles: []
+        });
 
+        camera.position.x = resolvedPosition.x;
+        camera.position.z = resolvedPosition.z;
         camera.position.y = PLAYER_HEIGHT;
       }
 
