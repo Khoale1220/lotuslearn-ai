@@ -41,6 +41,10 @@ import {
 import {
   createClassroomPixelContactGroundingV36
 } from "./classroomPixelContactGroundingV36.js";
+import {
+  createClassroomCharacterDepthOcclusionPolishV37
+} from "./classroomCharacterDepthOcclusionPolishV37.js";
+
 
 
 
@@ -578,6 +582,12 @@ function ClassroomWorld({
         scene
       });
 
+    const classroomCharacterDepthOcclusionPolishV37 =
+      createClassroomCharacterDepthOcclusionPolishV37({
+        scene,
+        camera
+      });
+
     const classroomFinalContentV6 =
       createClassroomFinalContentV6({
         scene,
@@ -1112,6 +1122,8 @@ const classroomInteractionAuthorityV11 =
         camera
       });
 
+      classroomCharacterDepthOcclusionPolishV37.tick();
+
       classroomOceanSkyWorldV15.tick({
         timestamp,
         camera
@@ -1167,6 +1179,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomCharacterDepthOcclusionPolishV37.dispose();
 
       classroomPixelContactGroundingV36.dispose();
 
