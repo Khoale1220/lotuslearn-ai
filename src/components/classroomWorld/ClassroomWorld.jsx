@@ -2,6 +2,10 @@ import { createClassroomEnvironmentalAudioV20 } from "./classroomEnvironmentalAu
 import {
   createClassroomVisualFidelityV22
 } from "./classroomVisualFidelityV22.js";
+import {
+  createClassroomPixelArtGradeV23
+} from "./classroomPixelArtGradeV23.js";
+
 
 import { createClassroomTeacherDeskHeadphonesV19A } from "./classroomTeacherDeskHeadphonesV19A.js";
 import { createClassroomOceanAtmosphereDepthV19 } from "./classroomOceanAtmosphereDepthV19.js";
@@ -454,6 +458,11 @@ function ClassroomWorld({
         renderer,
         scene,
         documentObject: document
+      });
+
+    const classroomPixelArtGradeV23 =
+      createClassroomPixelArtGradeV23({
+        renderer
       });
 
     const classroomRetroCompositionV4 =
@@ -1007,7 +1016,18 @@ const classroomInteractionAuthorityV11 =
       timestamp
     });
 
-    renderer.render(scene, camera);
+      classroomPixelArtGradeV23.beginFrame();
+
+      try {
+        renderer.render(scene, camera);
+
+        classroomPixelArtGradeV23.presentFrame();
+      }
+      catch (error) {
+        classroomPixelArtGradeV23.cancelFrame();
+
+        throw error;
+      }
 
       classroomInputStateTimelineV13.observeState();
 
@@ -1054,6 +1074,7 @@ const classroomInteractionAuthorityV11 =
       classroomFinalContentV6.dispose();
 
       classroomRuntimeObservabilityV7.dispose();
+      classroomPixelArtGradeV23.dispose();
       classroomRetroFpsPipeline.dispose();
       classroomInteractionAuthorityV11.dispose();
       classroomInputStateTimelineV13.dispose();
