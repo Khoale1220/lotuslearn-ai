@@ -32,6 +32,10 @@ import {
 import {
   createClassroomPixelFaceLivedInPolishV33
 } from "./classroomPixelFaceLivedInPolishV33.js";
+import {
+  createClassroomBlackboardStorytellingV34
+} from "./classroomBlackboardStorytellingV34.js";
+
 
 
 
@@ -548,6 +552,11 @@ function ClassroomWorld({
 
     const classroomPixelFaceLivedInPolishV33 =
       createClassroomPixelFaceLivedInPolishV33({
+        scene
+      });
+
+    const classroomBlackboardStorytellingV34 =
+      createClassroomBlackboardStorytellingV34({
         scene
       });
 
@@ -1140,6 +1149,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomBlackboardStorytellingV34.dispose();
 
       classroomPixelFaceLivedInPolishV33.dispose();
 
