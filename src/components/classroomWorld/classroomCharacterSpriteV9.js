@@ -1,3 +1,4 @@
+import { enhanceCharacterAtlasV25 } from "./classroomHighDetailCharacterArtV25.js";
 import * as THREE from "three";
 
 import {
@@ -1471,6 +1472,23 @@ function createProceduralStudentAtlasV9({
     texture,
     initialFrame
   );
+
+  /*
+   * V25 high-detail VGA progressive enhancement.
+   *
+   * Browser 2D contexts receive the high-detail pass.
+   * Minimal/headless canvas mocks safely skip it.
+   */
+  const characterAtlasContextV25 =
+    canvas.getContext("2d");
+
+  enhanceCharacterAtlasV25({
+    context:
+      characterAtlasContextV25,
+
+    canvas:
+      canvas
+  });
 
   return texture;
 }
