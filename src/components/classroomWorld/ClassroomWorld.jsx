@@ -26,6 +26,10 @@ import {
 import {
   createClassroomCharacterSilhouettePolishV31
 } from "./classroomCharacterSilhouettePolishV31.js";
+import {
+  createClassroomReferenceCharacterDeskMicrodetailV32
+} from "./classroomReferenceCharacterDeskMicrodetailV32.js";
+
 
 
 
@@ -530,6 +534,11 @@ function ClassroomWorld({
 
     const classroomCharacterSilhouettePolishV31 =
       createClassroomCharacterSilhouettePolishV31({
+        scene
+      });
+
+    const classroomReferenceCharacterDeskMicrodetailV32 =
+      createClassroomReferenceCharacterDeskMicrodetailV32({
         scene
       });
 
@@ -1122,6 +1131,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomReferenceCharacterDeskMicrodetailV32.dispose();
 
       classroomCharacterSilhouettePolishV31.dispose();
 
