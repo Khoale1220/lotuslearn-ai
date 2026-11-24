@@ -60,6 +60,7 @@ import { createClassroomCharacterFirstPersonStagingV46 } from "./classroomCharac
 import { createClassroomDeskSurfacePropsV47 } from "./classroomDeskSurfacePropsV47.js";
 import { createClassroomBackpackWallStorytellingV48 } from "./classroomBackpackWallStorytellingV48.js";
 import { createClassroomEnvironmentalStoryDensityV49 } from "./classroomEnvironmentalStoryDensityV49.js";
+import { createClassroomCinematicPaletteCohesionV50 } from "./classroomCinematicPaletteCohesionV50.js";
 
 
 
@@ -747,6 +748,11 @@ const classroomCharacterSceneCohesionV42 =
         scene
       });
 
+    const classroomCinematicPaletteCohesionV50 =
+      createClassroomCinematicPaletteCohesionV50({
+        scene
+      });
+
 
 
 const classroomInteractionAuthorityV11 =
@@ -1348,6 +1354,8 @@ const classroomInteractionAuthorityV11 =
       classroomInteractionReplayAuditV12.dispose();
 
       classroomCharacterCompositionV26.dispose();
+
+      classroomCinematicPaletteCohesionV50.dispose();
 
       classroomEnvironmentalStoryDensityV49.dispose();
 
