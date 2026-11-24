@@ -55,6 +55,7 @@ import { createClassroomEnvironmentalSpriteFidelityV41 } from "./classroomEnviro
 import { createClassroomCharacterSceneCohesionV42 } from "./classroomCharacterSceneCohesionV42.js";
 import { createClassroomCharacterAtlasFidelityV43 } from "./classroomCharacterAtlasFidelityV43.js";
 import { createClassroomCharacterBodyClothingFidelityV44 } from "./classroomCharacterBodyClothingFidelityV44.js";
+import { createClassroomCharacterCastVarietyV45 } from "./classroomCharacterCastVarietyV45.js";
 
 
 
@@ -716,6 +717,11 @@ const classroomCharacterSceneCohesionV42 =
         scene
       });
 
+    const classroomCharacterCastVarietyV45 =
+      createClassroomCharacterCastVarietyV45({
+        scene
+      });
+
 
 
 const classroomInteractionAuthorityV11 =
@@ -1314,6 +1320,10 @@ const classroomInteractionAuthorityV11 =
       classroomInteractionReplayAuditV12.dispose();
 
       classroomCharacterCompositionV26.dispose();
+
+      classroomCharacterCastVarietyV45.dispose();
+
+
 
       classroomCharacterBodyClothingFidelityV44.dispose();
 
