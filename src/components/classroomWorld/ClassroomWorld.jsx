@@ -57,6 +57,7 @@ import { createClassroomCharacterAtlasFidelityV43 } from "./classroomCharacterAt
 import { createClassroomCharacterBodyClothingFidelityV44 } from "./classroomCharacterBodyClothingFidelityV44.js";
 import { createClassroomCharacterCastVarietyV45 } from "./classroomCharacterCastVarietyV45.js";
 import { createClassroomCharacterFirstPersonStagingV46 } from "./classroomCharacterFirstPersonStagingV46.js";
+import { createClassroomDeskSurfacePropsV47 } from "./classroomDeskSurfacePropsV47.js";
 
 
 
@@ -729,6 +730,11 @@ const classroomCharacterSceneCohesionV42 =
         camera
       });
 
+    const classroomDeskSurfacePropsV47 =
+      createClassroomDeskSurfacePropsV47({
+        scene
+      });
+
 
 
 const classroomInteractionAuthorityV11 =
@@ -1058,6 +1064,7 @@ const classroomInteractionAuthorityV11 =
       classroomStudentVisualV2.tick();
       classroomCharacterV3.tick();
       classroomRetroCompositionV4.tick(camera, timestamp);
+      classroomDeskSurfacePropsV47.tick();
 
       classroomFinalContentV6.tick({
         timestamp,
@@ -1327,6 +1334,8 @@ const classroomInteractionAuthorityV11 =
       classroomInteractionReplayAuditV12.dispose();
 
       classroomCharacterCompositionV26.dispose();
+
+      classroomDeskSurfacePropsV47.dispose();
 
       classroomCharacterFirstPersonStagingV46.dispose();
 
