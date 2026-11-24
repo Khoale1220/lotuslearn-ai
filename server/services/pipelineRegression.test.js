@@ -2204,7 +2204,7 @@ ${pendingResult.interventions.map((i) => `- Teacher Decision: ${getCanonicalTeac
         };
         const technicalVerified = isAnalysisFullyVerified({
           deterministicAuditPassed: false,
-          groupPartitionPassed: false,
+          ...deterministicAudit,
           overallStatus: "verified"
         });
         assert.strictEqual(technicalVerified, false);

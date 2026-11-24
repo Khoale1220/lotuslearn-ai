@@ -94,19 +94,33 @@ test("CW04 D1.6 interactive runtime acceptance", async (t) => {
   );
 
   await t.test(
-    "deterministic movement proposal precedes collision resolution",
+    "velocity movement precedes collision and velocity feedback",
     () => {
-      const movementIndex = indexOfRequired("stepPlayerMovement");
-      const collisionIndex = indexOfRequired("resolvePlayerCollision");
+      const movementIndex = indexOfRequired(
+        "stepPlayerLocomotion({"
+      );
+      const collisionIndex = indexOfRequired(
+        "resolvePlayerCollision({"
+      );
+
+      const velocityFeedbackIndex = indexOfRequired(
+        "resolveVelocityAfterCollision({"
+      );
 
       assert.ok(
         movementIndex < collisionIndex,
-        "movement proposal must be produced before collision resolution"
+        "movement proposal must precede collision resolution"
+      );
+
+      assert.ok(
+        collisionIndex < velocityFeedbackIndex,
+        "collision resolution must precede velocity feedback"
       );
 
       assertContains("previousPosition");
       assertContains("proposedPosition");
       assertContains("resolvedPosition");
+      assertContains("playerVelocity");
     }
   );
 

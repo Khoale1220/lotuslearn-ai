@@ -1,7 +1,140 @@
+import { createClassroomEnvironmentalAudioV20 } from "./classroomEnvironmentalAudioV20.js";
+import {
+  createClassroomVisualFidelityV22
+} from "./classroomVisualFidelityV22.js";
+import {
+  createClassroomPixelArtGradeV23
+} from "./classroomPixelArtGradeV23.js";
+import {
+  createClassroomReferenceWorldArtV24
+} from "./classroomReferenceWorldArtV24.js";
+import {
+  createClassroomCharacterCompositionV26
+} from "./classroomCharacterCompositionV26.js";
+import {
+  createClassroomPropDensityLightingV27
+} from "./classroomPropDensityLightingV27.js";
+import {
+  createClassroomPixelMaterialDepthV28
+} from "./classroomPixelMaterialDepthV28.js";
+import {
+  createClassroomReferenceSurfaceSilhouetteV29
+} from "./classroomReferenceSurfaceSilhouetteV29.js";
+import {
+  createClassroomReferenceLightFramingV30
+} from "./classroomReferenceLightFramingV30.js";
+import {
+  createClassroomCharacterSilhouettePolishV31
+} from "./classroomCharacterSilhouettePolishV31.js";
+import {
+  createClassroomReferenceCharacterDeskMicrodetailV32
+} from "./classroomReferenceCharacterDeskMicrodetailV32.js";
+import {
+  createClassroomPixelFaceLivedInPolishV33
+} from "./classroomPixelFaceLivedInPolishV33.js";
+import {
+  createClassroomBlackboardStorytellingV34
+} from "./classroomBlackboardStorytellingV34.js";
+import {
+  createClassroomDepthAtmospherePixelLightingV35
+} from "./classroomDepthAtmospherePixelLightingV35.js";
+import {
+  createClassroomPixelContactGroundingV36
+} from "./classroomPixelContactGroundingV36.js";
+import {
+  createClassroomCharacterDepthOcclusionPolishV37
+} from "./classroomCharacterDepthOcclusionPolishV37.js";
+import {
+  createClassroomExteriorDepthArtV38
+} from "./classroomExteriorDepthArtV38.js";
+import {
+  createClassroomForegroundCompositionV39
+} from "./classroomForegroundCompositionV39.js";
+import { createClassroomAmbientPixelPolishV40 } from "./classroomAmbientPixelPolishV40.js";
+import { createClassroomEnvironmentalSpriteFidelityV41 } from "./classroomEnvironmentalSpriteFidelityV41.js";
+import { createClassroomCharacterSceneCohesionV42 } from "./classroomCharacterSceneCohesionV42.js";
+import { createClassroomCharacterAtlasFidelityV43 } from "./classroomCharacterAtlasFidelityV43.js";
+import { createClassroomCharacterBodyClothingFidelityV44 } from "./classroomCharacterBodyClothingFidelityV44.js";
+import { createClassroomCharacterCastVarietyV45 } from "./classroomCharacterCastVarietyV45.js";
+import { createClassroomCharacterFirstPersonStagingV46 } from "./classroomCharacterFirstPersonStagingV46.js";
+import { createClassroomDeskSurfacePropsV47 } from "./classroomDeskSurfacePropsV47.js";
+import { createClassroomBackpackWallStorytellingV48 } from "./classroomBackpackWallStorytellingV48.js";
+import { createClassroomEnvironmentalStoryDensityV49 } from "./classroomEnvironmentalStoryDensityV49.js";
+import { createClassroomCinematicPaletteCohesionV50 } from "./classroomCinematicPaletteCohesionV50.js";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { createClassroomTeacherDeskHeadphonesV19A } from "./classroomTeacherDeskHeadphonesV19A.js";
+import { createClassroomOceanAtmosphereDepthV19 } from "./classroomOceanAtmosphereDepthV19.js";
+import { createClassroomSeagullFlocksV18 } from "./classroomSeagullFlocksV18.js";
+import { createClassroomCargoShipLanesV17 } from "./classroomCargoShipLanesV17.js";
+import { createClassroomOceanVistaV16 } from "./classroomOceanVistaV16.js";
+import {
+  createClassroomOceanSkyWorldV15
+} from "./classroomOceanSkyWorldV15.js";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-import { stepPlayerMovement } from "./playerMovement.js";
+import {
+  resolveVelocityAfterCollision,
+  stepPlayerLocomotion
+} from "./playerLocomotion.js";
+import { createClassroomVisualSystem } from "./classroomVisualSystem.js";
+import { createClassroomArchitectureV2 } from "./classroomArchitectureV2.js";
+import { createClassroomFurnitureV2 } from "./classroomFurnitureV2.js";
+import { createClassroomLightingV2 } from "./classroomLightingV2.js";
+import { createEnvironmentDetailV2 } from "./classroomEnvironmentDetailV2.js";
+import { createStudentVisualV2 } from "./classroomStudentVisualV2.js";
+import { createClassroomExteriorDepthV2 } from "./classroomExteriorDepthV2.js";
+import { createClassroomInteractionFeedbackV2 } from "./classroomInteractionFeedbackV2.js";
+import { createClassroomPerformanceBudget } from "./classroomPerformanceBudget.js";
+import { createClassroom64BitVisualUpgrade } from "./classroom64BitVisualUpgrade.js";
+import { createClassroomRoomGeometryV3 } from "./classroomRoomGeometryV3.js";
+import { createClassroomCharacterV3 } from "./classroomCharacterV3.js";
+import {
+  RETRO_TEACHER_INTERVENTION_UI_EVENT,
+  createClassroomRetroFpsPipeline
+} from "./classroomRetroFpsPipeline.js";
+import { createClassroomRetroCompositionV4 } from "./classroomRetroCompositionV4.js";
+
+import {
+  createClassroomFinalContentV6
+} from "./classroomFinalContentV6.js";
+
+import {
+  createClassroomRuntimeObservabilityV7
+} from "./classroomRuntimeObservabilityV7.js";
+
+import {
+  createClassroomCharacterVisualIntegrationV10
+} from "./classroomCharacterVisualIntegrationV10.js";
+
+import {
+  createClassroomInteractionAuthorityV11
+} from "./classroomInteractionAuthorityV11.js";
+
+import {
+  createClassroomInteractionReplayAuditV12
+} from "./classroomInteractionReplayAuditV12.js";
+
+import {
+  createClassroomInputStateTimelineV13
+} from "./classroomInputStateTimelineV13.js";
+import { createThreeCameraMovementInput } from "./threeCameraInputBridge.js";
 import { resolvePlayerCollision } from "./playerCollision.js";
 import { createClassroomObstacles } from "./classroomObstacles.js";
 import { createDynamicStudentRoster } from "./studentRoster.js";
@@ -16,7 +149,7 @@ import {
 import { ALLOWED_FIELDS } from "./studentIntelligenceContract.js";
 import "./classroomWorld.css";
 
-const MOVE_SPEED = 3.5;
+const POINTER_SPEED = 0.7;
 const PLAYER_HEIGHT = 1.65;
 const ROOM_LIMIT = 7.2;
 
@@ -106,7 +239,11 @@ function createStudentHudRows(student) {
       value: formatStudentHudValue(student[field])
     }));
 }
-function ClassroomWorld({ intelligenceStore = null }) {
+function ClassroomWorld({
+  teacherInterventionStatus = null,
+  intelligenceStore = null,
+  onTeacherIntervention = null
+}) {
   const hostRef = useRef(null);
   const controlsRef = useRef(null);
   const intelligenceStoreRef = useRef(intelligenceStore);
@@ -162,8 +299,97 @@ function ClassroomWorld({ intelligenceStore = null }) {
   }, [intelligenceStore]);
 
   const [isLocked, setIsLocked] = useState(false);
+
+  const [hasEntered, setHasEntered] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  const emitTeacherInterventionCommand = (input) => {
+    if (
+      typeof onTeacherIntervention !==
+      "function"
+    ) {
+      return null;
+    }
+
+    if (
+      !input ||
+      typeof input !== "object" ||
+      Array.isArray(input)
+    ) {
+      throw new TypeError(
+        "teacher intervention intent must be a plain object"
+      );
+    }
+
+    const allowedFields = [
+      "studentKey",
+      "actionType",
+      "analysisKey"
+    ];
+
+    for (const field of Object.keys(input)) {
+      if (!allowedFields.includes(field)) {
+        throw new TypeError(
+          `Unsupported world intervention intent field: ${field}`
+        );
+      }
+    }
+
+    if (
+      typeof input.studentKey !== "string" ||
+      !input.studentKey.trim()
+    ) {
+      throw new TypeError(
+        "studentKey must be a non-empty string"
+      );
+    }
+
+    if (
+      typeof input.actionType !== "string" ||
+      !input.actionType.trim()
+    ) {
+      throw new TypeError(
+        "actionType must be a non-empty string"
+      );
+    }
+
+    let analysisKey;
+
+    if (
+      input.analysisKey !== undefined &&
+      input.analysisKey !== null
+    ) {
+      if (
+        typeof input.analysisKey !== "string" ||
+        !input.analysisKey.trim()
+      ) {
+        throw new TypeError(
+          "analysisKey must be a non-empty string when provided"
+        );
+      }
+
+      analysisKey =
+        input.analysisKey.trim();
+    }
+
+    const command =
+      Object.freeze({
+        studentKey:
+          input.studentKey.trim(),
+
+        actionType:
+          input.actionType.trim(),
+
+        ...(analysisKey
+          ? { analysisKey }
+          : {})
+      });
+
+    return onTeacherIntervention(
+      command
+    );
+  };
   const selectedStudentHudRows =
     createStudentHudRows(selectedStudent);
 
@@ -177,10 +403,20 @@ function ClassroomWorld({ intelligenceStore = null }) {
     scene.background = new THREE.Color(0x17151f);
     scene.fog = new THREE.Fog(0x17151f, 12, 24);
 
+    const teacherAnchor = Object.freeze({
+      x: 0,
+      z: 0,
+    });
+
     const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 50);
-    camera.position.set(seat.x + 2.5, PLAYER_HEIGHT, 5.5);
-    camera.lookAt(seat.x, 1.4, seat.z);
+    camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
+    camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
     scene.add(camera);
+
+    const classroomOceanSkyWorldV15 =
+      createClassroomOceanSkyWorldV15({
+        scene
+      });
 
     const renderer = new THREE.WebGLRenderer({
       antialias: false,
@@ -199,8 +435,215 @@ function ClassroomWorld({ intelligenceStore = null }) {
     renderer.domElement.className = "cw-world__canvas";
     host.appendChild(renderer.domElement);
 
+    const classroomVisualSystem =
+      createClassroomVisualSystem({
+        renderer,
+        scene
+      });
+
+    const classroomArchitectureV2 =
+      createClassroomArchitectureV2({
+        scene,
+        materials:
+          classroomVisualSystem.materials,
+        documentObject: document
+      });
+
+    const classroomFurnitureV2 =
+      createClassroomFurnitureV2({
+        scene,
+        materials:
+          classroomVisualSystem.materials
+      });
+
+    const classroomLightingV2 =
+      createClassroomLightingV2({
+        renderer,
+        scene
+      });
+
+    const classroomEnvironmentDetailV2 =
+      createEnvironmentDetailV2({
+        scene,
+        materials:
+          classroomVisualSystem.materials
+      });
+
+    const classroomStudentVisualV2 =
+      createStudentVisualV2({
+        scene
+      });
+
+    const classroomExteriorDepthV2 =
+      createClassroomExteriorDepthV2({
+        scene,
+        documentObject: document
+      });
+
+    const classroomInteractionFeedbackV2 =
+      createClassroomInteractionFeedbackV2({
+        renderer,
+        scene,
+        documentObject: document
+      });
+
+    const classroomPerformanceBudget =
+      createClassroomPerformanceBudget({
+        renderer
+      });
+
+    const classroom64BitVisualUpgrade =
+      createClassroom64BitVisualUpgrade({
+        renderer,
+        scene,
+        materials:
+          classroomVisualSystem.materials,
+        documentObject: document
+      });
+
+    const classroomRoomGeometryV3 =
+      createClassroomRoomGeometryV3({
+        scene,
+        materials:
+          classroomVisualSystem.materials
+      });
+
+    const classroomCharacterV3 =
+      createClassroomCharacterV3({
+        scene
+      });
+
+    const classroomCharacterVisualIntegrationV10 =
+      createClassroomCharacterVisualIntegrationV10({
+        scene,
+        camera,
+        legacyCharacterSystem:
+          classroomCharacterV3,
+        documentObject:
+          document
+      });
+
+    const classroomCharacterCompositionV26 =
+      createClassroomCharacterCompositionV26({
+        scene,
+        camera
+      });
+
+
+    const classroomRetroFpsPipeline =
+      createClassroomRetroFpsPipeline({
+        renderer,
+        scene,
+        documentObject: document
+      });
+
+    const classroomPixelArtGradeV23 =
+      createClassroomPixelArtGradeV23({
+        renderer
+      });
+
+    const classroomRetroCompositionV4 =
+      createClassroomRetroCompositionV4({
+        scene,
+        materials:
+          classroomVisualSystem.materials
+      });
+
+    const classroomPropDensityLightingV27 =
+      createClassroomPropDensityLightingV27({
+        scene,
+        teacherAnchor
+      });
+
+    const classroomPixelMaterialDepthV28 =
+      createClassroomPixelMaterialDepthV28({
+        scene
+      });
+
+    const classroomReferenceSurfaceSilhouetteV29 =
+      createClassroomReferenceSurfaceSilhouetteV29({
+        scene
+      });
+
+    const classroomReferenceLightFramingV30 =
+      createClassroomReferenceLightFramingV30({
+        scene,
+        teacherAnchor
+      });
+
+    const classroomCharacterSilhouettePolishV31 =
+      createClassroomCharacterSilhouettePolishV31({
+        scene
+      });
+
+    const classroomReferenceCharacterDeskMicrodetailV32 =
+      createClassroomReferenceCharacterDeskMicrodetailV32({
+        scene
+      });
+
+    const classroomPixelFaceLivedInPolishV33 =
+      createClassroomPixelFaceLivedInPolishV33({
+        scene
+      });
+
+    const classroomBlackboardStorytellingV34 =
+      createClassroomBlackboardStorytellingV34({
+        scene
+      });
+
+    const classroomDepthAtmospherePixelLightingV35 =
+      createClassroomDepthAtmospherePixelLightingV35({
+        scene
+      });
+
+    const classroomPixelContactGroundingV36 =
+      createClassroomPixelContactGroundingV36({
+        scene
+      });
+
+    const classroomCharacterDepthOcclusionPolishV37 =
+      createClassroomCharacterDepthOcclusionPolishV37({
+        scene,
+        camera
+      });
+
+    const classroomExteriorDepthArtV38 =
+      createClassroomExteriorDepthArtV38({
+        scene
+      });
+
+    const classroomForegroundCompositionV39 =
+      createClassroomForegroundCompositionV39({
+        scene,
+        camera
+      });
+
+    const classroomAmbientPixelPolishV40 =
+      createClassroomAmbientPixelPolishV40({
+        scene,
+        camera
+      });
+
+    const classroomEnvironmentalSpriteFidelityV41 =
+      createClassroomEnvironmentalSpriteFidelityV41({
+        scene,
+        camera
+      });
+
+    const classroomFinalContentV6 =
+      createClassroomFinalContentV6({
+        scene,
+        camera,
+        host,
+        documentObject:
+          document
+      });
+
+    const classroomInteractionReplayAuditV12 =
+      createClassroomInteractionReplayAuditV12();
+
     const controls = new PointerLockControls(camera, renderer.domElement);
-    controls.pointerSpeed = 0.8;
+    controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
 
     const onLock = () => setIsLocked(true);
@@ -208,6 +651,182 @@ function ClassroomWorld({ intelligenceStore = null }) {
 
     controls.addEventListener("lock", onLock);
     controls.addEventListener("unlock", onUnlock);
+
+    const classroomInputStateTimelineV13 =
+      createClassroomInputStateTimelineV13({
+        windowObject:
+          window,
+
+        camera,
+        controls,
+
+        readInteractionFingerprint:
+          () =>
+            classroomInteractionReplayAuditV12
+              .getSnapshot()
+              .finalFingerprint
+      });
+
+        const classroomOceanVistaV16 =
+      createClassroomOceanVistaV16({
+        scene,
+        camera,
+        windowShadeSystem:
+          classroomFinalContentV6,
+        oceanWorld:
+          classroomOceanSkyWorldV15
+      });
+
+    const classroomCargoShipLanesV17 =
+      createClassroomCargoShipLanesV17({
+        scene,
+        camera,
+        oceanWorld:
+          classroomOceanSkyWorldV15
+      });
+
+    const classroomSeagullFlocksV18 =
+      createClassroomSeagullFlocksV18({
+        scene,
+        camera,
+        oceanWorld:
+          classroomOceanSkyWorldV15
+      });
+
+    const classroomOceanAtmosphereDepthV19 =
+      createClassroomOceanAtmosphereDepthV19({
+        scene,
+        camera,
+        oceanWorld:
+          classroomOceanSkyWorldV15
+      });
+
+const classroomCharacterSceneCohesionV42 =
+
+
+  createClassroomCharacterSceneCohesionV42({
+
+
+    scene
+
+
+  });
+
+    const classroomCharacterAtlasFidelityV43 =
+      createClassroomCharacterAtlasFidelityV43({
+        scene
+      });
+
+    const classroomCharacterBodyClothingFidelityV44 =
+      createClassroomCharacterBodyClothingFidelityV44({
+        scene
+      });
+
+    const classroomCharacterCastVarietyV45 =
+      createClassroomCharacterCastVarietyV45({
+        scene
+      });
+
+    const classroomCharacterFirstPersonStagingV46 =
+      createClassroomCharacterFirstPersonStagingV46({
+        scene,
+        camera
+      });
+
+    const classroomDeskSurfacePropsV47 =
+      createClassroomDeskSurfacePropsV47({
+        scene
+      });
+
+    const classroomBackpackWallStorytellingV48 =
+      createClassroomBackpackWallStorytellingV48({
+        scene
+      });
+
+    const classroomEnvironmentalStoryDensityV49 =
+      createClassroomEnvironmentalStoryDensityV49({
+        scene
+      });
+
+    const classroomCinematicPaletteCohesionV50 =
+      createClassroomCinematicPaletteCohesionV50({
+        scene
+      });
+
+
+
+const classroomInteractionAuthorityV11 =
+      createClassroomInteractionAuthorityV11({
+        scene,
+        camera,
+
+        characterVisualIntegration:
+          classroomCharacterVisualIntegrationV10,
+
+        windowShadeSystem:
+          classroomOceanVistaV16.windowShadeSystem,
+
+        onTeacherIntervention:
+          (command) =>
+            emitTeacherInterventionCommand(
+              command
+            ),
+
+        auditObserver:
+          classroomInteractionReplayAuditV12,
+
+        windowObject:
+          window
+      });
+
+
+    const classroomTeacherDeskHeadphonesV19A =
+      createClassroomTeacherDeskHeadphonesV19A({
+        scene,
+        teacherAnchor
+      });
+
+    const classroomEnvironmentalAudioV20 =
+      createClassroomEnvironmentalAudioV20({
+        camera,
+        windowShadeSystem:
+          classroomFinalContentV6
+      });
+
+    const classroomVisualFidelityV22 =
+      createClassroomVisualFidelityV22({
+        renderer,
+        scene,
+        camera,
+        documentObject:
+          document
+      });
+
+    const classroomReferenceWorldArtV24 =
+      createClassroomReferenceWorldArtV24({
+        scene
+      });
+
+    const unlockEnvironmentalAudioV20 =
+      () => {
+        void classroomEnvironmentalAudioV20.unlock();
+      };
+
+    host.addEventListener(
+      "click",
+      unlockEnvironmentalAudioV20,
+      true
+    );
+
+    const classroomRuntimeObservabilityV7 =
+      createClassroomRuntimeObservabilityV7({
+        renderer,
+        scene,
+        host
+      });
+
+
+
 
     scene.add(new THREE.HemisphereLight(0xe7efff, 0x2c2436, 2.4));
 
@@ -238,7 +857,7 @@ function ClassroomWorld({ intelligenceStore = null }) {
     addBox(
       scene,
       { x: 1.6, y: 0.12, z: 0.85 },
-      { x: seat.x, y: 0.82, z: seat.z + 0.45 },
+      { x: teacherAnchor.x, y: 0.82, z: teacherAnchor.z + 0.45 },
       0x76533b
     );
 
@@ -388,7 +1007,13 @@ function ClassroomWorld({ intelligenceStore = null }) {
 
     const center = new THREE.Vector2(0, 0);
     const keys = new Set();
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
+
+    let playerVelocity = {
+      x: 0,
+      z: 0
+    };
 
     let activeStudent = null;
     let animationFrame = 0;
@@ -417,9 +1042,12 @@ function ClassroomWorld({ intelligenceStore = null }) {
           return;
         }
 
-        setSelectedStudent(
-          store.requireStudent(activeStudent.studentKey)
-        );
+        controls.unlock();
+      keys.clear();
+
+      setSelectedStudent(
+        store.requireStudent(activeStudent.studentKey)
+      );
       }
     };
 
@@ -442,55 +1070,133 @@ function ClassroomWorld({ intelligenceStore = null }) {
     resizeObserver.observe(host);
     resizeCamera();
 
-    const animate = () => {
-      animationFrame = requestAnimationFrame(animate);
+    const animate = (timestamp) => {
+      animationFrame =
+        requestAnimationFrame(animate);
 
-      const delta = Math.min(clock.getDelta(), 0.05);
+      timer.update(timestamp);
+
+      const delta =
+        timer.getDelta();
+
+      classroomStudentVisualV2.tick();
+      classroomCharacterV3.tick();
+      classroomRetroCompositionV4.tick(camera, timestamp);
+      classroomDeskSurfacePropsV47.tick();
+      classroomBackpackWallStorytellingV48.tick();
+      classroomEnvironmentalStoryDensityV49.tick();
+
+      classroomFinalContentV6.tick({
+        timestamp,
+        camera,
+        controlsLocked:
+          controls.isLocked
+      });
+      classroomAmbientPixelPolishV40.tick({
+        timestamp,
+        deltaSeconds: delta
+      });
+
+      classroomEnvironmentalSpriteFidelityV41.tick({
+        timestamp,
+        deltaSeconds: delta
+      });
+
+      classroomExteriorDepthV2.update(camera);
+      classroomPerformanceBudget.sample();
+
+      classroomRetroFpsPipeline.updateHud({
+        targetIdentity:
+          classroomInteractionFeedbackV2.getCurrentIdentity(),
+
+        controlsLocked:
+          controls.isLocked,
+
+        timestamp
+      });
 
       if (controls.isLocked) {
-        const forward =
-          (keys.has("KeyW") ? 1 : 0) -
-          (keys.has("KeyS") ? 1 : 0);
-
-        const sideways =
-          (keys.has("KeyD") ? 1 : 0) -
-          (keys.has("KeyA") ? 1 : 0);
+        const movementInput =
+          createThreeCameraMovementInput(
+            keys
+          );
 
         const previousPosition = {
           x: camera.position.x,
           z: camera.position.z
         };
 
-        const proposedPosition = stepPlayerMovement({
-          position: previousPosition,
-          input: {
-            forward: forward > 0,
-            backward: forward < 0,
-            right: sideways > 0,
-            left: sideways < 0
-          },
-          yaw: camera.rotation.y,
-          deltaSeconds: delta
-        });
+        const locomotion =
+          stepPlayerLocomotion({
+            position:
+              previousPosition,
 
-        const resolvedPosition = resolvePlayerCollision({
-          previousPosition,
-          proposedPosition,
-          bounds: {
-            minX: -ROOM_LIMIT,
-            maxX: ROOM_LIMIT,
-            minZ: -ROOM_LIMIT,
-            maxZ: ROOM_LIMIT
-          },
-          obstacles: collisionObstaclesRef.current
-        });
+            velocity:
+              playerVelocity,
 
-        camera.position.x = resolvedPosition.x;
-        camera.position.z = resolvedPosition.z;
-        camera.position.y = PLAYER_HEIGHT;
+            input:
+              movementInput,
+
+            yaw:
+              camera.rotation.y,
+
+            deltaSeconds:
+              delta
+          });
+
+        const proposedPosition =
+          locomotion.position;
+
+        const resolvedPosition =
+          resolvePlayerCollision({
+            previousPosition,
+            proposedPosition,
+
+            bounds: {
+              minX: -ROOM_LIMIT,
+              maxX: ROOM_LIMIT,
+              minZ: -ROOM_LIMIT,
+              maxZ: ROOM_LIMIT
+            },
+
+            obstacles:
+              collisionObstaclesRef.current
+          });
+
+        playerVelocity =
+          resolveVelocityAfterCollision({
+            previousPosition,
+            proposedPosition,
+            resolvedPosition,
+
+            velocity:
+              locomotion.velocity
+          });
+
+        camera.position.x =
+          resolvedPosition.x;
+
+        camera.position.z =
+          resolvedPosition.z;
+
+        camera.position.y =
+          PLAYER_HEIGHT;
+      } else {
+        playerVelocity = {
+          x: 0,
+          z: 0
+        };
       }
 
       raycaster.setFromCamera(center, camera);
+
+      classroomInteractionFeedbackV2.update({
+        raycaster,
+        scene,
+        camera,
+        controlsLocked:
+          controls.isLocked
+      });
 
       const hit = raycaster
         .intersectObjects(interactiveMeshes, false)
@@ -503,13 +1209,81 @@ function ClassroomWorld({ intelligenceStore = null }) {
         setTargetLabel(activeStudent?.displayLabel || "");
       }
 
-      renderer.render(scene, camera);
+    classroomOceanAtmosphereDepthV19.tick({
+      deltaSeconds: delta
+    });
+
+    classroomSeagullFlocksV18.tick({
+      deltaSeconds: delta
+    });
+
+    classroomCargoShipLanesV17.tick({
+      deltaSeconds: delta
+    });
+
+      classroomOceanVistaV16.tick({
+      timestamp,
+      deltaSeconds: delta
+    });
+
+    classroomCharacterVisualIntegrationV10.tick({
+        timestamp,
+        camera
+      });
+
+      classroomCharacterDepthOcclusionPolishV37.tick();
+
+      classroomCharacterSceneCohesionV42.tick({
+
+
+        timestamp
+
+
+      });
+
+
+
+      classroomOceanSkyWorldV15.tick({
+        timestamp,
+        camera
+      });
+
+      classroomVisualFidelityV22.tick({
+        timestamp,
+        deltaSeconds:
+          delta
+      });
+
+      classroomEnvironmentalAudioV20.tick({
+      timestamp
+    });
+
+      classroomPixelArtGradeV23.beginFrame();
+
+      try {
+        renderer.render(scene, camera);
+
+        classroomPixelArtGradeV23.presentFrame();
+      }
+      catch (error) {
+        classroomPixelArtGradeV23.cancelFrame();
+
+        throw error;
+      }
+
+      classroomInputStateTimelineV13.observeState();
+
+      classroomRuntimeObservabilityV7.observeFrame({
+        timestamp
+      });
     };
 
-    animate();
+    animationFrame =
+      requestAnimationFrame(animate);
 
     return () => {
       cancelAnimationFrame(animationFrame);
+      timer.dispose();
       resizeObserver.disconnect();
 
       window.removeEventListener("keydown", onKeyDown);
@@ -521,9 +1295,114 @@ function ClassroomWorld({ intelligenceStore = null }) {
       controls.dispose();
       controlsRef.current = null;
 
+      classroomEnvironmentalSpriteFidelityV41.dispose();
+      classroomAmbientPixelPolishV40.dispose();
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomForegroundCompositionV39.dispose();
+
+      classroomExteriorDepthArtV38.dispose();
+
+      classroomCharacterDepthOcclusionPolishV37.dispose();
+
+      classroomPixelContactGroundingV36.dispose();
+
+      classroomDepthAtmospherePixelLightingV35.dispose();
+
+      classroomBlackboardStorytellingV34.dispose();
+
+      classroomPixelFaceLivedInPolishV33.dispose();
+
+      classroomReferenceCharacterDeskMicrodetailV32.dispose();
+
+      classroomCharacterSilhouettePolishV31.dispose();
+
+      classroomReferenceLightFramingV30.dispose();
+
+      classroomReferenceSurfaceSilhouetteV29.dispose();
+
+      classroomPixelMaterialDepthV28.dispose();
+
+      classroomPropDensityLightingV27.dispose();
+
+      classroomRetroCompositionV4.dispose();
+
+      host.removeEventListener(
+      "click",
+      unlockEnvironmentalAudioV20,
+      true
+    );
+
+      classroomReferenceWorldArtV24.dispose();
+
+      classroomVisualFidelityV22.dispose();
+
+    classroomEnvironmentalAudioV20.dispose();
+
+    classroomTeacherDeskHeadphonesV19A.dispose();
+
+      classroomFinalContentV6.dispose();
+
+      classroomRuntimeObservabilityV7.dispose();
+      classroomPixelArtGradeV23.dispose();
+      classroomRetroFpsPipeline.dispose();
+      classroomInteractionAuthorityV11.dispose();
+      classroomInputStateTimelineV13.dispose();
+
+      classroomInteractionReplayAuditV12.dispose();
+
+      classroomCharacterCompositionV26.dispose();
+
+      classroomCinematicPaletteCohesionV50.dispose();
+
+      classroomEnvironmentalStoryDensityV49.dispose();
+
+      classroomBackpackWallStorytellingV48.dispose();
+
+      classroomDeskSurfacePropsV47.dispose();
+
+      classroomCharacterFirstPersonStagingV46.dispose();
+
+
+
+      classroomCharacterCastVarietyV45.dispose();
+
+
+
+      classroomCharacterBodyClothingFidelityV44.dispose();
+
+
+
+      classroomCharacterAtlasFidelityV43.dispose();
+
+
+
+      classroomCharacterSceneCohesionV42.dispose();
+
+
+
+      classroomCharacterVisualIntegrationV10.dispose();
+
+      classroomCharacterV3.dispose();
+      classroomRoomGeometryV3.dispose();
+      classroom64BitVisualUpgrade.dispose();
+      classroomPerformanceBudget.dispose();
+      classroomInteractionFeedbackV2.dispose();
+      classroomExteriorDepthV2.dispose();
+      classroomStudentVisualV2.dispose();
+      classroomEnvironmentDetailV2.dispose();
+      classroomFurnitureV2.dispose();
+      classroomLightingV2.dispose();
+      classroomArchitectureV2.dispose();
+      classroomVisualSystem.dispose();
+      classroomOceanAtmosphereDepthV19.dispose();
+      classroomSeagullFlocksV18.dispose();
+      classroomCargoShipLanesV17.dispose();
+      classroomOceanVistaV16.dispose();
+      classroomOceanSkyWorldV15.dispose();
+
       scene.traverse((object) => {
         object.geometry?.dispose();
 
@@ -545,7 +1424,19 @@ function ClassroomWorld({ intelligenceStore = null }) {
 
   return (
     <section className="cw-world">
-      <div ref={hostRef} className="cw-world__viewport" />
+      <div
+        ref={hostRef}
+        className="cw-world__viewport"
+        onClick={() => {
+          if (
+            hasEntered &&
+            !selectedStudent &&
+            !isLocked
+          ) {
+            controlsRef.current?.lock();
+          }
+        }}
+      />
 
       <div className="cw-world__hud">
         <strong>CLASSROOM WORLD // CW03</strong>
@@ -560,7 +1451,7 @@ function ClassroomWorld({ intelligenceStore = null }) {
         </div>
       )}
 
-      {!isLocked && (
+      {!hasEntered && (
         <div className="cw-world__entry">
           <div className="cw-world__entry-card">
             <small>CW03 RENDERING SPIKE</small>
@@ -572,7 +1463,10 @@ function ClassroomWorld({ intelligenceStore = null }) {
 
             <button
               type="button"
-              onClick={() => controlsRef.current?.lock()}
+              onClick={() => {
+                setHasEntered(true);
+                controlsRef.current?.lock();
+              }}
             >
               ENTER CLASSROOM
             </button>
@@ -630,7 +1524,63 @@ function ClassroomWorld({ intelligenceStore = null }) {
                 >
                   <dt>{label}</dt>
                   <dd>{value}</dd>
-                </div>
+                      {selectedStudent && typeof onTeacherIntervention === "function" ? (
+        <div className="classroom-world__teacher-intervention">
+          <button
+            type="button"
+            className="classroom-world__teacher-intervention-trigger"
+            disabled={teacherInterventionStatus?.phase === "pending"}
+            aria-busy={teacherInterventionStatus?.phase === "pending"}
+            onClick={(...eventArgs) => {
+                  if (
+                    typeof globalThis.dispatchEvent === "function" &&
+                    typeof globalThis.CustomEvent === "function"
+                  ) {
+                    globalThis.dispatchEvent(
+                      new globalThis.CustomEvent(
+                        RETRO_TEACHER_INTERVENTION_UI_EVENT,
+                        {
+                          detail: {
+                            studentKey:
+                              selectedStudent?.studentKey ??
+                              null
+                          }
+                        }
+                      )
+                    );
+                  }
+
+                  const originalOnClick =
+                    (() =>
+                    emitTeacherInterventionCommand({
+                      studentKey: selectedStudent.studentKey,
+                      actionType: "probe_understanding",
+                    }));
+
+                  return originalOnClick(
+                    ...eventArgs
+                  );
+                }}
+          >
+            {teacherInterventionStatus?.phase === "pending"
+              ? "SAVING..."
+              : "APPLY INTERVENTION"}
+          </button>
+
+          {teacherInterventionStatus?.phase &&
+          teacherInterventionStatus.phase !== "idle" ? (
+            <div
+              className="classroom-world__teacher-intervention-status"
+              role="status"
+              aria-live="polite"
+              data-phase={teacherInterventionStatus.phase}
+            >
+              {teacherInterventionStatus.message}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+</div>
               )
             )}
           </dl>
