@@ -17,6 +17,10 @@ import {
 import {
   createClassroomPixelMaterialDepthV28
 } from "./classroomPixelMaterialDepthV28.js";
+import {
+  createClassroomReferenceSurfaceSilhouetteV29
+} from "./classroomReferenceSurfaceSilhouetteV29.js";
+
 
 
 
@@ -502,6 +506,11 @@ function ClassroomWorld({
 
     const classroomPixelMaterialDepthV28 =
       createClassroomPixelMaterialDepthV28({
+        scene
+      });
+
+    const classroomReferenceSurfaceSilhouetteV29 =
+      createClassroomReferenceSurfaceSilhouetteV29({
         scene
       });
 
@@ -1094,6 +1103,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomReferenceSurfaceSilhouetteV29.dispose();
 
       classroomPixelMaterialDepthV28.dispose();
 
