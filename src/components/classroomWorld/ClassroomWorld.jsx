@@ -23,6 +23,10 @@ import {
 import {
   createClassroomReferenceLightFramingV30
 } from "./classroomReferenceLightFramingV30.js";
+import {
+  createClassroomCharacterSilhouettePolishV31
+} from "./classroomCharacterSilhouettePolishV31.js";
+
 
 
 
@@ -522,6 +526,11 @@ function ClassroomWorld({
       createClassroomReferenceLightFramingV30({
         scene,
         teacherAnchor
+      });
+
+    const classroomCharacterSilhouettePolishV31 =
+      createClassroomCharacterSilhouettePolishV31({
+        scene
       });
 
     const classroomFinalContentV6 =
@@ -1113,6 +1122,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomCharacterSilhouettePolishV31.dispose();
 
       classroomReferenceLightFramingV30.dispose();
 
