@@ -471,6 +471,16 @@ function ClassroomWorld({
     const classroomInteractionReplayAuditV12 =
       createClassroomInteractionReplayAuditV12();
 
+    const controls = new PointerLockControls(camera, renderer.domElement);
+    controls.pointerSpeed = POINTER_SPEED;
+    controlsRef.current = controls;
+
+    const onLock = () => setIsLocked(true);
+    const onUnlock = () => setIsLocked(false);
+
+    controls.addEventListener("lock", onLock);
+    controls.addEventListener("unlock", onUnlock);
+
     const classroomInputStateTimelineV13 =
       createClassroomInputStateTimelineV13({
         windowObject:
@@ -578,15 +588,6 @@ const classroomInteractionAuthorityV11 =
 
 
 
-    const controls = new PointerLockControls(camera, renderer.domElement);
-    controls.pointerSpeed = POINTER_SPEED;
-    controlsRef.current = controls;
-
-    const onLock = () => setIsLocked(true);
-    const onUnlock = () => setIsLocked(false);
-
-    controls.addEventListener("lock", onLock);
-    controls.addEventListener("unlock", onUnlock);
 
     scene.add(new THREE.HemisphereLight(0xe7efff, 0x2c2436, 2.4));
 
@@ -1016,19 +1017,6 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
-      scene.traverse((object) => {
-        object.geometry?.dispose();
-
-        if (object.material) {
-          const materials = Array.isArray(object.material)
-            ? object.material
-            : [object.material];
-
-          for (const material of materials) {
-            material.dispose();
-          }
-        }
-      });
 
       classroomRetroCompositionV4.dispose();
 
@@ -1070,6 +1058,20 @@ const classroomInteractionAuthorityV11 =
       classroomCargoShipLanesV17.dispose();
       classroomOceanVistaV16.dispose();
       classroomOceanSkyWorldV15.dispose();
+
+      scene.traverse((object) => {
+        object.geometry?.dispose();
+
+        if (object.material) {
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material];
+
+          for (const material of materials) {
+            material.dispose();
+          }
+        }
+      });
 
       renderer.dispose();
       renderer.domElement.remove();
