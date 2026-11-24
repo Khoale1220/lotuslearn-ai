@@ -44,6 +44,10 @@ import {
 import {
   createClassroomCharacterDepthOcclusionPolishV37
 } from "./classroomCharacterDepthOcclusionPolishV37.js";
+import {
+  createClassroomExteriorDepthArtV38
+} from "./classroomExteriorDepthArtV38.js";
+
 
 
 
@@ -586,6 +590,11 @@ function ClassroomWorld({
       createClassroomCharacterDepthOcclusionPolishV37({
         scene,
         camera
+      });
+
+    const classroomExteriorDepthArtV38 =
+      createClassroomExteriorDepthArtV38({
+        scene
       });
 
     const classroomFinalContentV6 =
@@ -1179,6 +1188,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomExteriorDepthArtV38.dispose();
 
       classroomCharacterDepthOcclusionPolishV37.dispose();
 
