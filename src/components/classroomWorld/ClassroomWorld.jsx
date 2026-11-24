@@ -1,3 +1,4 @@
+import { createClassroomEnvironmentalAudioV20 } from "./classroomEnvironmentalAudioV20.js";
 import { createClassroomTeacherDeskHeadphonesV19A } from "./classroomTeacherDeskHeadphonesV19A.js";
 import { createClassroomOceanAtmosphereDepthV19 } from "./classroomOceanAtmosphereDepthV19.js";
 import { createClassroomSeagullFlocksV18 } from "./classroomSeagullFlocksV18.js";
@@ -550,6 +551,24 @@ const classroomInteractionAuthorityV11 =
         teacherAnchor
       });
 
+    const classroomEnvironmentalAudioV20 =
+      createClassroomEnvironmentalAudioV20({
+        camera,
+        windowShadeSystem:
+          classroomFinalContentV6
+      });
+
+    const unlockEnvironmentalAudioV20 =
+      () => {
+        void classroomEnvironmentalAudioV20.unlock();
+      };
+
+    host.addEventListener(
+      "click",
+      unlockEnvironmentalAudioV20,
+      true
+    );
+
     const classroomRuntimeObservabilityV7 =
       createClassroomRuntimeObservabilityV7({
         renderer,
@@ -964,7 +983,11 @@ const classroomInteractionAuthorityV11 =
         camera
       });
 
-      renderer.render(scene, camera);
+      classroomEnvironmentalAudioV20.tick({
+      timestamp
+    });
+
+    renderer.render(scene, camera);
 
       classroomInputStateTimelineV13.observeState();
 
@@ -1009,7 +1032,15 @@ const classroomInteractionAuthorityV11 =
 
       classroomRetroCompositionV4.dispose();
 
-      classroomTeacherDeskHeadphonesV19A.dispose();
+      host.removeEventListener(
+      "click",
+      unlockEnvironmentalAudioV20,
+      true
+    );
+
+    classroomEnvironmentalAudioV20.dispose();
+
+    classroomTeacherDeskHeadphonesV19A.dispose();
 
       classroomFinalContentV6.dispose();
 
