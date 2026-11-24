@@ -38,6 +38,10 @@ import {
 import {
   createClassroomDepthAtmospherePixelLightingV35
 } from "./classroomDepthAtmospherePixelLightingV35.js";
+import {
+  createClassroomPixelContactGroundingV36
+} from "./classroomPixelContactGroundingV36.js";
+
 
 
 
@@ -566,6 +570,11 @@ function ClassroomWorld({
 
     const classroomDepthAtmospherePixelLightingV35 =
       createClassroomDepthAtmospherePixelLightingV35({
+        scene
+      });
+
+    const classroomPixelContactGroundingV36 =
+      createClassroomPixelContactGroundingV36({
         scene
       });
 
@@ -1158,6 +1167,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomPixelContactGroundingV36.dispose();
 
       classroomDepthAtmospherePixelLightingV35.dispose();
 
