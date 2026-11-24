@@ -35,6 +35,10 @@ import {
 import {
   createClassroomBlackboardStorytellingV34
 } from "./classroomBlackboardStorytellingV34.js";
+import {
+  createClassroomDepthAtmospherePixelLightingV35
+} from "./classroomDepthAtmospherePixelLightingV35.js";
+
 
 
 
@@ -557,6 +561,11 @@ function ClassroomWorld({
 
     const classroomBlackboardStorytellingV34 =
       createClassroomBlackboardStorytellingV34({
+        scene
+      });
+
+    const classroomDepthAtmospherePixelLightingV35 =
+      createClassroomDepthAtmospherePixelLightingV35({
         scene
       });
 
@@ -1149,6 +1158,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomDepthAtmospherePixelLightingV35.dispose();
 
       classroomBlackboardStorytellingV34.dispose();
 
