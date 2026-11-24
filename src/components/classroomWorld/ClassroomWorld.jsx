@@ -5,6 +5,10 @@ import {
 import {
   createClassroomPixelArtGradeV23
 } from "./classroomPixelArtGradeV23.js";
+import {
+  createClassroomReferenceWorldArtV24
+} from "./classroomReferenceWorldArtV24.js";
+
 
 
 import { createClassroomTeacherDeskHeadphonesV19A } from "./classroomTeacherDeskHeadphonesV19A.js";
@@ -590,6 +594,11 @@ const classroomInteractionAuthorityV11 =
           document
       });
 
+    const classroomReferenceWorldArtV24 =
+      createClassroomReferenceWorldArtV24({
+        scene
+      });
+
     const unlockEnvironmentalAudioV20 =
       () => {
         void classroomEnvironmentalAudioV20.unlock();
@@ -1064,6 +1073,8 @@ const classroomInteractionAuthorityV11 =
       unlockEnvironmentalAudioV20,
       true
     );
+
+      classroomReferenceWorldArtV24.dispose();
 
       classroomVisualFidelityV22.dispose();
 
