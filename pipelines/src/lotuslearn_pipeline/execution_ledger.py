@@ -115,18 +115,10 @@ def _counts(report: ReconciliationReport) -> dict[str, int]:
     if not isinstance(report, ReconciliationReport):
         raise ValueError("Expected a reconciliation report")
 
-    counts = {
-        key: getattr(report, key)
-        for key in COUNT_FIELDS
-    }
+    counts = {key: getattr(report, key) for key in COUNT_FIELDS}
 
-    if any(
-        type(value) is not int or value < 0
-        for value in counts.values()
-    ):
-        raise ValueError(
-            "Reconciliation counters must be non-negative integers"
-        )
+    if any(type(value) is not int or value < 0 for value in counts.values()):
+        raise ValueError("Reconciliation counters must be non-negative integers")
 
     if not report.is_balanced:
         raise ValueError("Reconciliation accounting is unbalanced")
@@ -169,46 +161,28 @@ class PostgresPipelineExecutionLedger:
             record = PipelineExecution(**row)
             state = ExecutionStatus(record.status)
 
-            values = tuple(
-                getattr(record, field)
-                for field in COUNT_FIELDS
-            )
+            values = tuple(getattr(record, field) for field in COUNT_FIELDS)
 
-            if any(
-                value is not None
-                and (type(value) is not int or value < 0)
-                for value in values
-            ):
+            if any(value is not None and (type(value) is not int or value < 0) for value in values):
                 raise ValueError("Invalid counters")
 
-            if (
-                any(value is None for value in values)
-                and not all(value is None for value in values)
+            if any(value is None for value in values) and not all(
+                value is None for value in values
             ):
                 raise ValueError("Partial counters")
 
             if state == ExecutionStatus.SUCCEEDED and (
-                record.error_code is not None
-                or record.failed_count != 0
+                record.error_code is not None or record.failed_count != 0
             ):
                 raise ValueError("Invalid successful completion")
 
-            if (
-                state == ExecutionStatus.FAILED
-                and record.error_code not in PERSISTED_ERROR_CODES
-            ):
+            if state == ExecutionStatus.FAILED and record.error_code not in PERSISTED_ERROR_CODES:
                 raise ValueError("Invalid failure classification")
 
-            if (
-                state == ExecutionStatus.RUNNING
-                and record.finished_at is not None
-            ):
+            if state == ExecutionStatus.RUNNING and record.finished_at is not None:
                 raise ValueError("Running execution has finished_at")
 
-            if (
-                state != ExecutionStatus.RUNNING
-                and record.finished_at is None
-            ):
+            if state != ExecutionStatus.RUNNING and record.finished_at is None:
                 raise ValueError("Terminal execution missing finished_at")
 
             return record
@@ -239,9 +213,7 @@ class PostgresPipelineExecutionLedger:
         batch_id = _uuid(batch_id, "batch_id")
 
         if type(attempt_number) is not int or attempt_number <= 0:
-            raise ValueError(
-                "attempt_number must be a positive integer"
-            )
+            raise ValueError("attempt_number must be a positive integer")
 
         def operation() -> ExecutionWriteResult:
             with self._connect() as conn, conn.transaction():
@@ -263,9 +235,7 @@ class PostgresPipelineExecutionLedger:
                     row = self._get_row(conn, execution_id)
 
                     if row is None:
-                        raise ExecutionIntegrityError(
-                            "Inserted execution could not be read"
-                        )
+                        raise ExecutionIntegrityError("Inserted execution could not be read")
 
                     return ExecutionWriteResult(
                         ExecutionWriteOutcome.INSERTED,
@@ -288,14 +258,10 @@ class PostgresPipelineExecutionLedger:
                             "execution_id belongs to another batch attempt"
                         )
 
-                    raise ExecutionIntegrityError(
-                        "Suppressed insertion could not be reconciled"
-                    )
+                    raise ExecutionIntegrityError("Suppressed insertion could not be reconciled")
 
                 if row["execution_id"] != execution_id:
-                    raise ExecutionConflictError(
-                        "Batch attempt already has another execution_id"
-                    )
+                    raise ExecutionConflictError("Batch attempt already has another execution_id")
 
                 return ExecutionWriteResult(
                     ExecutionWriteOutcome.EXISTING,
@@ -328,13 +294,9 @@ class PostgresPipelineExecutionLedger:
 
                 if row is None:
                     if self._get_row(conn, execution_id) is None:
-                        raise ExecutionIntegrityError(
-                            "Execution does not exist"
-                        )
+                        raise ExecutionIntegrityError("Execution does not exist")
 
-                    raise ExecutionConflictError(
-                        "Cannot heartbeat a terminal execution"
-                    )
+                    raise ExecutionConflictError("Cannot heartbeat a terminal execution")
 
                 return self._record(row)
 
@@ -350,34 +312,20 @@ class PostgresPipelineExecutionLedger:
     ) -> ExecutionWriteResult:
         execution_id = _uuid(execution_id, "execution_id")
 
-        if (
-            not isinstance(status, ExecutionStatus)
-            or status == ExecutionStatus.RUNNING
-        ):
-            raise ValueError(
-                "Only SUCCEEDED and FAILED are terminal states"
-            )
+        if not isinstance(status, ExecutionStatus) or status == ExecutionStatus.RUNNING:
+            raise ValueError("Only SUCCEEDED and FAILED are terminal states")
 
         if status == ExecutionStatus.SUCCEEDED:
             if report is None or error_code is not None:
-                raise ValueError(
-                    "Success requires a report and no error code"
-                )
+                raise ValueError("Success requires a report and no error code")
 
         elif error_code not in ALLOWED_ERROR_CODES:
-            raise ValueError(
-                "Failure requires an allowlisted error code"
-            )
+            raise ValueError("Failure requires an allowlisted error code")
 
         counters = None if report is None else _counts(report)
 
-        if (
-            status == ExecutionStatus.SUCCEEDED
-            and counters["failed_count"] != 0
-        ):
-            raise ValueError(
-                "A run with failed events cannot be SUCCEEDED"
-            )
+        if status == ExecutionStatus.SUCCEEDED and counters["failed_count"] != 0:
+            raise ValueError("A run with failed events cannot be SUCCEEDED")
 
         update_counts = counters or dict.fromkeys(COUNT_FIELDS)
 
@@ -394,24 +342,16 @@ class PostgresPipelineExecutionLedger:
                 ).fetchone()
 
                 if row is None:
-                    raise ExecutionIntegrityError(
-                        "Execution does not exist"
-                    )
+                    raise ExecutionIntegrityError("Execution does not exist")
 
                 previous = self._record(row)
 
-                if (
-                    report is not None
-                    and report.batch_id != str(previous.batch_id)
-                ):
-                    raise ValueError(
-                        "Report batch_id does not match execution"
-                    )
+                if report is not None and report.batch_id != str(previous.batch_id):
+                    raise ValueError("Report batch_id does not match execution")
 
                 if previous.status != ExecutionStatus.RUNNING:
                     same_counts = all(
-                        getattr(previous, key) == value
-                        for key, value in update_counts.items()
+                        getattr(previous, key) == value for key, value in update_counts.items()
                     )
 
                     if (
@@ -424,9 +364,7 @@ class PostgresPipelineExecutionLedger:
                             previous,
                         )
 
-                    raise ExecutionConflictError(
-                        "Execution already ended with different content"
-                    )
+                    raise ExecutionConflictError("Execution already ended with different content")
 
                 updated = conn.execute(
                     """
@@ -463,9 +401,7 @@ class PostgresPipelineExecutionLedger:
                 ).fetchone()
 
                 if updated is None:
-                    raise ExecutionIntegrityError(
-                        "Atomic terminal transition was not applied"
-                    )
+                    raise ExecutionIntegrityError("Atomic terminal transition was not applied")
 
                 return ExecutionWriteResult(
                     ExecutionWriteOutcome.TRANSITIONED,

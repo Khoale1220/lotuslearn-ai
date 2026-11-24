@@ -72,11 +72,7 @@ def get_postgres_migration_files() -> List[Tuple[str, str, str, str]]:
                     )
                 )
     except Exception:
-        fallback_dir = (
-            Path(__file__).resolve().parent
-            / "migrations"
-            / "postgres"
-        )
+        fallback_dir = Path(__file__).resolve().parent / "migrations" / "postgres"
         if fallback_dir.exists():
             for entry in fallback_dir.iterdir():
                 if entry.name.endswith(".sql"):
@@ -90,11 +86,7 @@ def get_postgres_migration_files() -> List[Tuple[str, str, str, str]]:
     found_files.sort(key=lambda migration: migration[0])
 
     for filename, sql_text in found_files:
-        version_key = (
-            filename.split("_")[0]
-            if "_" in filename
-            else filename
-        )
+        version_key = filename.split("_")[0] if "_" in filename else filename
         checksum = compute_migration_checksum(sql_text)
         migrations.append(
             (
@@ -122,15 +114,9 @@ def apply_postgres_migrations(
 
     migrations = get_postgres_migration_files()
 
-    packaged_by_version = {
-        migration[0]: migration
-        for migration in migrations
-    }
+    packaged_by_version = {migration[0]: migration for migration in migrations}
 
-    packaged_by_filename = {
-        migration[1]: migration
-        for migration in migrations
-    }
+    packaged_by_filename = {migration[1]: migration for migration in migrations}
 
     with conn.transaction():
         conn.execute(
@@ -187,11 +173,7 @@ def apply_postgres_migrations(
             matched = (
                 packaged_by_filename.get(version_key)
                 or packaged_by_version.get(version_key)
-                or (
-                    packaged_by_filename.get(stored_name)
-                    if stored_name
-                    else None
-                )
+                or (packaged_by_filename.get(stored_name) if stored_name else None)
             )
 
             if not matched:
@@ -244,10 +226,7 @@ def apply_postgres_migrations(
             sql_text,
             checksum,
         ) in migrations:
-            if (
-                version_key not in applied_versions
-                and filename not in applied_versions
-            ):
+            if version_key not in applied_versions and filename not in applied_versions:
                 conn.execute(sql_text)
 
                 conn.execute(
@@ -295,11 +274,7 @@ def get_migration_status(
         )
 
         result = cur.fetchone()
-        table_exists = (
-            result["tbl_exists"]
-            if result
-            else False
-        )
+        table_exists = result["tbl_exists"] if result else False
 
         if table_exists:
             cur.execute(
@@ -314,10 +289,7 @@ def get_migration_status(
                 """
             )
 
-            applied_rows = {
-                row["version"]: row
-                for row in cur.fetchall()
-            }
+            applied_rows = {row["version"]: row for row in cur.fetchall()}
 
     status_list: List[Dict[str, Any]] = []
 
@@ -327,16 +299,11 @@ def get_migration_status(
         _,
         expected_checksum,
     ) in migrations:
-        row = (
-            applied_rows.get(version_key)
-            or applied_rows.get(filename)
-        )
+        row = applied_rows.get(version_key) or applied_rows.get(filename)
 
         if row:
             stored_checksum = row["checksum"]
-            checksum_valid = (
-                stored_checksum == expected_checksum
-            )
+            checksum_valid = stored_checksum == expected_checksum
 
             status_list.append(
                 {
@@ -374,13 +341,9 @@ def _normalize_iso_datetime(
 
     if isinstance(dt_val, datetime):
         if dt_val.tzinfo is None:
-            return dt_val.replace(
-                tzinfo=timezone.utc
-            )
+            return dt_val.replace(tzinfo=timezone.utc)
 
-        return dt_val.astimezone(
-            timezone.utc
-        )
+        return dt_val.astimezone(timezone.utc)
 
     if isinstance(dt_val, str):
         cleaned = dt_val.replace(
@@ -388,18 +351,12 @@ def _normalize_iso_datetime(
             "+00:00",
         )
 
-        parsed = datetime.fromisoformat(
-            cleaned
-        )
+        parsed = datetime.fromisoformat(cleaned)
 
         if parsed.tzinfo is None:
-            return parsed.replace(
-                tzinfo=timezone.utc
-            )
+            return parsed.replace(tzinfo=timezone.utc)
 
-        return parsed.astimezone(
-            timezone.utc
-        )
+        return parsed.astimezone(timezone.utc)
 
     return None
 
@@ -423,13 +380,9 @@ class PostgresAnalyticalDatabase:
             )
         )
 
-        self._conn: Optional[
-            psycopg.Connection
-        ] = None
+        self._conn: Optional[psycopg.Connection] = None
 
-        self.fault_hook: Optional[
-            Callable[[str], None]
-        ] = None
+        self.fault_hook: Optional[Callable[[str], None]] = None
 
     def get_connection(
         self,
@@ -441,10 +394,7 @@ class PostgresAnalyticalDatabase:
         implicit long-lived transactions. Operations requiring atomicity use
         explicit conn.transaction() blocks.
         """
-        if (
-            self._conn is None
-            or self._conn.closed
-        ):
+        if self._conn is None or self._conn.closed:
             self._conn = psycopg.connect(
                 self.connection_string,
                 row_factory=dict_row,
@@ -458,9 +408,7 @@ class PostgresAnalyticalDatabase:
     ) -> List[str]:
         """Applies versioned migrations under advisory lock."""
         conn = self.get_connection()
-        return apply_postgres_migrations(
-            conn
-        )
+        return apply_postgres_migrations(conn)
 
     def get_committed_event_ids(
         self,
@@ -476,10 +424,7 @@ class PostgresAnalyticalDatabase:
                 """
             )
 
-            return {
-                row["event_id"]
-                for row in cur.fetchall()
-            }
+            return {row["event_id"] for row in cur.fetchall()}
 
     def get_current_teacher_decisions(
         self,
@@ -506,10 +451,7 @@ class PostgresAnalyticalDatabase:
                 """
             )
 
-            return [
-                dict(row)
-                for row in cur.fetchall()
-            ]
+            return [dict(row) for row in cur.fetchall()]
 
     def record_audit_log(
         self,
@@ -517,9 +459,7 @@ class PostgresAnalyticalDatabase:
     ) -> None:
         """Appends durable logical ingestion outcomes to audit history."""
         conn = self.get_connection()
-        processed_at = datetime.now(
-            timezone.utc
-        )
+        processed_at = datetime.now(timezone.utc)
 
         with conn.transaction():
             for result in results:
@@ -548,9 +488,7 @@ class PostgresAnalyticalDatabase:
     def ingest_single_event(
         self,
         event: Dict[str, Any],
-        validator: Optional[
-            AnalyticalEventValidator
-        ] = None,
+        validator: Optional[AnalyticalEventValidator] = None,
         sleep_fn: Callable[
             [float],
             None,
@@ -564,10 +502,7 @@ class PostgresAnalyticalDatabase:
         """
         start_time = time.monotonic()
 
-        active_validator = (
-            validator
-            or AnalyticalEventValidator()
-        )
+        active_validator = validator or AnalyticalEventValidator()
 
         event_id = str(
             event.get(
@@ -576,27 +511,14 @@ class PostgresAnalyticalDatabase:
             )
         )
 
-        event_type = event.get(
-            "event_type"
-        )
+        event_type = event.get("event_type")
 
-        processed_at = datetime.now(
-            timezone.utc
-        )
+        processed_at = datetime.now(timezone.utc)
 
-        validation_result = (
-            active_validator.validate_event(
-                event
-            )
-        )
+        validation_result = active_validator.validate_event(event)
 
-        if (
-            validation_result.outcome
-            != IngestionOutcome.ACCEPTED
-        ):
-            self.record_audit_log(
-                [validation_result]
-            )
+        if validation_result.outcome != IngestionOutcome.ACCEPTED:
+            self.record_audit_log([validation_result])
 
             return validation_result
 
@@ -604,9 +526,7 @@ class PostgresAnalyticalDatabase:
 
         def _do_ingest() -> IngestionResult:
             if self.fault_hook:
-                self.fault_hook(
-                    "transaction_start"
-                )
+                self.fault_hook("transaction_start")
 
             with conn.cursor() as cur_check:
                 cur_check.execute(
@@ -618,58 +538,35 @@ class PostgresAnalyticalDatabase:
                     (event_id,),
                 )
 
-                existing_envelope = (
-                    cur_check.fetchone()
-                )
+                existing_envelope = cur_check.fetchone()
 
             if existing_envelope:
-                existing_payload = (
-                    existing_envelope[
-                        "payload_json"
-                    ]
-                )
+                existing_payload = existing_envelope["payload_json"]
 
                 if isinstance(
                     existing_payload,
                     str,
                 ):
                     try:
-                        existing_payload = (
-                            json.loads(
-                                existing_payload
-                            )
-                        )
+                        existing_payload = json.loads(existing_payload)
                     except Exception:
                         existing_payload = None
 
                 payload_matches = (
-                    canonical_json_string(
-                        existing_payload
-                    )
-                    == canonical_json_string(
-                        event
-                    )
-                    if existing_payload
-                    is not None
+                    canonical_json_string(existing_payload) == canonical_json_string(event)
+                    if existing_payload is not None
                     else False
                 )
 
                 if payload_matches:
                     result = IngestionResult(
                         event_id=event_id,
-                        outcome=(
-                            IngestionOutcome.DUPLICATE
-                        ),
-                        rejection_reason=(
-                            "DUPLICATE_EVENT_ID: "
-                            "exact event already ingested"
-                        ),
+                        outcome=(IngestionOutcome.DUPLICATE),
+                        rejection_reason=("DUPLICATE_EVENT_ID: exact event already ingested"),
                         event_type=event_type,
                     )
 
-                    self.record_audit_log(
-                        [result]
-                    )
+                    self.record_audit_log([result])
 
                     return result
 
@@ -681,30 +578,19 @@ class PostgresAnalyticalDatabase:
 
                 result = IngestionResult(
                     event_id=event_id,
-                    outcome=(
-                        IngestionOutcome.CONFLICT
-                    ),
-                    rejection_reason=(
-                        conflict_reason
-                    ),
+                    outcome=(IngestionOutcome.CONFLICT),
+                    rejection_reason=(conflict_reason),
                     event_type=event_type,
                 )
 
-                self.record_audit_log(
-                    [result]
-                )
+                self.record_audit_log([result])
 
                 return result
 
             with conn.transaction():
-                run_id = event[
-                    "analysis_run_id"
-                ]
+                run_id = event["analysis_run_id"]
 
-                if (
-                    event_type
-                    == "ANALYSIS_INGESTED"
-                ):
+                if event_type == "ANALYSIS_INGESTED":
                     with conn.cursor() as cur_run:
                         cur_run.execute(
                             """
@@ -742,90 +628,31 @@ class PostgresAnalyticalDatabase:
                             """,
                             (
                                 run_id,
-                                event[
-                                    "dataset_fingerprint"
-                                ],
-                                event[
-                                    "submission_count"
-                                ],
-                                event[
-                                    "subject"
-                                ],
-                                event[
-                                    "grade_level"
-                                ],
-                                event.get(
-                                    "total_duration_ms"
-                                ),
-                                event.get(
-                                    "execution_mode"
-                                ),
-                                event[
-                                    "occurred_at"
-                                ],
+                                event["dataset_fingerprint"],
+                                event["submission_count"],
+                                event["subject"],
+                                event["grade_level"],
+                                event.get("total_duration_ms"),
+                                event.get("execution_mode"),
+                                event["occurred_at"],
                             ),
                         )
 
-                        existing_run = (
-                            cur_run.fetchone()
-                        )
+                        existing_run = cur_run.fetchone()
 
                     if existing_run:
-                        database_occurred_at = (
-                            _normalize_iso_datetime(
-                                existing_run[
-                                    "occurred_at"
-                                ]
-                            )
-                        )
+                        database_occurred_at = _normalize_iso_datetime(existing_run["occurred_at"])
 
-                        event_occurred_at = (
-                            _normalize_iso_datetime(
-                                event[
-                                    "occurred_at"
-                                ]
-                            )
-                        )
+                        event_occurred_at = _normalize_iso_datetime(event["occurred_at"])
 
                         same_metadata = (
-                            existing_run[
-                                "dataset_fingerprint"
-                            ]
-                            == event[
-                                "dataset_fingerprint"
-                            ]
-                            and existing_run[
-                                "submission_count"
-                            ]
-                            == event[
-                                "submission_count"
-                            ]
-                            and existing_run[
-                                "subject"
-                            ]
-                            == event[
-                                "subject"
-                            ]
-                            and existing_run[
-                                "grade_level"
-                            ]
-                            == event[
-                                "grade_level"
-                            ]
-                            and existing_run[
-                                "total_duration_ms"
-                            ]
-                            == event.get(
-                                "total_duration_ms"
-                            )
-                            and existing_run[
-                                "execution_mode"
-                            ]
-                            == event.get(
-                                "execution_mode"
-                            )
-                            and database_occurred_at
-                            == event_occurred_at
+                            existing_run["dataset_fingerprint"] == event["dataset_fingerprint"]
+                            and existing_run["submission_count"] == event["submission_count"]
+                            and existing_run["subject"] == event["subject"]
+                            and existing_run["grade_level"] == event["grade_level"]
+                            and existing_run["total_duration_ms"] == event.get("total_duration_ms")
+                            and existing_run["execution_mode"] == event.get("execution_mode")
+                            and database_occurred_at == event_occurred_at
                         )
 
                         if not same_metadata:
@@ -835,16 +662,10 @@ class PostgresAnalyticalDatabase:
                                 "with differing immutable metadata"
                             )
 
-                            raise (
-                                AnalysisRunConflictError(
-                                    conflict_reason
-                                )
-                            )
+                            raise (AnalysisRunConflictError(conflict_reason))
 
                     if self.fault_hook:
-                        self.fault_hook(
-                            "after_run_insert"
-                        )
+                        self.fault_hook("after_run_insert")
 
                 with conn.cursor() as cur_event:
                     cur_event.execute(
@@ -872,33 +693,17 @@ class PostgresAnalyticalDatabase:
                         RETURNING event_id;
                         """,
                         (
-                            event[
-                                "event_id"
-                            ],
-                            event[
-                                "schema_version"
-                            ],
-                            event[
-                                "event_type"
-                            ],
-                            event[
-                                "occurred_at"
-                            ],
-                            event[
-                                "analysis_run_id"
-                            ],
-                            event[
-                                "provenance"
-                            ],
-                            json.dumps(
-                                event
-                            ),
+                            event["event_id"],
+                            event["schema_version"],
+                            event["event_type"],
+                            event["occurred_at"],
+                            event["analysis_run_id"],
+                            event["provenance"],
+                            json.dumps(event),
                         ),
                     )
 
-                    inserted_row = (
-                        cur_event.fetchone()
-                    )
+                    inserted_row = cur_event.fetchone()
 
                 if inserted_row is None:
                     with conn.cursor() as cur_existing:
@@ -911,53 +716,30 @@ class PostgresAnalyticalDatabase:
                             (event_id,),
                         )
 
-                        existing_row = (
-                            cur_existing.fetchone()
-                        )
+                        existing_row = cur_existing.fetchone()
 
-                    existing_payload = (
-                        existing_row[
-                            "payload_json"
-                        ]
-                        if existing_row
-                        else None
-                    )
+                    existing_payload = existing_row["payload_json"] if existing_row else None
 
                     if isinstance(
                         existing_payload,
                         str,
                     ):
                         try:
-                            existing_payload = (
-                                json.loads(
-                                    existing_payload
-                                )
-                            )
+                            existing_payload = json.loads(existing_payload)
                         except Exception:
                             existing_payload = None
 
                     payload_matches = (
-                        canonical_json_string(
-                            existing_payload
-                        )
-                        == canonical_json_string(
-                            event
-                        )
-                        if existing_payload
-                        is not None
+                        canonical_json_string(existing_payload) == canonical_json_string(event)
+                        if existing_payload is not None
                         else False
                     )
 
                     if payload_matches:
                         result = IngestionResult(
                             event_id=event_id,
-                            outcome=(
-                                IngestionOutcome.DUPLICATE
-                            ),
-                            rejection_reason=(
-                                "DUPLICATE_EVENT_ID: "
-                                "exact event already ingested"
-                            ),
+                            outcome=(IngestionOutcome.DUPLICATE),
+                            rejection_reason=("DUPLICATE_EVENT_ID: exact event already ingested"),
                             event_type=event_type,
                         )
 
@@ -981,11 +763,8 @@ class PostgresAnalyticalDatabase:
                             (
                                 event_id,
                                 event_type,
-                                IngestionOutcome
-                                .DUPLICATE
-                                .value,
-                                result
-                                .rejection_reason,
+                                IngestionOutcome.DUPLICATE.value,
+                                result.rejection_reason,
                                 processed_at,
                             ),
                         )
@@ -1000,12 +779,8 @@ class PostgresAnalyticalDatabase:
 
                     result = IngestionResult(
                         event_id=event_id,
-                        outcome=(
-                            IngestionOutcome.CONFLICT
-                        ),
-                        rejection_reason=(
-                            conflict_reason
-                        ),
+                        outcome=(IngestionOutcome.CONFLICT),
+                        rejection_reason=(conflict_reason),
                         event_type=event_type,
                     )
 
@@ -1029,9 +804,7 @@ class PostgresAnalyticalDatabase:
                         (
                             event_id,
                             event_type,
-                            IngestionOutcome
-                            .CONFLICT
-                            .value,
+                            IngestionOutcome.CONFLICT.value,
                             conflict_reason,
                             processed_at,
                         ),
@@ -1039,13 +812,8 @@ class PostgresAnalyticalDatabase:
 
                     return result
 
-                if (
-                    event_type
-                    == "FINDING_IDENTIFIED"
-                ):
-                    cluster_id = event[
-                        "finding_id"
-                    ]
+                if event_type == "FINDING_IDENTIFIED":
+                    cluster_id = event["finding_id"]
 
                     conn.execute(
                         """
@@ -1085,21 +853,11 @@ class PostgresAnalyticalDatabase:
                         (
                             run_id,
                             cluster_id,
-                            event[
-                                "concept"
-                            ],
-                            event[
-                                "teaching_priority"
-                            ],
-                            event[
-                                "affected_student_count"
-                            ],
-                            event.get(
-                                "percentage_affected"
-                            ),
-                            event.get(
-                                "explanation"
-                            ),
+                            event["concept"],
+                            event["teaching_priority"],
+                            event["affected_student_count"],
+                            event.get("percentage_affected"),
+                            event.get("explanation"),
                         ),
                     )
 
@@ -1129,13 +887,8 @@ class PostgresAnalyticalDatabase:
                             ),
                         )
 
-                elif (
-                    event_type
-                    == "GROUP_FORMED"
-                ):
-                    group_id = event[
-                        "group_id"
-                    ]
+                elif event_type == "GROUP_FORMED":
+                    group_id = event["group_id"]
 
                     conn.execute(
                         """
@@ -1172,18 +925,10 @@ class PostgresAnalyticalDatabase:
                         (
                             run_id,
                             group_id,
-                            event[
-                                "group_name"
-                            ],
-                            event[
-                                "student_count"
-                            ],
-                            event[
-                                "suggested_activity"
-                            ],
-                            event.get(
-                                "estimated_duration"
-                            ),
+                            event["group_name"],
+                            event["student_count"],
+                            event["suggested_activity"],
+                            event.get("estimated_duration"),
                         ),
                     )
 
@@ -1213,10 +958,7 @@ class PostgresAnalyticalDatabase:
                             ),
                         )
 
-                elif (
-                    event_type
-                    == "VERIFICATION_AUDITED"
-                ):
+                elif event_type == "VERIFICATION_AUDITED":
                     conn.execute(
                         """
                         INSERT INTO verifications (
@@ -1256,42 +998,19 @@ class PostgresAnalyticalDatabase:
                         """,
                         (
                             run_id,
-                            event[
-                                "overall_status"
-                            ],
-                            bool(
-                                event[
-                                    "coverage_passed"
-                                ]
-                            ),
-                            bool(
-                                event[
-                                    "cluster_math_passed"
-                                ]
-                            ),
-                            bool(
-                                event[
-                                    "group_partition_passed"
-                                ]
-                            ),
-                            event[
-                                "quotes_grounded_count"
-                            ],
-                            event[
-                                "quotes_flagged_count"
-                            ],
+                            event["overall_status"],
+                            bool(event["coverage_passed"]),
+                            bool(event["cluster_math_passed"]),
+                            bool(event["group_partition_passed"]),
+                            event["quotes_grounded_count"],
+                            event["quotes_flagged_count"],
                         ),
                     )
 
-                elif (
-                    event_type
-                    == "DECISION_RECORDED"
-                ):
+                elif event_type == "DECISION_RECORDED":
                     recorded_at = event.get(
                         "decision_recorded_at",
-                        event[
-                            "occurred_at"
-                        ],
+                        event["occurred_at"],
                     )
 
                     conn.execute(
@@ -1324,22 +1043,12 @@ class PostgresAnalyticalDatabase:
                                 EXCLUDED.notes;
                         """,
                         (
-                            event[
-                                "event_id"
-                            ],
+                            event["event_id"],
                             run_id,
-                            event[
-                                "target_type"
-                            ],
-                            event[
-                                "target_id"
-                            ],
-                            event[
-                                "teacher_decision"
-                            ],
-                            event.get(
-                                "notes"
-                            ),
+                            event["target_type"],
+                            event["target_id"],
+                            event["teacher_decision"],
+                            event.get("notes"),
                             recorded_at,
                         ),
                     )
@@ -1390,29 +1099,17 @@ class PostgresAnalyticalDatabase:
                         """,
                         (
                             run_id,
-                            event[
-                                "target_type"
-                            ],
-                            event[
-                                "target_id"
-                            ],
-                            event[
-                                "teacher_decision"
-                            ],
-                            event.get(
-                                "notes"
-                            ),
+                            event["target_type"],
+                            event["target_id"],
+                            event["teacher_decision"],
+                            event.get("notes"),
                             recorded_at,
-                            event[
-                                "event_id"
-                            ],
+                            event["event_id"],
                         ),
                     )
 
                 if self.fault_hook:
-                    self.fault_hook(
-                        "after_projection_insert"
-                    )
+                    self.fault_hook("after_projection_insert")
 
                 conn.execute(
                     """
@@ -1434,24 +1131,18 @@ class PostgresAnalyticalDatabase:
                     (
                         event_id,
                         event_type,
-                        IngestionOutcome
-                        .ACCEPTED
-                        .value,
+                        IngestionOutcome.ACCEPTED.value,
                         None,
                         processed_at,
                     ),
                 )
 
                 if self.fault_hook:
-                    self.fault_hook(
-                        "before_commit"
-                    )
+                    self.fault_hook("before_commit")
 
             return IngestionResult(
                 event_id=event_id,
-                outcome=(
-                    IngestionOutcome.ACCEPTED
-                ),
+                outcome=(IngestionOutcome.ACCEPTED),
                 event_type=event_type,
             )
 
@@ -1461,56 +1152,27 @@ class PostgresAnalyticalDatabase:
                 sleep_fn=sleep_fn,
             )
 
-            duration_ms = (
-                time.monotonic()
-                - start_time
-            ) * 1000
+            duration_ms = (time.monotonic() - start_time) * 1000
 
-            result = (
-                retry_execution.result
-            )
+            result = retry_execution.result
 
-            if (
-                retry_execution.attempts
-                > 1
-            ):
+            if retry_execution.attempts > 1:
                 result = IngestionResult(
-                    event_id=(
-                        result.event_id
-                    ),
-                    outcome=(
-                        result.outcome
-                    ),
-                    rejection_reason=(
-                        result.rejection_reason
-                    ),
-                    event_type=(
-                        result.event_type
-                    ),
-                    retry_attempts=(
-                        retry_execution.attempts
-                    ),
+                    event_id=(result.event_id),
+                    outcome=(result.outcome),
+                    rejection_reason=(result.rejection_reason),
+                    event_type=(result.event_type),
+                    retry_attempts=(retry_execution.attempts),
                 )
 
             logger.info(
                 json.dumps(
                     {
                         "backend": "postgres",
-                        "event_id": (
-                            event_id[:16]
-                        ),
-                        "event_type": (
-                            event_type
-                        ),
-                        "outcome": (
-                            result
-                            .outcome
-                            .value
-                        ),
-                        "attempts": (
-                            retry_execution
-                            .attempts
-                        ),
+                        "event_id": (event_id[:16]),
+                        "event_type": (event_type),
+                        "outcome": (result.outcome.value),
+                        "attempts": (retry_execution.attempts),
                         "duration_ms": round(
                             duration_ms,
                             2,
@@ -1524,27 +1186,18 @@ class PostgresAnalyticalDatabase:
         except AnalysisRunConflictError as exc:
             result = IngestionResult(
                 event_id=event_id,
-                outcome=(
-                    IngestionOutcome.CONFLICT
-                ),
-                rejection_reason=str(
-                    exc
-                ),
+                outcome=(IngestionOutcome.CONFLICT),
+                rejection_reason=str(exc),
                 event_type=event_type,
             )
 
-            self.record_audit_log(
-                [result]
-            )
+            self.record_audit_log([result])
 
             return result
 
         except Exception as exc:
             if isinstance(exc, (psycopg.Error,)):
-                err_reason = (
-                    "INGESTION_TRANSACTION_FAILED: "
-                    f"{type(exc).__name__}"
-                )
+                err_reason = f"INGESTION_TRANSACTION_FAILED: {type(exc).__name__}"
             else:
                 exc_msg = str(exc)
                 safe_msg = (
@@ -1552,24 +1205,16 @@ class PostgresAnalyticalDatabase:
                     if not (EMAIL_REGEX.search(exc_msg) or PHONE_REGEX.search(exc_msg))
                     else "REDACTED"
                 )
-                err_reason = (
-                    "INGESTION_TRANSACTION_FAILED: "
-                    f"{type(exc).__name__}: "
-                    f"{safe_msg}"
-                )
+                err_reason = f"INGESTION_TRANSACTION_FAILED: {type(exc).__name__}: {safe_msg}"
 
             result = IngestionResult(
                 event_id=event_id,
-                outcome=(
-                    IngestionOutcome.REJECTED
-                ),
+                outcome=(IngestionOutcome.REJECTED),
                 rejection_reason=err_reason,
                 event_type=event_type,
             )
 
-            self.record_audit_log(
-                [result]
-            )
+            self.record_audit_log([result])
 
             return result
 
@@ -1582,31 +1227,13 @@ class PostgresAnalyticalDatabase:
 
         ANALYSIS_INGESTED events are processed before dependent event types.
         """
-        run_events = [
-            event
-            for event in events
-            if event.get(
-                "event_type"
-            )
-            == "ANALYSIS_INGESTED"
-        ]
+        run_events = [event for event in events if event.get("event_type") == "ANALYSIS_INGESTED"]
 
-        child_events = [
-            event
-            for event in events
-            if event.get(
-                "event_type"
-            )
-            != "ANALYSIS_INGESTED"
-        ]
+        child_events = [event for event in events if event.get("event_type") != "ANALYSIS_INGESTED"]
 
-        results: List[
-            IngestionResult
-        ] = []
+        results: List[IngestionResult] = []
 
-        validator = (
-            AnalyticalEventValidator()
-        )
+        validator = AnalyticalEventValidator()
 
         for event in run_events:
             results.append(
@@ -1634,17 +1261,12 @@ class PostgresAnalyticalDatabase:
             compute_pipeline_metrics,
         )
 
-        return compute_pipeline_metrics(
-            self
-        )
+        return compute_pipeline_metrics(self)
 
     def close(
         self,
     ) -> None:
         """Closes the PostgreSQL connection if open."""
-        if (
-            self._conn
-            and not self._conn.closed
-        ):
+        if self._conn and not self._conn.closed:
             self._conn.close()
             self._conn = None

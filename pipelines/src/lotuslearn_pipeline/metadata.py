@@ -449,13 +449,10 @@ class MetadataSnapshot:
             value: Any,
             primary_fields: Tuple[str, ...],
         ) -> Tuple[Any, ...]:
-            serialized = _sanitize_metadata_serialization(
-                _to_jsonable_dict(value)
+            serialized = _sanitize_metadata_serialization(_to_jsonable_dict(value))
+            return tuple(serialized.get(field_name) or "" for field_name in primary_fields) + (
+                _safe_json(serialized),
             )
-            return tuple(
-                serialized.get(field_name) or ""
-                for field_name in primary_fields
-            ) + (_safe_json(serialized),)
 
         payload = {
             "schema_version": self.schema_version,

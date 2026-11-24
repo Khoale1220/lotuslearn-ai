@@ -593,9 +593,7 @@ def test_db_invariant_heartbeat_rejects_regression_above_start(case):
         assert original is not None
         assert original[1] > original[0]
 
-        with pytest.raises(
-            psycopg.errors.CheckViolation
-        ) as error:
+        with pytest.raises(psycopg.errors.CheckViolation) as error:
             conn.execute(
                 """
                 UPDATE pipeline_executions
@@ -606,10 +604,7 @@ def test_db_invariant_heartbeat_rejects_regression_above_start(case):
             )
 
         assert error.value.sqlstate == "23514"
-        assert (
-            error.value.diag.constraint_name
-            == "pipeline_execution_heartbeat_monotonic"
-        )
+        assert error.value.diag.constraint_name == "pipeline_execution_heartbeat_monotonic"
 
         persisted = conn.execute(
             """
@@ -660,7 +655,4 @@ def test_finish_never_precedes_last_heartbeat(case):
     )
 
     assert completed.execution.finished_at >= last_heartbeat
-    assert (
-        completed.execution.finished_at
-        >= completed.execution.heartbeat_at
-    )
+    assert completed.execution.finished_at >= completed.execution.heartbeat_at

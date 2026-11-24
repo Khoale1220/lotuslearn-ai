@@ -7,17 +7,11 @@ from pathlib import Path
 
 from lotuslearn_pipeline.event_export_cli import main
 
-FIXTURE_PATH = (
-    Path(__file__).parent
-    / "fixtures"
-    / "analytical_event_producer_parity.json"
-)
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "analytical_event_producer_parity.json"
 
 
 def _fixture() -> dict:
-    return json.loads(
-        FIXTURE_PATH.read_text(encoding="utf-8")
-    )
+    return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 
 
 def test_stdout_contract(
@@ -29,9 +23,7 @@ def test_stdout_contract(
     monkeypatch.setattr(
         sys,
         "stdin",
-        io.StringIO(
-            json.dumps(fixture["analysis_result"])
-        ),
+        io.StringIO(json.dumps(fixture["analysis_result"])),
     )
 
     result = main(
@@ -80,12 +72,7 @@ def test_file_output_contract(
     assert captured.err == ""
 
     assert captured.out == (
-        "Exported "
-        f"{len(fixture['expected_events'])} "
-        "analytical events to "
-        f"{output_path}\n"
+        f"Exported {len(fixture['expected_events'])} analytical events to {output_path}\n"
     )
 
-    assert json.loads(
-        output_path.read_text(encoding="utf-8")
-    ) == fixture["expected_events"]
+    assert json.loads(output_path.read_text(encoding="utf-8")) == fixture["expected_events"]

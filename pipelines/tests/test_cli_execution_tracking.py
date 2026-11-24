@@ -50,9 +50,7 @@ def tracking_result(outcome=IngestionOutcome.ACCEPTED):
             event_id="event-1",
             outcome=outcome,
             rejection_reason=(
-                "synthetic rejection"
-                if outcome == IngestionOutcome.REJECTED
-                else None
+                "synthetic rejection" if outcome == IngestionOutcome.REJECTED else None
             ),
         )
     ]
@@ -64,9 +62,7 @@ def tracking_result(outcome=IngestionOutcome.ACCEPTED):
     ("explicit", "expected_url"),
     [(False, ENV_URL), (True, EXPLICIT_URL)],
 )
-def test_tracked_ingestion_routes_to_one_postgres_target(
-    monkeypatch, explicit, expected_url
-):
+def test_tracked_ingestion_routes_to_one_postgres_target(monkeypatch, explicit, expected_url):
     monkeypatch.setenv("LOTUSLEARN_DATABASE_URL", ENV_URL)
     databases = []
     calls = []
@@ -152,9 +148,7 @@ def test_rejection_flag_is_forwarded_and_preserves_exit_contract(
     db.close.assert_called_once_with()
 
 
-def test_duplicate_execution_aborts_without_direct_ingestion(
-    monkeypatch, capsys
-):
+def test_duplicate_execution_aborts_without_direct_ingestion(monkeypatch, capsys):
     db = fake_database()
     monkeypatch.setattr(cli, "get_database", lambda _: db)
     monkeypatch.setattr(
@@ -198,30 +192,61 @@ def test_unexpected_runtime_error_is_not_silenced(monkeypatch):
         ["ingest", "--track-execution", "--db", EXPLICIT_URL],
         tracked_args(),
         [
-            "ingest", "--track-execution", "--input", "unused.ndjson",
-            "--db", EXPLICIT_URL, "--batch-id", BATCH_ID,
+            "ingest",
+            "--track-execution",
+            "--input",
+            "unused.ndjson",
+            "--db",
+            EXPLICIT_URL,
+            "--batch-id",
+            BATCH_ID,
         ],
         [
-            "ingest", "--track-execution", "--input", "unused.ndjson",
-            "--db", EXPLICIT_URL, "--batch-id", "invalid",
-            "--execution-id", EXECUTION_ID, "--attempt-number", "1",
+            "ingest",
+            "--track-execution",
+            "--input",
+            "unused.ndjson",
+            "--db",
+            EXPLICIT_URL,
+            "--batch-id",
+            "invalid",
+            "--execution-id",
+            EXECUTION_ID,
+            "--attempt-number",
+            "1",
         ],
         [
-            "ingest", "--track-execution", "--input", "unused.ndjson",
-            "--db", EXPLICIT_URL, "--batch-id", BATCH_ID,
-            "--execution-id", EXECUTION_ID, "--attempt-number", "0",
+            "ingest",
+            "--track-execution",
+            "--input",
+            "unused.ndjson",
+            "--db",
+            EXPLICIT_URL,
+            "--batch-id",
+            BATCH_ID,
+            "--execution-id",
+            EXECUTION_ID,
+            "--attempt-number",
+            "0",
         ],
         [
-            "ingest", "--track-execution", "--input", "unused.ndjson",
-            "--db", "sqlite:///tmp/test.db", "--batch-id", BATCH_ID,
-            "--execution-id", EXECUTION_ID, "--attempt-number", "1",
+            "ingest",
+            "--track-execution",
+            "--input",
+            "unused.ndjson",
+            "--db",
+            "sqlite:///tmp/test.db",
+            "--batch-id",
+            BATCH_ID,
+            "--execution-id",
+            EXECUTION_ID,
+            "--attempt-number",
+            "1",
         ],
         ["verify", "--track-execution", "--input", "unused.ndjson"],
     ],
 )
-def test_invalid_tracking_arguments_fail_before_database_access(
-    monkeypatch, args
-):
+def test_invalid_tracking_arguments_fail_before_database_access(monkeypatch, args):
     monkeypatch.delenv("LOTUSLEARN_DATABASE_URL", raising=False)
     monkeypatch.setattr(
         cli,

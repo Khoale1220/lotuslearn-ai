@@ -12,8 +12,7 @@ from lotuslearn_pipeline.analytical_event_producer import produce_analytical_eve
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Convert one LotusLearn analysis-result JSON document "
-            "into canonical analytical events."
+            "Convert one LotusLearn analysis-result JSON document into canonical analytical events."
         )
     )
     parser.add_argument(
@@ -67,10 +66,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    print(
-        f"Exported {len(events)} analytical events "
-        f"to {args.output}"
-    )
+    print(f"Exported {len(events)} analytical events to {args.output}")
 
     return 0
 

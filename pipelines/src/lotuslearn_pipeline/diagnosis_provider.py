@@ -126,9 +126,7 @@ def _require_learning_objective(
     value = context.get("learningObjective")
 
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(
-            "context.learningObjective must be a non-empty string"
-        )
+        raise ValueError("context.learningObjective must be a non-empty string")
 
     return value
 
@@ -155,14 +153,10 @@ def build_diagnosis_prompt(
     projected = [
         {
             "studentId": observation.get("studentId"),
-            "demonstratedUnderstanding": observation.get(
-                "demonstratedUnderstanding"
-            ),
+            "demonstratedUnderstanding": observation.get("demonstratedUnderstanding"),
             "misconceptions": observation.get("misconceptions"),
             "evidence": observation.get("supportingEvidence"),
-            "supportLevel": observation.get(
-                "recommendedSupportLevel"
-            ),
+            "supportLevel": observation.get("recommendedSupportLevel"),
         }
         for observation in normalized_observations
     ]

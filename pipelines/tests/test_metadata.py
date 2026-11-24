@@ -285,15 +285,12 @@ def test_dbt_metadata_extracts_source_aliases_descriptions_and_materialization()
         for asset in assets
         if asset.dbt_unique_id == "model.lotuslearn_analytics.fct_teacher_decisions"
     )
-    manifest_payload = json.loads(
-        manifest_path.read_text(encoding="utf-8")
-    )
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     model_manifest_node = next(
         node
         for node in manifest_payload["nodes"].values()
         if node.get("resource_type") == "model"
-        and (node.get("alias") or node.get("name"))
-        == model_asset.name
+        and (node.get("alias") or node.get("name")) == model_asset.name
     )
     assert model_asset.database == model_manifest_node["database"]
     assert model_asset.schema == "analytics_marts"
@@ -1017,7 +1014,9 @@ def test_assert_safe_test_database_permits_lotuslearn_test():
 
 def test_get_test_pg_url_never_falls_back_to_database_url(monkeypatch):
     monkeypatch.delenv("LOTUSLEARN_TEST_DATABASE_URL", raising=False)
-    monkeypatch.setenv("LOTUSLEARN_DATABASE_URL", "postgresql://user:pass@localhost:5432/lotuslearn_dev")
+    monkeypatch.setenv(
+        "LOTUSLEARN_DATABASE_URL", "postgresql://user:pass@localhost:5432/lotuslearn_dev"
+    )
     assert get_test_pg_url() == ""
 
 
@@ -1033,9 +1032,8 @@ def test_get_test_pg_url_configured_but_unreachable_raises_error(monkeypatch):
     monkeypatch.setenv("LOTUSLEARN_TEST_DATABASE_URL", unreachable_url)
     with pytest.raises(RuntimeError) as exc_info:
         get_test_pg_url()
-    assert (
-        "Configured LOTUSLEARN_TEST_DATABASE_URL failed connectivity check"
-        in str(exc_info.value)
+    assert "Configured LOTUSLEARN_TEST_DATABASE_URL failed connectivity check" in str(
+        exc_info.value
     )
     assert "secret_test_password" not in str(exc_info.value)
     assert "54399" not in str(exc_info.value)
@@ -1050,7 +1048,6 @@ def test_from_dict_derived_count_contradiction_does_not_echo_raw_value():
         MetadataSnapshot.from_dict(data)
     assert "Contradictory asset_count in serialized metadata snapshot" in str(exc_info.value)
     assert sensitive_token not in str(exc_info.value)
-
 
 
 def test_extract_metadata_snapshot_recomputes_checksum_after_dbt_artifact_enrichment(
@@ -1083,10 +1080,7 @@ def test_extract_metadata_snapshot_recomputes_checksum_after_dbt_artifact_enrich
         json.dumps(
             {
                 "metadata": {
-                    "dbt_schema_version": (
-                        "https://schemas.getdbt.com/"
-                        "dbt/manifest/v12.json"
-                    )
+                    "dbt_schema_version": ("https://schemas.getdbt.com/dbt/manifest/v12.json")
                 }
             }
         ),
@@ -1104,36 +1098,23 @@ def test_extract_metadata_snapshot_recomputes_checksum_after_dbt_artifact_enrich
     )
 
     assert (
-        snapshot.dbt_artifact_schema_version
-        == "https://schemas.getdbt.com/dbt/manifest/v12.json"
+        snapshot.dbt_artifact_schema_version == "https://schemas.getdbt.com/dbt/manifest/v12.json"
     )
 
     assert snapshot.content_checksum != before
     assert snapshot.content_checksum == snapshot.compute_checksum()
 
-    validation = metadata_module.validate_metadata_snapshot(
-        snapshot
-    )
+    validation = metadata_module.validate_metadata_snapshot(snapshot)
     assert validation.is_valid, validation.errors
 
-    restored = metadata_module.MetadataSnapshot.from_dict(
-        snapshot.to_dict()
-    )
+    restored = metadata_module.MetadataSnapshot.from_dict(snapshot.to_dict())
 
-    assert (
-        restored.content_checksum
-        == snapshot.content_checksum
-    )
+    assert restored.content_checksum == snapshot.content_checksum
 
 
 def test_dbt_source_uses_canonical_postgres_identity(tmp_path):
     manifest = {
-        "metadata": {
-            "dbt_schema_version": (
-                "https://schemas.getdbt.com/"
-                "dbt/manifest/v12.json"
-            )
-        },
+        "metadata": {"dbt_schema_version": ("https://schemas.getdbt.com/dbt/manifest/v12.json")},
         "sources": {
             "source.test.raw.orders": {
                 "unique_id": "source.test.raw.orders",
@@ -1164,11 +1145,7 @@ def test_dbt_source_uses_canonical_postgres_identity(tmp_path):
                 "columns": {},
             }
         },
-        "parent_map": {
-            "model.test.stg_orders": [
-                "source.test.raw.orders"
-            ]
-        },
+        "parent_map": {"model.test.stg_orders": ["source.test.raw.orders"]},
     }
 
     manifest_path = tmp_path / "manifest.json"
@@ -1189,17 +1166,9 @@ def test_dbt_source_uses_canonical_postgres_identity(tmp_path):
 
     assert not errors
 
-    source_asset = next(
-        asset
-        for asset in assets
-        if asset.dbt_resource_type == "source"
-    )
+    source_asset = next(asset for asset in assets if asset.dbt_resource_type == "source")
 
-    model_asset = next(
-        asset
-        for asset in assets
-        if asset.dbt_resource_type == "model"
-    )
+    model_asset = next(asset for asset in assets if asset.dbt_resource_type == "model")
 
     expected_physical_id = derive_asset_id(
         "postgres",
@@ -1212,11 +1181,7 @@ def test_dbt_source_uses_canonical_postgres_identity(tmp_path):
     assert source_asset.asset_id == expected_physical_id
     assert model_asset.platform == "dbt"
 
-    edge = next(
-        edge
-        for edge in lineage_edges
-        if edge.edge_type == "dbt_parent"
-    )
+    edge = next(edge for edge in lineage_edges if edge.edge_type == "dbt_parent")
 
     assert edge.source_asset == expected_physical_id
     assert edge.target_asset == model_asset.asset_id

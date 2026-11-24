@@ -13,7 +13,6 @@ from lotuslearn_pipeline.teacher_interventions import (
     persist_teacher_intervention,
 )
 
-
 MAX_INPUT_BYTES = 64 * 1024
 
 
@@ -29,10 +28,7 @@ def _json_default(value: Any) -> Any:
     if isinstance(value, UUID):
         return str(value)
 
-    raise TypeError(
-        f"value of type {type(value).__name__} "
-        "is not JSON serializable"
-    )
+    raise TypeError(f"value of type {type(value).__name__} is not JSON serializable")
 
 
 def _emit(payload: dict[str, Any]) -> None:
@@ -52,21 +48,15 @@ def _read_payload() -> dict[str, Any]:
     raw = sys.stdin.read(MAX_INPUT_BYTES + 1)
 
     if len(raw.encode("utf-8")) > MAX_INPUT_BYTES:
-        raise ValueError(
-            "request payload exceeds size limit"
-        )
+        raise ValueError("request payload exceeds size limit")
 
     if not raw.strip():
-        raise ValueError(
-            "request payload is empty"
-        )
+        raise ValueError("request payload is empty")
 
     payload = json.loads(raw)
 
     if not isinstance(payload, dict):
-        raise ValueError(
-            "request payload must be an object"
-        )
+        raise ValueError("request payload must be an object")
 
     return payload
 
@@ -74,10 +64,7 @@ def _read_payload() -> dict[str, Any]:
 def _normalize_repository_result(
     result: Any,
 ) -> tuple[dict[str, Any], bool]:
-    if (
-        isinstance(result, tuple)
-        and len(result) == 2
-    ):
+    if isinstance(result, tuple) and len(result) == 2:
         first, second = result
 
         if isinstance(first, bool):
@@ -88,36 +75,25 @@ def _normalize_repository_result(
             created = second
 
         if not isinstance(intervention, dict):
-            raise RuntimeError(
-                "repository returned invalid intervention"
-            )
+            raise RuntimeError("repository returned invalid intervention")
 
         return intervention, bool(created)
 
     if isinstance(result, dict):
-        if (
-            "intervention" in result
-            and "created" in result
-        ):
+        if "intervention" in result and "created" in result:
             intervention = result["intervention"]
             created = result["created"]
 
             if not isinstance(intervention, dict):
-                raise RuntimeError(
-                    "repository returned invalid intervention"
-                )
+                raise RuntimeError("repository returned invalid intervention")
 
             return intervention, bool(created)
 
-    raise RuntimeError(
-        "repository returned unsupported result"
-    )
+    raise RuntimeError("repository returned unsupported result")
 
 
 def main() -> int:
-    database_url = os.environ.get(
-        "LOTUSLEARN_DATABASE_URL"
-    )
+    database_url = os.environ.get("LOTUSLEARN_DATABASE_URL")
 
     if not database_url:
         _emit(
@@ -125,10 +101,7 @@ def main() -> int:
                 "ok": False,
                 "error": {
                     "code": "PERSISTENCE_NOT_CONFIGURED",
-                    "message": (
-                        "teacher intervention persistence "
-                        "is unavailable"
-                    ),
+                    "message": ("teacher intervention persistence is unavailable"),
                 },
             }
         )
@@ -137,20 +110,14 @@ def main() -> int:
     try:
         payload = _read_payload()
 
-        with psycopg.connect(
-            database_url
-        ) as connection:
+        with psycopg.connect(database_url) as connection:
             with connection.cursor() as cursor:
                 raw_result = persist_teacher_intervention(
                     cursor,
                     payload,
                 )
 
-        intervention, created = (
-            _normalize_repository_result(
-                raw_result
-            )
-        )
+        intervention, created = _normalize_repository_result(raw_result)
 
         _emit(
             {
@@ -166,20 +133,15 @@ def main() -> int:
         message = str(exc)
 
         if (
-            "already exists with a different"
-            in message.lower()
-            or "conflicting replay"
-            in message.lower()
+            "already exists with a different" in message.lower()
+            or "conflicting replay" in message.lower()
         ):
             _emit(
                 {
                     "ok": False,
                     "error": {
                         "code": "INTERVENTION_CONFLICT",
-                        "message": (
-                            "intervention identity already "
-                            "exists with different content"
-                        ),
+                        "message": ("intervention identity already exists with different content"),
                     },
                 }
             )
@@ -202,9 +164,7 @@ def main() -> int:
                 "ok": False,
                 "error": {
                     "code": "PERSISTENCE_ERROR",
-                    "message": (
-                        "teacher intervention persistence failed"
-                    ),
+                    "message": ("teacher intervention persistence failed"),
                 },
             }
         )

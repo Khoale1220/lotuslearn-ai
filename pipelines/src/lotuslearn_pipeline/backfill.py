@@ -32,9 +32,7 @@ MAX_ACTIVE_RUNS: Final = 100
 MAX_CLAIM_LIMIT: Final = 100
 MAX_LEASE: Final = timedelta(hours=24)
 
-BACKFILL_NAMESPACE: Final = UUID(
-    "5e0f6997-9f0d-4ed0-a8d7-30ed11ad0df5"
-)
+BACKFILL_NAMESPACE: Final = UUID("5e0f6997-9f0d-4ed0-a8d7-30ed11ad0df5")
 
 
 class BackfillError(RuntimeError):
@@ -120,7 +118,6 @@ class BackfillSlot:
     lease_expires_at: datetime | None
     finished_at: datetime | None
 
-
     fence_token: int = 0
 
 
@@ -157,13 +154,8 @@ def _database_url(value: str) -> str:
     normalized = value.strip()
     parsed = urlsplit(normalized)
 
-    if (
-        parsed.scheme not in {"postgresql", "postgres"}
-        or not parsed.hostname
-    ):
-        raise ValueError(
-            "Backfill orchestration requires a PostgreSQL URL"
-        )
+    if parsed.scheme not in {"postgresql", "postgres"} or not parsed.hostname:
+        raise ValueError("Backfill orchestration requires a PostgreSQL URL")
 
     return normalized
 
@@ -201,9 +193,7 @@ def _uuid(
     try:
         return UUID(value)
     except ValueError:
-        raise ValueError(
-            f"{label} must be a UUID"
-        ) from None
+        raise ValueError(f"{label} must be a UUID") from None
 
 
 def _timestamp(
@@ -214,9 +204,7 @@ def _timestamp(
         raise TypeError(f"{label} must be datetime")
 
     if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError(
-            f"{label} must be timezone-aware"
-        )
+        raise ValueError(f"{label} must be timezone-aware")
 
     return value.astimezone(timezone.utc)
 
@@ -228,19 +216,13 @@ def _positive_int(
     maximum: int,
 ) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(
-            f"{label} must be an integer"
-        )
+        raise TypeError(f"{label} must be an integer")
 
     if value <= 0:
-        raise ValueError(
-            f"{label} must be positive"
-        )
+        raise ValueError(f"{label} must be positive")
 
     if value > maximum:
-        raise ValueError(
-            f"{label} cannot exceed {maximum}"
-        )
+        raise ValueError(f"{label} cannot exceed {maximum}")
 
     return value
 
@@ -253,16 +235,12 @@ def _interval_seconds(value: timedelta) -> int:
         raise ValueError("interval must be positive")
 
     if value.microseconds != 0:
-        raise ValueError(
-            "interval must resolve to whole seconds"
-        )
+        raise ValueError("interval must resolve to whole seconds")
 
     seconds = int(value.total_seconds())
 
     if seconds <= 0:
-        raise ValueError(
-            "interval must be at least one second"
-        )
+        raise ValueError("interval must be at least one second")
 
     return seconds
 
@@ -275,9 +253,7 @@ def _lease(value: timedelta) -> timedelta:
         raise ValueError("lease must be positive")
 
     if value > MAX_LEASE:
-        raise ValueError(
-            "lease cannot exceed 24 hours"
-        )
+        raise ValueError("lease cannot exceed 24 hours")
 
     return value
 
@@ -291,10 +267,7 @@ def _behavior(
     try:
         return ReprocessBehavior(value)
     except (TypeError, ValueError):
-        raise ValueError(
-            "reprocess_behavior must be "
-            "one of: none, failed, completed"
-        ) from None
+        raise ValueError("reprocess_behavior must be one of: none, failed, completed") from None
 
 
 def _slot_status(
@@ -309,9 +282,7 @@ def _slot_status(
     try:
         return BackfillSlotStatus(value)
     except (TypeError, ValueError):
-        raise BackfillIntegrityError(
-            "Unknown persisted backfill slot status"
-        ) from None
+        raise BackfillIntegrityError("Unknown persisted backfill slot status") from None
 
 
 def build_backfill_windows(
@@ -341,13 +312,9 @@ def build_backfill_windows(
     )
 
     if window_end <= window_start:
-        raise ValueError(
-            "window_end must be after window_start"
-        )
+        raise ValueError("window_end must be after window_start")
 
-    step = timedelta(
-        seconds=interval_seconds
-    )
+    step = timedelta(seconds=interval_seconds)
 
     cursor = window_start
     ordinal = 0
@@ -355,9 +322,7 @@ def build_backfill_windows(
 
     while cursor < window_end:
         if len(windows) >= max_slots:
-            raise ValueError(
-                "backfill window exceeds max_slots"
-            )
+            raise ValueError("backfill window exceeds max_slots")
 
         slot_end = min(
             cursor + step,
@@ -384,12 +349,8 @@ def decide_reprocessing(
 ) -> BackfillDecision:
     """Apply explicit missing/failed/completed semantics."""
 
-    previous_status = _slot_status(
-        previous_status
-    )
-    behavior = _behavior(
-        reprocess_behavior
-    )
+    previous_status = _slot_status(previous_status)
+    behavior = _behavior(reprocess_behavior)
 
     if previous_status is None:
         return BackfillDecision.CREATE_MISSING
@@ -404,13 +365,8 @@ def decide_reprocessing(
         return BackfillDecision.SKIP_EXISTING
 
     if behavior is ReprocessBehavior.FAILED:
-        if (
-            previous_status
-            is BackfillSlotStatus.FAILED
-        ):
-            return (
-                BackfillDecision.REPROCESS_FAILED
-            )
+        if previous_status is BackfillSlotStatus.FAILED:
+            return BackfillDecision.REPROCESS_FAILED
 
         return BackfillDecision.SKIP_EXISTING
 
@@ -418,9 +374,7 @@ def decide_reprocessing(
         BackfillSlotStatus.SUCCEEDED,
         BackfillSlotStatus.FAILED,
     }:
-        return (
-            BackfillDecision.REPROCESS_COMPLETED
-        )
+        return BackfillDecision.REPROCESS_COMPLETED
 
     return BackfillDecision.SKIP_EXISTING
 
@@ -479,10 +433,7 @@ def _advisory_lock_key(
         byteorder="big",
     )
 
-    return (
-        value
-        & 0x7FFF_FFFF_FFFF_FFFF
-    )
+    return value & 0x7FFF_FFFF_FFFF_FFFF
 
 
 def _request_from_row(
@@ -504,18 +455,10 @@ def _request_from_row(
                 row["window_end"],
                 "window_end",
             ),
-            interval_seconds=(
-                row["interval_seconds"]
-            ),
-            reprocess_behavior=_behavior(
-                row["reprocess_behavior"]
-            ),
-            max_active_runs=(
-                row["max_active_runs"]
-            ),
-            run_backwards=(
-                row["run_backwards"]
-            ),
+            interval_seconds=(row["interval_seconds"]),
+            reprocess_behavior=_behavior(row["reprocess_behavior"]),
+            max_active_runs=(row["max_active_runs"]),
+            run_backwards=(row["run_backwards"]),
             created_at=_timestamp(
                 row["created_at"],
                 "created_at",
@@ -526,18 +469,14 @@ def _request_from_row(
         TypeError,
         ValueError,
     ):
-        raise BackfillIntegrityError(
-            "Persisted backfill request is invalid"
-        ) from None
+        raise BackfillIntegrityError("Persisted backfill request is invalid") from None
 
 
 def _slot_from_row(
     row: dict[str, Any],
 ) -> BackfillSlot:
     try:
-        prior_status = _slot_status(
-            row["prior_status"]
-        )
+        prior_status = _slot_status(row["prior_status"])
 
         batch_id = (
             None
@@ -572,22 +511,14 @@ def _slot_from_row(
                 "slot_end",
             ),
             prior_status=prior_status,
-            decision=BackfillDecision(
-                row["decision"]
-            ),
-            status=BackfillSlotStatus(
-                row["status"]
-            ),
-            attempt_number=(
-                row["attempt_number"]
-            ),
+            decision=BackfillDecision(row["decision"]),
+            status=BackfillSlotStatus(row["status"]),
+            attempt_number=(row["attempt_number"]),
             batch_id=batch_id,
             execution_id=execution_id,
             worker_id=row["worker_id"],
             claimed_at=row["claimed_at"],
-            lease_expires_at=(
-                row["lease_expires_at"]
-            ),
+            lease_expires_at=(row["lease_expires_at"]),
             finished_at=row["finished_at"],
             fence_token=row["fence_token"],
         )
@@ -596,9 +527,7 @@ def _slot_from_row(
         TypeError,
         ValueError,
     ):
-        raise BackfillIntegrityError(
-            "Persisted backfill slot is invalid"
-        ) from None
+        raise BackfillIntegrityError("Persisted backfill slot is invalid") from None
 
 
 def _historical_statuses(
@@ -660,9 +589,7 @@ def _historical_statuses(
             ),
         )
 
-        history[key] = BackfillSlotStatus(
-            row["status"]
-        )
+        history[key] = BackfillSlotStatus(row["status"])
 
     return history
 
@@ -676,9 +603,7 @@ def _preview_slots(
     ],
     reprocess_behavior: ReprocessBehavior,
 ) -> tuple[BackfillPreviewSlot, ...]:
-    result: list[
-        BackfillPreviewSlot
-    ] = []
+    result: list[BackfillPreviewSlot] = []
 
     for window in windows:
         prior_status = history.get(
@@ -697,13 +622,9 @@ def _preview_slots(
             BackfillDecision.SKIP_EXISTING,
             BackfillDecision.SKIP_ACTIVE,
         }:
-            initial_status = (
-                BackfillSlotStatus.SKIPPED
-            )
+            initial_status = BackfillSlotStatus.SKIPPED
         else:
-            initial_status = (
-                BackfillSlotStatus.PENDING
-            )
+            initial_status = BackfillSlotStatus.PENDING
 
         result.append(
             BackfillPreviewSlot(
@@ -712,9 +633,7 @@ def _preview_slots(
                 slot_end=window.slot_end,
                 prior_status=prior_status,
                 decision=decision,
-                initial_status=(
-                    initial_status
-                ),
+                initial_status=(initial_status),
             )
         )
 
@@ -728,24 +647,18 @@ def preview_backfill(
     window_start: datetime,
     window_end: datetime,
     interval: timedelta,
-    reprocess_behavior: (
-        ReprocessBehavior | str
-    ) = ReprocessBehavior.NONE,
+    reprocess_behavior: (ReprocessBehavior | str) = ReprocessBehavior.NONE,
 ) -> tuple[BackfillPreviewSlot, ...]:
     """Read-only dry-run of backfill decisions."""
 
-    database_url = _database_url(
-        database_url
-    )
+    database_url = _database_url(database_url)
 
     pipeline_key = _text(
         pipeline_key,
         "pipeline_key",
     )
 
-    behavior = _behavior(
-        reprocess_behavior
-    )
+    behavior = _behavior(reprocess_behavior)
 
     windows = build_backfill_windows(
         window_start=window_start,
@@ -757,9 +670,7 @@ def preview_backfill(
         database_url,
         row_factory=dict_row,
     ) as conn:
-        conn.execute(
-            "SET TRANSACTION READ ONLY"
-        )
+        conn.execute("SET TRANSACTION READ ONLY")
 
         history = _historical_statuses(
             conn,
@@ -789,10 +700,7 @@ def _list_slots_conn(
         (backfill_id,),
     ).fetchall()
 
-    return tuple(
-        _slot_from_row(row)
-        for row in rows
-    )
+    return tuple(_slot_from_row(row) for row in rows)
 
 
 def list_backfill_slots(
@@ -800,9 +708,7 @@ def list_backfill_slots(
     *,
     backfill_id: UUID | str,
 ) -> tuple[BackfillSlot, ...]:
-    database_url = _database_url(
-        database_url
-    )
+    database_url = _database_url(database_url)
 
     backfill_id = _uuid(
         backfill_id,
@@ -813,9 +719,7 @@ def list_backfill_slots(
         database_url,
         row_factory=dict_row,
     ) as conn:
-        conn.execute(
-            "SET TRANSACTION READ ONLY"
-        )
+        conn.execute("SET TRANSACTION READ ONLY")
 
         return _list_slots_conn(
             conn,
@@ -831,17 +735,13 @@ def create_backfill(
     window_start: datetime,
     window_end: datetime,
     interval: timedelta,
-    reprocess_behavior: (
-        ReprocessBehavior | str
-    ) = ReprocessBehavior.NONE,
+    reprocess_behavior: (ReprocessBehavior | str) = ReprocessBehavior.NONE,
     max_active_runs: int = 1,
     run_backwards: bool = False,
 ) -> BackfillCreateResult:
     """Persist an idempotent request and auditable slot decisions."""
 
-    database_url = _database_url(
-        database_url
-    )
+    database_url = _database_url(database_url)
 
     pipeline_key = _text(
         pipeline_key,
@@ -853,9 +753,7 @@ def create_backfill(
         "request_key",
     )
 
-    behavior = _behavior(
-        reprocess_behavior
-    )
+    behavior = _behavior(reprocess_behavior)
 
     max_active_runs = _positive_int(
         max_active_runs,
@@ -867,9 +765,7 @@ def create_backfill(
         run_backwards,
         bool,
     ):
-        raise TypeError(
-            "run_backwards must be bool"
-        )
+        raise TypeError("run_backwards must be bool")
 
     normalized_start = _timestamp(
         window_start,
@@ -881,9 +777,7 @@ def create_backfill(
         "window_end",
     )
 
-    interval_seconds = (
-        _interval_seconds(interval)
-    )
+    interval_seconds = _interval_seconds(interval)
 
     windows = build_backfill_windows(
         window_start=normalized_start,
@@ -891,9 +785,7 @@ def create_backfill(
         interval=interval,
     )
 
-    backfill_id = _request_id(
-        request_key
-    )
+    backfill_id = _request_id(request_key)
 
     with psycopg.connect(
         database_url,
@@ -905,11 +797,7 @@ def create_backfill(
                 SELECT
                     pg_advisory_xact_lock(%s)
                 """,
-                (
-                    _advisory_lock_key(
-                        backfill_id
-                    ),
-                ),
+                (_advisory_lock_key(backfill_id),),
             )
 
             existing_row = conn.execute(
@@ -922,9 +810,7 @@ def create_backfill(
             ).fetchone()
 
             if existing_row is not None:
-                existing = _request_from_row(
-                    existing_row
-                )
+                existing = _request_from_row(existing_row)
 
                 expected = (
                     pipeline_key,
@@ -951,9 +837,7 @@ def create_backfill(
                 if actual != expected:
                     raise (
                         BackfillConflictError(
-                            "request_key is already "
-                            "bound to a different "
-                            "backfill configuration"
+                            "request_key is already bound to a different backfill configuration"
                         )
                     )
 
@@ -962,9 +846,7 @@ def create_backfill(
                     request=existing,
                     slots=_list_slots_conn(
                         conn,
-                        backfill_id=(
-                            existing.backfill_id
-                        ),
+                        backfill_id=(existing.backfill_id),
                     ),
                 )
 
@@ -1013,17 +895,10 @@ def create_backfill(
             ).fetchone()
 
             if row is None:
-                raise BackfillIntegrityError(
-                    "Backfill request insert "
-                    "returned no row"
-                )
+                raise BackfillIntegrityError("Backfill request insert returned no row")
 
             for slot in preview:
-                prior_status = (
-                    None
-                    if slot.prior_status is None
-                    else slot.prior_status.value
-                )
+                prior_status = None if slot.prior_status is None else slot.prior_status.value
 
                 conn.execute(
                     """
@@ -1053,9 +928,7 @@ def create_backfill(
                     ),
                 )
 
-            request = _request_from_row(
-                row
-            )
+            request = _request_from_row(row)
 
             slots = _list_slots_conn(
                 conn,
@@ -1079,9 +952,7 @@ def claim_backfill_slots(
 ) -> tuple[BackfillSlot, ...]:
     """Lease pending slots without exceeding max_active_runs."""
 
-    database_url = _database_url(
-        database_url
-    )
+    database_url = _database_url(database_url)
 
     backfill_id = _uuid(
         backfill_id,
@@ -1119,13 +990,9 @@ def claim_backfill_slots(
             ).fetchone()
 
             if request_row is None:
-                raise BackfillConflictError(
-                    "Unknown backfill_id"
-                )
+                raise BackfillConflictError("Unknown backfill_id")
 
-            request = _request_from_row(
-                request_row
-            )
+            request = _request_from_row(request_row)
 
             active_row = conn.execute(
                 """
@@ -1140,31 +1007,19 @@ def claim_backfill_slots(
             ).fetchone()
 
             if active_row is None:
-                raise BackfillIntegrityError(
-                    "Unable to count active "
-                    "backfill slots"
-                )
+                raise BackfillIntegrityError("Unable to count active backfill slots")
 
-            active_count = (
-                active_row["active_count"]
-            )
+            active_count = active_row["active_count"]
 
             capacity = min(
-                (
-                    request.max_active_runs
-                    - active_count
-                ),
+                (request.max_active_runs - active_count),
                 limit,
             )
 
             if capacity <= 0:
                 return ()
 
-            direction = (
-                "DESC"
-                if request.run_backwards
-                else "ASC"
-            )
+            direction = "DESC" if request.run_backwards else "ASC"
 
             candidate_rows = conn.execute(
                 f"""
@@ -1185,24 +1040,15 @@ def claim_backfill_slots(
             ).fetchall()
 
             for candidate in candidate_rows:
-                attempt_number = (
-                    candidate[
-                        "attempt_number"
-                    ]
-                    + 1
-                )
+                attempt_number = candidate["attempt_number"] + 1
 
                 (
                     batch_id,
                     execution_id,
                 ) = derive_execution_identity(
                     backfill_id=backfill_id,
-                    slot_start=(
-                        candidate["slot_start"]
-                    ),
-                    attempt_number=(
-                        attempt_number
-                    ),
+                    slot_start=(candidate["slot_start"]),
+                    attempt_number=(attempt_number),
                 )
 
                 updated = conn.execute(
@@ -1239,16 +1085,9 @@ def claim_backfill_slots(
                 ).fetchone()
 
                 if updated is None:
-                    raise (
-                        BackfillConflictError(
-                            "Backfill slot was "
-                            "concurrently claimed"
-                        )
-                    )
+                    raise (BackfillConflictError("Backfill slot was concurrently claimed"))
 
-                claimed.append(
-                    _slot_from_row(updated)
-                )
+                claimed.append(_slot_from_row(updated))
 
     return tuple(claimed)
 
@@ -1257,14 +1096,8 @@ def _validate_execution_link(
     slot: BackfillSlot,
     execution_row: dict[str, Any],
 ) -> BackfillSlotStatus:
-    if (
-        slot.batch_id is None
-        or slot.execution_id is None
-    ):
-        raise BackfillIntegrityError(
-            "Claimed slot is missing "
-            "execution identity"
-        )
+    if slot.batch_id is None or slot.execution_id is None:
+        raise BackfillIntegrityError("Claimed slot is missing execution identity")
 
     execution_id = _uuid(
         execution_row["execution_id"],
@@ -1277,25 +1110,13 @@ def _validate_execution_link(
     )
 
     if execution_id != slot.execution_id:
-        raise BackfillIntegrityError(
-            "Execution identity does not "
-            "match claim"
-        )
+        raise BackfillIntegrityError("Execution identity does not match claim")
 
     if batch_id != slot.batch_id:
-        raise BackfillIntegrityError(
-            "Batch identity does not "
-            "match claim"
-        )
+        raise BackfillIntegrityError("Batch identity does not match claim")
 
-    if (
-        execution_row["attempt_number"]
-        != slot.attempt_number
-    ):
-        raise BackfillIntegrityError(
-            "Execution attempt does not "
-            "match claim"
-        )
+    if execution_row["attempt_number"] != slot.attempt_number:
+        raise BackfillIntegrityError("Execution attempt does not match claim")
 
     status = execution_row["status"]
 
@@ -1305,9 +1126,7 @@ def _validate_execution_link(
     if status == "FAILED":
         return BackfillSlotStatus.FAILED
 
-    raise BackfillConflictError(
-        "Execution is not terminal"
-    )
+    raise BackfillConflictError("Execution is not terminal")
 
 
 def cancel_backfill(
@@ -1344,17 +1163,10 @@ def cancel_backfill(
             ).fetchall()
 
             if not locked_rows:
-                raise BackfillConflictError(
-                    "Unknown backfill"
-                )
+                raise BackfillConflictError("Unknown backfill")
 
-            if any(
-                row[0] == BackfillSlotStatus.CLAIMED.value
-                for row in locked_rows
-            ):
-                raise BackfillConflictError(
-                    "Cannot cancel backfill with claimed slots"
-                )
+            if any(row[0] == BackfillSlotStatus.CLAIMED.value for row in locked_rows):
+                raise BackfillConflictError("Cannot cancel backfill with claimed slots")
 
             conn.execute(
                 """
@@ -1399,17 +1211,10 @@ def reconcile_backfill_slots(
         ).fetchall()
 
         if not authority_rows:
-            raise BackfillConflictError(
-                f"Unknown backfill_id: {backfill_id}"
-            )
+            raise BackfillConflictError(f"Unknown backfill_id: {backfill_id}")
 
-        if any(
-            row["status"] == "CLAIMED"
-            for row in authority_rows
-        ):
-            raise BackfillConflictError(
-                f"Backfill {backfill_id} has claimed work"
-            )
+        if any(row["status"] == "CLAIMED" for row in authority_rows):
+            raise BackfillConflictError(f"Backfill {backfill_id} has claimed work")
 
         rows = database_url.execute(
             """
@@ -1440,10 +1245,8 @@ def reconcile_backfill_slots(
             (backfill_id,),
         ).fetchall()
 
-    return tuple(
-        _slot_from_row(row)
-        for row in rows
-    )
+    return tuple(_slot_from_row(row) for row in rows)
+
 
 def retry_backfill_slot(
     database_url: str,
@@ -1481,9 +1284,7 @@ def retry_backfill_slot(
             ).fetchone()
 
             if row is None:
-                raise BackfillConflictError(
-                    "Unknown backfill slot"
-                )
+                raise BackfillConflictError("Unknown backfill slot")
 
             slot = _slot_from_row(row)
 
@@ -1492,8 +1293,7 @@ def retry_backfill_slot(
 
             if slot.status is not BackfillSlotStatus.FAILED:
                 raise BackfillConflictError(
-                    "Backfill slot cannot be retried "
-                    f"from status {slot.status.value}"
+                    f"Backfill slot cannot be retried from status {slot.status.value}"
                 )
 
             updated = conn.execute(
@@ -1520,9 +1320,7 @@ def retry_backfill_slot(
             ).fetchone()
 
             if updated is None:
-                raise BackfillConflictError(
-                    "Backfill slot retry lost state authority"
-                )
+                raise BackfillConflictError("Backfill slot retry lost state authority")
 
             return _slot_from_row(updated)
 
@@ -1537,9 +1335,7 @@ def complete_backfill_slot(
 ) -> BackfillSlot:
     """Link a claim to its terminal durable ledger execution."""
 
-    database_url = _database_url(
-        database_url
-    )
+    database_url = _database_url(database_url)
 
     backfill_id = _uuid(
         backfill_id,
@@ -1571,9 +1367,7 @@ def complete_backfill_slot(
             ).fetchone()
 
             if row is None:
-                raise BackfillConflictError(
-                    "Unknown backfill slot"
-                )
+                raise BackfillConflictError("Unknown backfill slot")
 
             slot = _slot_from_row(row)
 
@@ -1604,36 +1398,24 @@ def complete_backfill_slot(
 
                     if execution_row is None:
                         raise BackfillConflictError(
-                            "Terminal execution is missing "
-                            "from the durable ledger"
+                            "Terminal execution is missing from the durable ledger"
                         )
 
-                    replay_status = (
-                        _validate_execution_link(
-                            slot,
-                            execution_row,
-                        )
+                    replay_status = _validate_execution_link(
+                        slot,
+                        execution_row,
                     )
 
                     if (
                         replay_status is slot.status
-                        and execution_row["finished_at"]
-                        == slot.finished_at
+                        and execution_row["finished_at"] == slot.finished_at
                     ):
                         return slot
-            if (
-                slot.status
-                is not BackfillSlotStatus.CLAIMED
-            ):
-                raise BackfillConflictError(
-                    "Backfill slot is not claimed"
-                )
+            if slot.status is not BackfillSlotStatus.CLAIMED:
+                raise BackfillConflictError("Backfill slot is not claimed")
 
             if slot.execution_id is None:
-                raise BackfillIntegrityError(
-                    "Claimed slot has no "
-                    "execution_id"
-                )
+                raise BackfillIntegrityError("Claimed slot has no execution_id")
 
             execution_row = conn.execute(
                 """
@@ -1651,15 +1433,12 @@ def complete_backfill_slot(
 
             if execution_row is None:
                 raise BackfillConflictError(
-                    "Claimed execution has not "
-                    "started in the durable ledger"
+                    "Claimed execution has not started in the durable ledger"
                 )
 
-            terminal_status = (
-                _validate_execution_link(
-                    slot,
-                    execution_row,
-                )
+            terminal_status = _validate_execution_link(
+                slot,
+                execution_row,
             )
 
             updated = conn.execute(
@@ -1687,14 +1466,9 @@ def complete_backfill_slot(
             ).fetchone()
 
             if updated is None:
-                raise BackfillConflictError(
-                    "Backfill completion "
-                    "lost claim"
-                )
+                raise BackfillConflictError("Backfill completion lost claim")
 
-            return _slot_from_row(
-                updated
-            )
+            return _slot_from_row(updated)
 
 
 def recover_expired_claims(
@@ -1708,9 +1482,7 @@ def recover_expired_claims(
 ]:
     """Recover expired claims without duplicating live executions."""
 
-    database_url = _database_url(
-        database_url
-    )
+    database_url = _database_url(database_url)
 
     backfill_id = _uuid(
         backfill_id,
@@ -1723,9 +1495,7 @@ def recover_expired_claims(
         maximum=MAX_CLAIM_LIMIT,
     )
 
-    actions: list[
-        BackfillRecoveryAction
-    ] = []
+    actions: list[BackfillRecoveryAction] = []
 
     with psycopg.connect(
         database_url,
@@ -1753,18 +1523,10 @@ def recover_expired_claims(
             ).fetchall()
 
             for row in rows:
-                slot = _slot_from_row(
-                    row
-                )
+                slot = _slot_from_row(row)
 
                 if slot.execution_id is None:
-                    raise (
-                        BackfillIntegrityError(
-                            "Expired claim is "
-                            "missing execution "
-                            "identity"
-                        )
-                    )
+                    raise (BackfillIntegrityError("Expired claim is missing execution identity"))
 
                 execution_row = conn.execute(
                     """
@@ -1804,40 +1566,25 @@ def recover_expired_claims(
 
                     actions.append(
                         BackfillRecoveryAction(
-                            slot_start=(
-                                slot.slot_start
-                            ),
-                            execution_id=(
-                                slot.execution_id
-                            ),
-                            action=(
-                                "REQUEUED_NOT_STARTED"
-                            ),
+                            slot_start=(slot.slot_start),
+                            execution_id=(slot.execution_id),
+                            action=("REQUEUED_NOT_STARTED"),
                         )
                     )
 
                     continue
 
                 try:
-                    terminal_status = (
-                        _validate_execution_link(
-                            slot,
-                            execution_row,
-                        )
+                    terminal_status = _validate_execution_link(
+                        slot,
+                        execution_row,
                     )
                 except BackfillConflictError:
                     actions.append(
                         BackfillRecoveryAction(
-                            slot_start=(
-                                slot.slot_start
-                            ),
-                            execution_id=(
-                                slot.execution_id
-                            ),
-                            action=(
-                                "PRESERVED_RUNNING_"
-                                "EXECUTION"
-                            ),
+                            slot_start=(slot.slot_start),
+                            execution_id=(slot.execution_id),
+                            action=("PRESERVED_RUNNING_EXECUTION"),
                         )
                     )
 
@@ -1856,9 +1603,7 @@ def recover_expired_claims(
                     """,
                     (
                         terminal_status.value,
-                        execution_row[
-                            "finished_at"
-                        ],
+                        execution_row["finished_at"],
                         backfill_id,
                         slot.slot_start,
                     ),
@@ -1866,16 +1611,9 @@ def recover_expired_claims(
 
                 actions.append(
                     BackfillRecoveryAction(
-                        slot_start=(
-                            slot.slot_start
-                        ),
-                        execution_id=(
-                            slot.execution_id
-                        ),
-                        action=(
-                            "RECONCILED_"
-                            f"{terminal_status.value}"
-                        ),
+                        slot_start=(slot.slot_start),
+                        execution_id=(slot.execution_id),
+                        action=(f"RECONCILED_{terminal_status.value}"),
                     )
                 )
 
@@ -1887,9 +1625,7 @@ def get_backfill_summary(
     *,
     backfill_id: UUID | str,
 ) -> BackfillSummary:
-    database_url = _database_url(
-        database_url
-    )
+    database_url = _database_url(database_url)
 
     backfill_id = _uuid(
         backfill_id,
@@ -1900,9 +1636,7 @@ def get_backfill_summary(
         database_url,
         row_factory=dict_row,
     ) as conn:
-        conn.execute(
-            "SET TRANSACTION READ ONLY"
-        )
+        conn.execute("SET TRANSACTION READ ONLY")
 
         exists = conn.execute(
             """
@@ -1914,9 +1648,7 @@ def get_backfill_summary(
         ).fetchone()
 
         if exists is None:
-            raise BackfillConflictError(
-                "Unknown backfill_id"
-            )
+            raise BackfillConflictError("Unknown backfill_id")
 
         rows = conn.execute(
             """
@@ -1930,44 +1662,24 @@ def get_backfill_summary(
             (backfill_id,),
         ).fetchall()
 
-    counts = {
-        status.value: 0
-        for status in BackfillSlotStatus
-    }
+    counts = {status.value: 0 for status in BackfillSlotStatus}
 
     for row in rows:
-        counts[row["status"]] = (
-            row["count"]
-        )
+        counts[row["status"]] = row["count"]
 
-    total = sum(
-        counts.values()
-    )
+    total = sum(counts.values())
 
-    pending = counts[
-        BackfillSlotStatus.PENDING.value
-    ]
+    pending = counts[BackfillSlotStatus.PENDING.value]
 
-    claimed = counts[
-        BackfillSlotStatus.CLAIMED.value
-    ]
+    claimed = counts[BackfillSlotStatus.CLAIMED.value]
 
     return BackfillSummary(
         backfill_id=backfill_id,
         total=total,
         pending=pending,
-        skipped=counts[
-            BackfillSlotStatus.SKIPPED.value
-        ],
+        skipped=counts[BackfillSlotStatus.SKIPPED.value],
         claimed=claimed,
-        succeeded=counts[
-            BackfillSlotStatus.SUCCEEDED.value
-        ],
-        failed=counts[
-            BackfillSlotStatus.FAILED.value
-        ],
-        complete=(
-            pending == 0
-            and claimed == 0
-        ),
+        succeeded=counts[BackfillSlotStatus.SUCCEEDED.value],
+        failed=counts[BackfillSlotStatus.FAILED.value],
+        complete=(pending == 0 and claimed == 0),
     )

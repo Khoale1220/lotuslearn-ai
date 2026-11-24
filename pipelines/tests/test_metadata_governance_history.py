@@ -62,27 +62,19 @@ def _make_decision():
 
 @pytest.fixture
 def governance_store():
-    url = os.environ.get(
-        "LOTUSLEARN_TEST_DATABASE_URL", ""
-    ).strip()
+    url = os.environ.get("LOTUSLEARN_TEST_DATABASE_URL", "").strip()
 
     if not url:
-        pytest.skip(
-            "Requires LOTUSLEARN_TEST_DATABASE_URL"
-        )
+        pytest.skip("Requires LOTUSLEARN_TEST_DATABASE_URL")
 
     # Never initialize or modify a non-test database.
-    with psycopg.connect(
-        url, autocommit=True, row_factory=dict_row
-    ) as conn:
-        database_name = conn.execute(
-            "SELECT current_database() AS database_name"
-        ).fetchone()["database_name"]
+    with psycopg.connect(url, autocommit=True, row_factory=dict_row) as conn:
+        database_name = conn.execute("SELECT current_database() AS database_name").fetchone()[
+            "database_name"
+        ]
 
         if database_name != "lotuslearn_test":
-            pytest.fail(
-                "Refusing access outside lotuslearn_test"
-            )
+            pytest.fail("Refusing access outside lotuslearn_test")
 
         apply_postgres_migrations(conn)
 
@@ -93,14 +85,10 @@ def governance_store():
 
     # Delete only decisions created by this test.
     with psycopg.connect(url) as conn:
-        database_name = conn.execute(
-            "SELECT current_database()"
-        ).fetchone()[0]
+        database_name = conn.execute("SELECT current_database()").fetchone()[0]
 
         if database_name != "lotuslearn_test":
-            pytest.fail(
-                "Refusing cleanup outside lotuslearn_test"
-            )
+            pytest.fail("Refusing cleanup outside lotuslearn_test")
 
         for decision_id in created_ids:
             conn.execute(
@@ -113,18 +101,14 @@ def governance_store():
 
 
 def test_invalid_decision_rejected_before_database_io():
-    store = PostgresMetadataGovernanceHistoryStore(
-        "postgresql://localhost:1/lotuslearn_test"
-    )
+    store = PostgresMetadataGovernanceHistoryStore("postgresql://localhost:1/lotuslearn_test")
 
     invalid = replace(
         _make_decision(),
         change_count=1,
     )
 
-    with pytest.raises(
-        MetadataGovernanceHistoryIntegrityError
-    ):
+    with pytest.raises(MetadataGovernanceHistoryIntegrityError):
         store.record_decision(invalid)
 
 
@@ -135,27 +119,22 @@ def test_insert_and_exact_replay(governance_store):
 
     first = store.record_decision(decision)
 
-    assert (
-        first.outcome
-        == MetadataGovernanceHistoryWriteOutcome.INSERTED
-    )
+    assert first.outcome == MetadataGovernanceHistoryWriteOutcome.INSERTED
 
     replay = store.record_decision(decision)
 
+    assert replay.outcome == MetadataGovernanceHistoryWriteOutcome.EXISTING
+
+    assert store.get_decision(decision.decision_id) == decision
+
     assert (
-        replay.outcome
-        == MetadataGovernanceHistoryWriteOutcome.EXISTING
+        store.get_policy_decision(
+            comparison_id=decision.comparison_id,
+            policy_id=decision.policy_id,
+            policy_version=decision.policy_version,
+        )
+        == decision
     )
-
-    assert store.get_decision(
-        decision.decision_id
-    ) == decision
-
-    assert store.get_policy_decision(
-        comparison_id=decision.comparison_id,
-        policy_id=decision.policy_id,
-        policy_version=decision.policy_version,
-    ) == decision
 
 
 def test_conflicting_replay_preserves_original(governance_store):
@@ -167,19 +146,13 @@ def test_conflicting_replay_preserves_original(governance_store):
 
     conflict = replace(
         decision,
-        directly_changed_assets=(
-            _sha256("synthetic-changed-asset"),
-        ),
+        directly_changed_assets=(_sha256("synthetic-changed-asset"),),
     )
 
-    with pytest.raises(
-        MetadataGovernanceHistoryConflictError
-    ):
+    with pytest.raises(MetadataGovernanceHistoryConflictError):
         store.record_decision(conflict)
 
-    assert store.get_decision(
-        decision.decision_id
-    ) == decision
+    assert store.get_decision(decision.decision_id) == decision
 
 
 def test_concurrent_exact_replay_creates_one_row(governance_store):
@@ -196,22 +169,12 @@ def test_concurrent_exact_replay_creates_one_row(governance_store):
         return store.record_decision(decision).outcome
 
     with ThreadPoolExecutor(max_workers=worker_count) as executor:
-        futures = [
-            executor.submit(write_once)
-            for _ in range(worker_count)
-        ]
-        outcomes = [
-            future.result(timeout=30)
-            for future in futures
-        ]
+        futures = [executor.submit(write_once) for _ in range(worker_count)]
+        outcomes = [future.result(timeout=30) for future in futures]
 
-    assert outcomes.count(
-        MetadataGovernanceHistoryWriteOutcome.INSERTED
-    ) == 1
+    assert outcomes.count(MetadataGovernanceHistoryWriteOutcome.INSERTED) == 1
 
-    assert outcomes.count(
-        MetadataGovernanceHistoryWriteOutcome.EXISTING
-    ) == worker_count - 1
+    assert outcomes.count(MetadataGovernanceHistoryWriteOutcome.EXISTING) == worker_count - 1
 
     with psycopg.connect(
         os.environ["LOTUSLEARN_TEST_DATABASE_URL"],
@@ -234,6 +197,7 @@ def test_concurrent_exact_replay_creates_one_row(governance_store):
 
     assert row["row_count"] == 1
     assert store.get_decision(decision.decision_id) == decision
+
 
 def test_exact_replay_preserves_recorded_at_and_row_version(governance_store):
     """Exact replay must not update the persisted row."""
@@ -311,9 +275,7 @@ def test_corrupted_summary_is_rejected_on_read(governance_store):
         os.environ["LOTUSLEARN_TEST_DATABASE_URL"],
         row_factory=dict_row,
     ) as conn:
-        database = conn.execute(
-            "SELECT current_database() AS name"
-        ).fetchone()["name"]
+        database = conn.execute("SELECT current_database() AS name").fetchone()["name"]
 
         assert database == "lotuslearn_test"
 
@@ -333,19 +295,16 @@ def test_corrupted_summary_is_rejected_on_read(governance_store):
     with pytest.raises(MetadataGovernanceHistoryIntegrityError):
         store.get_decision(decision.decision_id)
 
+
 @pytest.mark.parametrize("iteration", range(5))
-def test_concurrent_conflicting_writes_preserve_one_decision(
-    governance_store, iteration
-):
+def test_concurrent_conflicting_writes_preserve_one_decision(governance_store, iteration):
     """Concurrent conflicting writes must preserve one durable winner."""
     store, created_ids = governance_store
 
     original = _make_decision()
     conflicting = replace(
         original,
-        directly_changed_assets=(
-            _sha256("synthetic-changed-asset"),
-        ),
+        directly_changed_assets=(_sha256("synthetic-changed-asset"),),
     )
 
     created_ids.append(original.decision_id)
@@ -360,19 +319,11 @@ def test_concurrent_conflicting_writes_preserve_one_decision(
             return "CONFLICT"
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [
-            executor.submit(write, candidate)
-            for candidate in (original, conflicting)
-        ]
+        futures = [executor.submit(write, candidate) for candidate in (original, conflicting)]
 
-        outcomes = [
-            future.result(timeout=30)
-            for future in futures
-        ]
+        outcomes = [future.result(timeout=30) for future in futures]
 
-    assert outcomes.count(
-        MetadataGovernanceHistoryWriteOutcome.INSERTED
-    ) == 1
+    assert outcomes.count(MetadataGovernanceHistoryWriteOutcome.INSERTED) == 1
 
     assert outcomes.count("CONFLICT") == 1
 
@@ -410,9 +361,7 @@ def test_missing_conflict_row_fails_closed():
     """A suppressed unique conflict without a matching row must fail closed."""
     from unittest.mock import Mock
 
-    store = PostgresMetadataGovernanceHistoryStore(
-        "postgresql://localhost:1/lotuslearn_test"
-    )
+    store = PostgresMetadataGovernanceHistoryStore("postgresql://localhost:1/lotuslearn_test")
 
     conn = Mock()
     conn.execute.return_value.fetchone.return_value = None

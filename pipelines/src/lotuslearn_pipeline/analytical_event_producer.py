@@ -40,9 +40,7 @@ def assert_zero_pii(event: dict[str, Any]) -> None:
     privacy_ok, reason = _PRIVACY_VALIDATOR.validate_privacy(event)
 
     if not privacy_ok:
-        raise ValueError(
-            f"Analytical event rejected: {reason}"
-        )
+        raise ValueError(f"Analytical event rejected: {reason}")
 
     for key in (
         "affected_student_ids",
@@ -54,14 +52,8 @@ def assert_zero_pii(event: dict[str, Any]) -> None:
             continue
 
         for student_id in values:
-            if (
-                not isinstance(student_id, str)
-                or not student_id.strip()
-            ):
-                raise ValueError(
-                    "Analytical event rejected: "
-                    "invalid student ID format."
-                )
+            if not isinstance(student_id, str) or not student_id.strip():
+                raise ValueError("Analytical event rejected: invalid student ID format.")
 
 
 def _fallback_dataset_fingerprint(
@@ -83,40 +75,21 @@ def _fallback_dataset_fingerprint(
             "",
         )
 
-        demonstrated = observation.get(
-            "demonstratedUnderstanding"
-        )
+        demonstrated = observation.get("demonstratedUnderstanding")
 
-        misconceptions = (
-            observation.get("misconceptions")
-            or []
-        )
+        misconceptions = observation.get("misconceptions") or []
 
-        demonstrated_values = (
-            sorted(demonstrated)
-            if isinstance(demonstrated, list)
-            else []
-        )
+        demonstrated_values = sorted(demonstrated) if isinstance(demonstrated, list) else []
 
-        misconception_values = (
-            sorted(misconceptions)
-            if isinstance(misconceptions, list)
-            else []
-        )
+        misconception_values = sorted(misconceptions) if isinstance(misconceptions, list) else []
 
         observation_keys.append(
-            f"{student_id}:"
-            f"{','.join(demonstrated_values)}:"
-            f"{','.join(misconception_values)}"
+            f"{student_id}:{','.join(demonstrated_values)}:{','.join(misconception_values)}"
         )
 
-    canonical = ";".join(
-        sorted(observation_keys)
-    )
+    canonical = ";".join(sorted(observation_keys))
 
-    return hashlib.sha256(
-        canonical.encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _put_if_present(
@@ -170,12 +143,7 @@ def _decision_event(
         run_id=run_id,
         occurred_at=decision_recorded_at,
         provenance="human",
-        business_key=(
-            f"{target_prefix}:"
-            f"{target_id}:"
-            f"{decision}:"
-            f"{decision_recorded_at}"
-        ),
+        business_key=(f"{target_prefix}:{target_id}:{decision}:{decision_recorded_at}"),
     )
 
     event.update(
@@ -204,25 +172,13 @@ def _validated_context(
 
     subject = context.get("subject")
 
-    if (
-        not isinstance(subject, str)
-        or not subject.strip()
-    ):
-        raise ValueError(
-            "Analytical event rejected: "
-            "missing subject in analysis context."
-        )
+    if not isinstance(subject, str) or not subject.strip():
+        raise ValueError("Analytical event rejected: missing subject in analysis context.")
 
     grade_level = context.get("gradeLevel")
 
-    if (
-        not isinstance(grade_level, str)
-        or not grade_level.strip()
-    ):
-        raise ValueError(
-            "Analytical event rejected: "
-            "missing grade_level in analysis context."
-        )
+    if not isinstance(grade_level, str) or not grade_level.strip():
+        raise ValueError("Analytical event rejected: missing grade_level in analysis context.")
 
     return subject, grade_level
 
@@ -237,19 +193,12 @@ def _resolve_submission_count(
     if not isinstance(class_snapshot, dict):
         class_snapshot = {}
 
-    submission_count = class_snapshot.get(
-        "totalSubmissions"
-    )
+    submission_count = class_snapshot.get("totalSubmissions")
 
     if submission_count is None:
-        observations = result.get(
-            "studentObservations"
-        )
+        observations = result.get("studentObservations")
 
-        if (
-            isinstance(observations, list)
-            and observations
-        ):
+        if isinstance(observations, list) and observations:
             submission_count = len(observations)
 
     if (
@@ -260,10 +209,7 @@ def _resolve_submission_count(
         )
         or submission_count < 1
     ):
-        raise ValueError(
-            "Analytical event rejected: "
-            "missing or invalid submission_count."
-        )
+        raise ValueError("Analytical event rejected: missing or invalid submission_count.")
 
     return submission_count
 
@@ -287,11 +233,8 @@ def _dataset_fingerprint(
 ) -> str:
     """Resolve the TypeScript dataset-fingerprint contract."""
 
-    return (
-        execution_metadata.get("datasetFingerprint")
-        or _fallback_dataset_fingerprint(
-            result.get("studentObservations")
-        )
+    return execution_metadata.get("datasetFingerprint") or _fallback_dataset_fingerprint(
+        result.get("studentObservations")
     )
 
 
@@ -332,17 +275,13 @@ def _build_analysis_ingested_event(
     _put_if_present(
         event,
         "total_duration_ms",
-        execution_metadata.get(
-            "totalDurationMs"
-        ),
+        execution_metadata.get("totalDurationMs"),
     )
 
     _put_if_present(
         event,
         "execution_mode",
-        execution_metadata.get(
-            "executionMode"
-        ),
+        execution_metadata.get("executionMode"),
     )
 
     assert_zero_pii(event)
@@ -358,14 +297,9 @@ def _cluster_decision(
 ) -> dict[str, Any] | None:
     """Return a cluster decision only when authentic and final."""
 
-    decision = (
-        cluster.get("teacherDecision")
-        or cluster.get("status")
-    )
+    decision = cluster.get("teacherDecision") or cluster.get("status")
 
-    decision_recorded_at = cluster.get(
-        "decisionRecordedAt"
-    )
+    decision_recorded_at = cluster.get("decisionRecordedAt")
 
     if (
         not decision
@@ -407,9 +341,7 @@ def _build_cluster_events(
             "",
         ),
     ):
-        teaching_priority = cluster.get(
-            "teachingPriority"
-        )
+        teaching_priority = cluster.get("teachingPriority")
 
         if not teaching_priority:
             raise ValueError(
@@ -420,15 +352,9 @@ def _build_cluster_events(
 
         cluster_id = cluster.get("clusterId")
 
-        student_ids = sorted(
-            cluster.get("affectedStudentIds")
-            or []
-        )
+        student_ids = sorted(cluster.get("affectedStudentIds") or [])
 
-        affected_count = (
-            cluster.get("studentCount")
-            or len(student_ids)
-        )
+        affected_count = cluster.get("studentCount") or len(student_ids)
 
         event = _base_event(
             event_type="FINDING_IDENTIFIED",
@@ -441,9 +367,7 @@ def _build_cluster_events(
         event.update(
             {
                 "finding_id": cluster_id,
-                "concept": cluster.get(
-                    "misconceptionTitle"
-                ),
+                "concept": cluster.get("misconceptionTitle"),
                 "teaching_priority": teaching_priority,
                 "affected_student_count": affected_count,
                 "affected_student_ids": student_ids,
@@ -500,9 +424,7 @@ def _build_group_events(
             "",
         ),
     ):
-        suggested_activity = group.get(
-            "suggestedActivity"
-        )
+        suggested_activity = group.get("suggestedActivity")
 
         if (
             not isinstance(
@@ -519,10 +441,7 @@ def _build_group_events(
 
         group_id = group.get("groupId")
 
-        student_ids = sorted(
-            group.get("studentIds")
-            or []
-        )
+        student_ids = sorted(group.get("studentIds") or [])
 
         event = _base_event(
             event_type="GROUP_FORMED",
@@ -535,12 +454,8 @@ def _build_group_events(
         event.update(
             {
                 "group_id": group_id,
-                "group_name": group.get(
-                    "groupName"
-                ),
-                "student_count": len(
-                    student_ids
-                ),
+                "group_name": group.get("groupName"),
+                "student_count": len(student_ids),
                 "student_ids": student_ids,
                 "suggested_activity": suggested_activity,
             }
@@ -564,9 +479,7 @@ def _validated_verification_checks(
 ) -> dict[str, Any]:
     """Validate mandatory deterministic verification booleans."""
 
-    checks = verification.get(
-        "deterministicChecks"
-    )
+    checks = verification.get("deterministicChecks")
 
     if (
         not isinstance(checks, dict)
@@ -597,9 +510,7 @@ def _validated_verification_status(
 ) -> str:
     """Validate the verification overall status."""
 
-    status = verification.get(
-        "overallStatus"
-    )
+    status = verification.get("overallStatus")
 
     if status not in _VALID_VERIFICATION_STATUSES:
         raise ValueError(
@@ -632,24 +543,16 @@ def _build_verification_event(
             "deterministic check booleans."
         )
 
-    checks = _validated_verification_checks(
-        verification
-    )
+    checks = _validated_verification_checks(verification)
 
-    status = _validated_verification_status(
-        verification
-    )
+    status = _validated_verification_status(verification)
 
-    quotes_grounded_count = checks.get(
-        "quotesGroundedCount"
-    )
+    quotes_grounded_count = checks.get("quotesGroundedCount")
 
     if quotes_grounded_count is None:
         quotes_grounded_count = 0
 
-    quotes_flagged_count = checks.get(
-        "quotesFlaggedCount"
-    )
+    quotes_flagged_count = checks.get("quotesFlaggedCount")
 
     if quotes_flagged_count is None:
         quotes_flagged_count = 0
@@ -665,21 +568,11 @@ def _build_verification_event(
     event.update(
         {
             "overall_status": status,
-            "coverage_passed": checks[
-                "coveragePassed"
-            ],
-            "cluster_math_passed": checks[
-                "clusterMathPassed"
-            ],
-            "group_partition_passed": checks[
-                "groupPartitionPassed"
-            ],
-            "quotes_grounded_count": (
-                quotes_grounded_count
-            ),
-            "quotes_flagged_count": (
-                quotes_flagged_count
-            ),
+            "coverage_passed": checks["coveragePassed"],
+            "cluster_math_passed": checks["clusterMathPassed"],
+            "group_partition_passed": checks["groupPartitionPassed"],
+            "quotes_grounded_count": (quotes_grounded_count),
+            "quotes_flagged_count": (quotes_flagged_count),
         }
     )
 
@@ -695,14 +588,9 @@ def _intervention_decision(
 ) -> dict[str, Any] | None:
     """Return an authentic intervention decision when present."""
 
-    decision = (
-        intervention.get("teacherDecision")
-        or intervention.get("status")
-    )
+    decision = intervention.get("teacherDecision") or intervention.get("status")
 
-    decision_recorded_at = intervention.get(
-        "decisionRecordedAt"
-    )
+    decision_recorded_at = intervention.get("decisionRecordedAt")
 
     if (
         not decision
@@ -712,9 +600,7 @@ def _intervention_decision(
     ):
         return None
 
-    intervention_id = intervention.get(
-        "interventionId"
-    )
+    intervention_id = intervention.get("interventionId")
 
     return _decision_event(
         run_id=run_id,
@@ -733,9 +619,7 @@ def _build_intervention_decision_events(
 ) -> list[dict[str, Any]]:
     """Build final intervention decision events."""
 
-    interventions = result.get(
-        "interventions"
-    )
+    interventions = result.get("interventions")
 
     if not isinstance(interventions, list):
         return []
@@ -765,33 +649,20 @@ def produce_analytical_events(
 ) -> list[dict[str, Any]]:
     """Produce canonical deterministic analytical events."""
 
-    if (
-        not isinstance(result, dict)
-        or not result.get("id")
-    ):
-        raise ValueError(
-            "Invalid analysis result: missing id."
-        )
+    if not isinstance(result, dict) or not result.get("id"):
+        raise ValueError("Invalid analysis result: missing id.")
 
     if not result.get("timestamp"):
-        raise ValueError(
-            "Invalid analysis result: missing timestamp."
-        )
+        raise ValueError("Invalid analysis result: missing timestamp.")
 
     run_id = result["id"]
     occurred_at = result["timestamp"]
 
-    subject, grade_level = _validated_context(
-        result
-    )
+    subject, grade_level = _validated_context(result)
 
-    submission_count = _resolve_submission_count(
-        result
-    )
+    submission_count = _resolve_submission_count(result)
 
-    execution_metadata = _execution_metadata(
-        result
-    )
+    execution_metadata = _execution_metadata(result)
 
     events = [
         _build_analysis_ingested_event(
@@ -821,12 +692,10 @@ def produce_analytical_events(
         )
     )
 
-    verification_event = (
-        _build_verification_event(
-            result=result,
-            run_id=run_id,
-            occurred_at=occurred_at,
-        )
+    verification_event = _build_verification_event(
+        result=result,
+        run_id=run_id,
+        occurred_at=occurred_at,
     )
 
     if verification_event is not None:

@@ -78,18 +78,14 @@ def test_classification_uses_database_time_and_read_only_transaction(
         ("postgresql://example/test", timedelta(minutes=1), 1001),
     ],
 )
-def test_invalid_arguments_are_rejected_before_database_access(
-    monkeypatch, url, threshold, limit
-):
+def test_invalid_arguments_are_rejected_before_database_access(monkeypatch, url, threshold, limit):
     def fail_connect(*args, **kwargs):
         raise AssertionError("Must not connect")
 
     monkeypatch.setattr(health.psycopg, "connect", fail_connect)
 
     with pytest.raises(ValueError):
-        health.list_running_execution_health(
-            url, stale_after=threshold, limit=limit
-        )
+        health.list_running_execution_health(url, stale_after=threshold, limit=limit)
 
 
 def test_invalid_temporal_data_fails_closed(monkeypatch):
@@ -110,9 +106,12 @@ def test_empty_running_set(monkeypatch):
     conn = FakeConnection([])
     monkeypatch.setattr(health.psycopg, "connect", lambda *a, **kw: conn)
 
-    assert list(
-        health.list_running_execution_health(
-            "postgresql://example/test",
-            stale_after=timedelta(minutes=1),
+    assert (
+        list(
+            health.list_running_execution_health(
+                "postgresql://example/test",
+                stale_after=timedelta(minutes=1),
+            )
         )
-    ) == []
+        == []
+    )

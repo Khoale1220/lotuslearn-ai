@@ -62,9 +62,7 @@ def run_tracked_batch(
     )
 
     if start.outcome != ExecutionWriteOutcome.INSERTED:
-        raise ExecutionConflictError(
-            "Execution attempt already exists; ingestion was not started"
-        )
+        raise ExecutionConflictError("Execution attempt already exists; ingestion was not started")
 
     error_code = "INPUT_READ_FAILED"
 
@@ -102,9 +100,7 @@ def run_tracked_batch(
         )
 
         if not report.is_balanced:
-            raise ExecutionIntegrityError(
-                "Unbalanced ingestion reconciliation"
-            )
+            raise ExecutionIntegrityError("Unbalanced ingestion reconciliation")
 
         ledger.heartbeat(execution_id)
 
@@ -118,15 +114,10 @@ def run_tracked_batch(
         raise
 
     unsuccessful = report.failed_count > 0 or (
-        fail_on_rejection
-        and (report.conflict_count > 0 or report.rejected_count > 0)
+        fail_on_rejection and (report.conflict_count > 0 or report.rejected_count > 0)
     )
 
-    status = (
-        ExecutionStatus.FAILED
-        if unsuccessful
-        else ExecutionStatus.SUCCEEDED
-    )
+    status = ExecutionStatus.FAILED if unsuccessful else ExecutionStatus.SUCCEEDED
 
     completion = ledger.finish_execution(
         execution_id=execution_id,

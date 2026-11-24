@@ -19,10 +19,7 @@ from lotuslearn_pipeline.postgres import (
     apply_postgres_migrations,
 )
 
-TEST_PG_URL = (
-    os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
-    or ""
-)
+TEST_PG_URL = os.environ.get("LOTUSLEARN_TEST_DATABASE_URL") or ""
 
 
 @pytest.fixture
@@ -33,9 +30,7 @@ def fresh_pg_db():
     with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
         database_name = conn.execute("SELECT current_database();").fetchone()[0]
         if database_name != "lotuslearn_test":
-            raise RuntimeError(
-                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
-            )
+            raise RuntimeError("Refusing destructive PostgreSQL test setup outside lotuslearn_test")
         conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
@@ -89,18 +84,10 @@ def test_concurrent_identical_event_ingestion(fresh_pg_db):
         futures = [executor.submit(_worker, i) for i in range(worker_count)]
         results = [future.result() for future in as_completed(futures)]
 
-    accepted_count = sum(
-        1 for result in results if result.outcome == IngestionOutcome.ACCEPTED
-    )
-    duplicate_count = sum(
-        1 for result in results if result.outcome == IngestionOutcome.DUPLICATE
-    )
-    conflict_count = sum(
-        1 for result in results if result.outcome == IngestionOutcome.CONFLICT
-    )
-    rejected_count = sum(
-        1 for result in results if result.outcome == IngestionOutcome.REJECTED
-    )
+    accepted_count = sum(1 for result in results if result.outcome == IngestionOutcome.ACCEPTED)
+    duplicate_count = sum(1 for result in results if result.outcome == IngestionOutcome.DUPLICATE)
+    conflict_count = sum(1 for result in results if result.outcome == IngestionOutcome.CONFLICT)
+    rejected_count = sum(1 for result in results if result.outcome == IngestionOutcome.REJECTED)
 
     assert accepted_count == 1, f"Expected exactly 1 accepted, got {accepted_count}"
     assert duplicate_count == worker_count - 1
@@ -204,9 +191,7 @@ def test_concurrent_payload_conflict_arbitration(fresh_pg_db):
     ]
 
     losing_result = (
-        second_result
-        if first_result.outcome == IngestionOutcome.ACCEPTED
-        else first_result
+        second_result if first_result.outcome == IngestionOutcome.ACCEPTED else first_result
     )
 
     assert losing_result.rejection_reason is not None
@@ -284,15 +269,9 @@ def test_concurrent_analysis_run_conflict_arbitration(fresh_pg_db):
         IngestionOutcome.CONFLICT,
     ]
 
-    winning_event = (
-        event_a
-        if first_result.outcome == IngestionOutcome.ACCEPTED
-        else event_b
-    )
+    winning_event = event_a if first_result.outcome == IngestionOutcome.ACCEPTED else event_b
     losing_result = (
-        second_result
-        if first_result.outcome == IngestionOutcome.ACCEPTED
-        else first_result
+        second_result if first_result.outcome == IngestionOutcome.ACCEPTED else first_result
     )
 
     assert losing_result.rejection_reason is not None
@@ -367,9 +346,7 @@ def test_concurrent_schema_migrations_under_advisory_lock():
     with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
         database_name = conn.execute("SELECT current_database();").fetchone()[0]
         if database_name != "lotuslearn_test":
-            raise RuntimeError(
-                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
-            )
+            raise RuntimeError("Refusing destructive PostgreSQL test setup outside lotuslearn_test")
         conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     thread_count = 4
@@ -394,10 +371,7 @@ def test_concurrent_schema_migrations_under_advisory_lock():
     from lotuslearn_pipeline.postgres import get_postgres_migration_files
 
     migrations = get_postgres_migration_files()
-    expected = {
-        name: checksum
-        for _, name, _, checksum in migrations
-    }
+    expected = {name: checksum for _, name, _, checksum in migrations}
 
     required = {
         "0001_initial.sql",
@@ -420,21 +394,13 @@ def test_concurrent_schema_migrations_under_advisory_lock():
         autocommit=True,
     ) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COUNT(*) AS c FROM schema_migrations;"
-            )
+            cur.execute("SELECT COUNT(*) AS c FROM schema_migrations;")
             assert cur.fetchone()["c"] == len(expected)
 
-            cur.execute(
-                "SELECT version, name, checksum FROM schema_migrations"
-            )
+            cur.execute("SELECT version, name, checksum FROM schema_migrations")
             stored = cur.fetchall()
 
             assert len(stored) == len(expected)
-            assert {
-                row["version"]: (row["name"], row["checksum"])
-                for row in stored
-            } == {
-                name: (name, checksum)
-                for name, checksum in expected.items()
+            assert {row["version"]: (row["name"], row["checksum"]) for row in stored} == {
+                name: (name, checksum) for name, checksum in expected.items()
             }

@@ -9,7 +9,7 @@ FIXTURE = ROOT / "pipelines/tests/fixtures/reliability_events.json"
 
 sys.path.insert(0, str(PIPELINES_SRC))
 
-from lotuslearn_pipeline.reliability_fixture_producer import (  # noqa: E402
+from lotuslearn_pipeline.reliability_fixture_producer import (
     render_reliability_fixture,
 )
 

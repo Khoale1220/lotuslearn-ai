@@ -11,10 +11,7 @@ from lotuslearn_pipeline.analytical_event_producer import assert_zero_pii
 
 _RUN_ID = "run-de02b-rel-001"
 _OCCURRED_AT = "2026-10-26T10:00:00Z"
-_FINGERPRINT = (
-    "a1b2c3d4e5f60718293a4b5c6d7e8f90"
-    "a1b2c3d4e5f60718293a4b5c6d7e8f90"
-)
+_FINGERPRINT = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
 
 
 def _base_event(
@@ -88,9 +85,7 @@ def _finding_fractions() -> dict[str, Any]:
                 "stu-08",
             ],
             "percentage_affected": 33.3,
-            "explanation": (
-                "Students add numerators and denominators directly across."
-            ),
+            "explanation": ("Students add numerators and denominators directly across."),
         }
     )
 
@@ -119,9 +114,7 @@ def _finding_decimals() -> dict[str, Any]:
                 "stu-12",
             ],
             "percentage_affected": 16.7,
-            "explanation": (
-                "Misaligned tenths and hundredths columns during subtraction."
-            ),
+            "explanation": ("Misaligned tenths and hundredths columns during subtraction."),
         }
     )
 
@@ -152,9 +145,7 @@ def _group_event() -> dict[str, Any]:
                 "stu-07",
                 "stu-08",
             ],
-            "suggested_activity": (
-                "Fraction strip folding and common multiple visualization"
-            ),
+            "suggested_activity": ("Fraction strip folding and common multiple visualization"),
             "estimated_duration": "20 min",
         }
     )
@@ -286,10 +277,7 @@ def generate_reliability_suite() -> dict[str, Any]:
         target_type="differentiated_intervention",
         target_id="group-fractions-lab",
         teacher_decision="dismissed",
-        notes=(
-            "Teacher dismissed recommendation "
-            "in favor of whole-class review"
-        ),
+        notes=("Teacher dismissed recommendation in favor of whole-class review"),
     )
 
     shared_timestamp = "2026-10-26T12:00:00Z"
@@ -300,10 +288,7 @@ def generate_reliability_suite() -> dict[str, Any]:
         target_type="misconception_cluster",
         target_id="cluster-fractions",
         teacher_decision="accepted",
-        notes=(
-            "Teacher verified fraction diagnostic "
-            "cluster (initial confirmation)"
-        ),
+        notes=("Teacher verified fraction diagnostic cluster (initial confirmation)"),
     )
 
     decision_b = _decision_event(
@@ -369,9 +354,7 @@ def render_reliability_fixture() -> str:
 
 
 def main() -> int:
-    sys.stdout.write(
-        render_reliability_fixture()
-    )
+    sys.stdout.write(render_reliability_fixture())
     return 0
 
 

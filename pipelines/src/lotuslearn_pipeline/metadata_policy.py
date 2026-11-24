@@ -145,13 +145,8 @@ class MetadataGovernanceDecision:
             "non_breaking_change_count": self.non_breaking_change_count,
             "metadata_only_change_count": self.metadata_only_change_count,
             "directly_changed_assets": list(self.directly_changed_assets),
-            "downstream_impacted_assets": list(
-                self.downstream_impacted_assets
-            ),
-            "violations": [
-                violation.to_dict()
-                for violation in self.violations
-            ],
+            "downstream_impacted_assets": list(self.downstream_impacted_assets),
+            "violations": [violation.to_dict() for violation in self.violations],
         }
 
 
@@ -165,16 +160,11 @@ def _canonical_json(value: Any) -> str:
 
 
 def _digest(value: Any) -> str:
-    return hashlib.sha256(
-        _canonical_json(value).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: Any) -> bool:
-    return (
-        isinstance(value, str)
-        and _HEX_SHA256.fullmatch(value) is not None
-    )
+    return isinstance(value, str) and _HEX_SHA256.fullmatch(value) is not None
 
 
 def _validate_safe_asset_id(value: Any) -> bool:
@@ -192,9 +182,7 @@ def _expected_comparison_id(metadata_diff: MetadataDiff) -> str:
 
 def _validate_change(change: MetadataChange) -> None:
     if not isinstance(change, MetadataChange):
-        raise MetadataGovernanceError(
-            "Metadata governance input contains an invalid change record"
-        )
+        raise MetadataGovernanceError("Metadata governance input contains an invalid change record")
 
     if not _is_sha256(change.change_id):
         raise MetadataGovernanceError(
@@ -207,14 +195,10 @@ def _validate_change(change: MetadataChange) -> None:
         )
 
     if not isinstance(change.entity_type, MetadataEntityType):
-        raise MetadataGovernanceError(
-            "Metadata governance input contains an invalid entity type"
-        )
+        raise MetadataGovernanceError("Metadata governance input contains an invalid entity type")
 
     if not isinstance(change.kind, MetadataChangeKind):
-        raise MetadataGovernanceError(
-            "Metadata governance input contains an invalid change kind"
-        )
+        raise MetadataGovernanceError("Metadata governance input contains an invalid change kind")
 
     if not isinstance(change.severity, MetadataChangeSeverity):
         raise MetadataGovernanceError(
@@ -226,26 +210,17 @@ def _validate_change(change: MetadataChange) -> None:
             "Metadata governance input contains an invalid asset identifier"
         )
 
-    if any(
-        not _is_sha256(asset_id)
-        for asset_id in change.related_asset_ids
-    ):
+    if any(not _is_sha256(asset_id) for asset_id in change.related_asset_ids):
         raise MetadataGovernanceError(
-            "Metadata governance input contains an invalid related "
-            "asset identifier"
+            "Metadata governance input contains an invalid related asset identifier"
         )
 
-    if len(change.related_asset_ids) != len(
-        set(change.related_asset_ids)
-    ):
+    if len(change.related_asset_ids) != len(set(change.related_asset_ids)):
         raise MetadataGovernanceError(
-            "Metadata governance input contains duplicate related "
-            "asset identifiers"
+            "Metadata governance input contains duplicate related asset identifiers"
         )
 
-    if len(change.changed_properties) != len(
-        set(change.changed_properties)
-    ):
+    if len(change.changed_properties) != len(set(change.changed_properties)):
         raise MetadataGovernanceError(
             "Metadata governance input contains duplicate changed properties"
         )
@@ -253,19 +228,13 @@ def _validate_change(change: MetadataChange) -> None:
 
 def _validate_metadata_diff(metadata_diff: MetadataDiff) -> None:
     if not isinstance(metadata_diff, MetadataDiff):
-        raise MetadataGovernanceError(
-            "Metadata governance requires a MetadataDiff input"
-        )
+        raise MetadataGovernanceError("Metadata governance requires a MetadataDiff input")
 
     if not _is_sha256(metadata_diff.baseline_checksum):
-        raise MetadataGovernanceError(
-            "Metadata governance input has an invalid baseline checksum"
-        )
+        raise MetadataGovernanceError("Metadata governance input has an invalid baseline checksum")
 
     if not _is_sha256(metadata_diff.current_checksum):
-        raise MetadataGovernanceError(
-            "Metadata governance input has an invalid current checksum"
-        )
+        raise MetadataGovernanceError("Metadata governance input has an invalid current checksum")
 
     if not _is_sha256(metadata_diff.comparison_id):
         raise MetadataGovernanceError(
@@ -286,8 +255,7 @@ def _validate_metadata_diff(metadata_diff: MetadataDiff) -> None:
 
         if change.change_id in change_ids:
             raise MetadataGovernanceError(
-                "Metadata governance input contains duplicate "
-                "change identifiers"
+                "Metadata governance input contains duplicate change identifiers"
             )
 
         change_ids.add(change.change_id)
@@ -295,81 +263,60 @@ def _validate_metadata_diff(metadata_diff: MetadataDiff) -> None:
     direct_assets = metadata_diff.directly_changed_assets
     downstream_assets = metadata_diff.downstream_impacted_assets
 
-    if (
-        not isinstance(direct_assets, tuple)
-        or not isinstance(downstream_assets, tuple)
-    ):
+    if not isinstance(direct_assets, tuple) or not isinstance(downstream_assets, tuple):
         raise MetadataGovernanceError(
-            "Metadata governance input contains a non-canonical "
-            "asset collection"
+            "Metadata governance input contains a non-canonical asset collection"
         )
 
     if len(direct_assets) != len(set(direct_assets)):
         raise MetadataGovernanceError(
-            "Metadata governance input contains duplicate directly "
-            "changed assets"
+            "Metadata governance input contains duplicate directly changed assets"
         )
 
     if len(downstream_assets) != len(set(downstream_assets)):
         raise MetadataGovernanceError(
-            "Metadata governance input contains duplicate downstream "
-            "impacted assets"
+            "Metadata governance input contains duplicate downstream impacted assets"
         )
 
-    if any(
-        not _is_sha256(asset_id)
-        for asset_id in direct_assets
-    ):
+    if any(not _is_sha256(asset_id) for asset_id in direct_assets):
         raise MetadataGovernanceError(
-            "Metadata governance input contains an invalid directly "
-            "changed asset"
+            "Metadata governance input contains an invalid directly changed asset"
         )
 
-    if any(
-        not _is_sha256(asset_id)
-        for asset_id in downstream_assets
-    ):
+    if any(not _is_sha256(asset_id) for asset_id in downstream_assets):
         raise MetadataGovernanceError(
-            "Metadata governance input contains an invalid downstream "
-            "impacted asset"
+            "Metadata governance input contains an invalid downstream impacted asset"
         )
 
     if direct_assets != tuple(sorted(direct_assets)):
         raise MetadataGovernanceError(
-            "Metadata governance input contains non-canonical directly "
-            "changed assets"
+            "Metadata governance input contains non-canonical directly changed assets"
         )
 
     if downstream_assets != tuple(sorted(downstream_assets)):
         raise MetadataGovernanceError(
-            "Metadata governance input contains non-canonical downstream "
-            "impacted assets"
+            "Metadata governance input contains non-canonical downstream impacted assets"
         )
 
     if set(direct_assets) & set(downstream_assets):
         raise MetadataGovernanceError(
-            "Metadata governance input has overlapping direct and "
-            "downstream assets"
+            "Metadata governance input has overlapping direct and downstream assets"
         )
 
     expected_direct_assets = {
-        change.asset_id
-        for change in metadata_diff.changes
-        if change.asset_id is not None
+        change.asset_id for change in metadata_diff.changes if change.asset_id is not None
     }
 
     actual_direct_assets = set(direct_assets)
 
     if not expected_direct_assets.issubset(actual_direct_assets):
         raise MetadataGovernanceError(
-            "Metadata governance input is missing directly changed "
-            "asset evidence"
+            "Metadata governance input is missing directly changed asset evidence"
         )
 
     if not actual_direct_assets.issubset(expected_direct_assets):
         raise MetadataGovernanceError(
-            "Metadata governance input contains unexpected directly "
-            "changed asset evidence"
+            "Metadata governance input contains unexpected directly changed asset evidence"
         )
 
 
@@ -408,25 +355,17 @@ def _violation_for_change(
         severity=change.severity,
         asset_id=change.asset_id,
         field_name=change.field_name,
-        downstream_impact_count=len(
-            metadata_diff.downstream_impacted_assets
-        ),
+        downstream_impact_count=len(metadata_diff.downstream_impacted_assets),
     )
 
 
 def _decision_status(
     violations: tuple[MetadataPolicyViolation, ...],
 ) -> MetadataGovernanceStatus:
-    if any(
-        violation.status == MetadataGovernanceStatus.BLOCK
-        for violation in violations
-    ):
+    if any(violation.status == MetadataGovernanceStatus.BLOCK for violation in violations):
         return MetadataGovernanceStatus.BLOCK
 
-    if any(
-        violation.status == MetadataGovernanceStatus.REVIEW
-        for violation in violations
-    ):
+    if any(violation.status == MetadataGovernanceStatus.REVIEW for violation in violations):
         return MetadataGovernanceStatus.REVIEW
 
     return MetadataGovernanceStatus.PASS
@@ -439,10 +378,7 @@ def evaluate_metadata_governance(
 
     _validate_metadata_diff(metadata_diff)
 
-    severity_counts = Counter(
-        change.severity
-        for change in metadata_diff.changes
-    )
+    severity_counts = Counter(change.severity for change in metadata_diff.changes)
 
     violations = tuple(
         sorted(
@@ -477,10 +413,7 @@ def evaluate_metadata_governance(
             "policy_version": POLICY_VERSION,
             "comparison_id": metadata_diff.comparison_id,
             "status": status.value,
-            "violation_ids": [
-                violation.violation_id
-                for violation in violations
-            ],
+            "violation_ids": [violation.violation_id for violation in violations],
         }
     )
 
@@ -493,24 +426,12 @@ def evaluate_metadata_governance(
         baseline_checksum=metadata_diff.baseline_checksum,
         current_checksum=metadata_diff.current_checksum,
         change_count=len(metadata_diff.changes),
-        breaking_change_count=severity_counts[
-            MetadataChangeSeverity.BREAKING
-        ],
-        review_required_change_count=severity_counts[
-            MetadataChangeSeverity.REVIEW_REQUIRED
-        ],
-        non_breaking_change_count=severity_counts[
-            MetadataChangeSeverity.NON_BREAKING
-        ],
-        metadata_only_change_count=severity_counts[
-            MetadataChangeSeverity.METADATA_ONLY
-        ],
-        directly_changed_assets=(
-            metadata_diff.directly_changed_assets
-        ),
-        downstream_impacted_assets=(
-            metadata_diff.downstream_impacted_assets
-        ),
+        breaking_change_count=severity_counts[MetadataChangeSeverity.BREAKING],
+        review_required_change_count=severity_counts[MetadataChangeSeverity.REVIEW_REQUIRED],
+        non_breaking_change_count=severity_counts[MetadataChangeSeverity.NON_BREAKING],
+        metadata_only_change_count=severity_counts[MetadataChangeSeverity.METADATA_ONLY],
+        directly_changed_assets=(metadata_diff.directly_changed_assets),
+        downstream_impacted_assets=(metadata_diff.downstream_impacted_assets),
         violations=violations,
     )
 

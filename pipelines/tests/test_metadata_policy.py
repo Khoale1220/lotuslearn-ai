@@ -44,9 +44,7 @@ def _comparison_id(
         ensure_ascii=True,
     )
 
-    return hashlib.sha256(
-        canonical.encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _change(
@@ -87,13 +85,7 @@ def _metadata_diff(
 
     if directly_changed_assets is None:
         directly_changed_assets = tuple(
-            sorted(
-                {
-                    change.asset_id
-                    for change in changes
-                    if change.asset_id is not None
-                }
-            )
+            sorted({change.asset_id for change in changes if change.asset_id is not None})
         )
 
     expected_comparison_id = _comparison_id(
@@ -137,9 +129,7 @@ def test_non_breaking_change_passes() -> None:
         asset_id=asset_id,
     )
 
-    decision = evaluate_metadata_governance(
-        _metadata_diff(changes=(change,))
-    )
+    decision = evaluate_metadata_governance(_metadata_diff(changes=(change,)))
 
     assert decision.status == MetadataGovernanceStatus.PASS
     assert decision.change_count == 1
@@ -157,9 +147,7 @@ def test_metadata_only_change_passes() -> None:
         asset_id=asset_id,
     )
 
-    decision = evaluate_metadata_governance(
-        _metadata_diff(changes=(change,))
-    )
+    decision = evaluate_metadata_governance(_metadata_diff(changes=(change,)))
 
     assert decision.status == MetadataGovernanceStatus.PASS
     assert decision.metadata_only_change_count == 1
@@ -177,9 +165,7 @@ def test_review_required_change_requires_review() -> None:
         asset_id=asset_id,
     )
 
-    decision = evaluate_metadata_governance(
-        _metadata_diff(changes=(change,))
-    )
+    decision = evaluate_metadata_governance(_metadata_diff(changes=(change,)))
 
     assert decision.status == MetadataGovernanceStatus.REVIEW
     assert decision.review_required_change_count == 1
@@ -187,10 +173,7 @@ def test_review_required_change_requires_review() -> None:
 
     violation = decision.violations[0]
 
-    assert (
-        violation.rule
-        == MetadataPolicyRule.REVIEW_REQUIRED_CHANGE
-    )
+    assert violation.rule == MetadataPolicyRule.REVIEW_REQUIRED_CHANGE
     assert violation.status == MetadataGovernanceStatus.REVIEW
     assert violation.change_id == change.change_id
     assert violation.entity_id == change.entity_id
@@ -209,9 +192,7 @@ def test_breaking_change_blocks() -> None:
         field_name="email",
     )
 
-    decision = evaluate_metadata_governance(
-        _metadata_diff(changes=(change,))
-    )
+    decision = evaluate_metadata_governance(_metadata_diff(changes=(change,)))
 
     assert decision.status == MetadataGovernanceStatus.BLOCK
     assert decision.breaking_change_count == 1
@@ -259,14 +240,8 @@ def test_block_takes_precedence_over_review() -> None:
     assert decision.review_required_change_count == 1
     assert len(decision.violations) == 2
 
-    assert (
-        decision.violations[0].status
-        == MetadataGovernanceStatus.BLOCK
-    )
-    assert (
-        decision.violations[1].status
-        == MetadataGovernanceStatus.REVIEW
-    )
+    assert decision.violations[0].status == MetadataGovernanceStatus.BLOCK
+    assert decision.violations[1].status == MetadataGovernanceStatus.REVIEW
 
 
 def test_all_severity_counts_are_reported() -> None:
@@ -305,9 +280,7 @@ def test_all_severity_counts_are_reported() -> None:
         ),
     )
 
-    decision = evaluate_metadata_governance(
-        _metadata_diff(changes=changes)
-    )
+    decision = evaluate_metadata_governance(_metadata_diff(changes=changes))
 
     assert decision.change_count == 4
     assert decision.breaking_change_count == 1
@@ -347,23 +320,14 @@ def test_downstream_impact_does_not_escalate_non_breaking_change() -> None:
 
     assert decision.status == MetadataGovernanceStatus.PASS
     assert decision.violations == ()
-    assert (
-        decision.downstream_impacted_assets
-        == downstream_assets
-    )
+    assert decision.downstream_impacted_assets == downstream_assets
 
 
 def test_review_violation_retains_downstream_impact_count() -> None:
     direct_asset = _sha256("asset:review-direct")
-    downstream_asset_1 = _sha256(
-        "asset:review-downstream-1"
-    )
-    downstream_asset_2 = _sha256(
-        "asset:review-downstream-2"
-    )
-    downstream_asset_3 = _sha256(
-        "asset:review-downstream-3"
-    )
+    downstream_asset_1 = _sha256("asset:review-downstream-1")
+    downstream_asset_2 = _sha256("asset:review-downstream-2")
+    downstream_asset_3 = _sha256("asset:review-downstream-3")
 
     downstream_assets = tuple(
         sorted(
@@ -392,14 +356,8 @@ def test_review_violation_retains_downstream_impact_count() -> None:
 
     assert decision.status == MetadataGovernanceStatus.REVIEW
     assert len(decision.violations) == 1
-    assert (
-        decision.violations[0].downstream_impact_count
-        == 3
-    )
-    assert (
-        decision.downstream_impacted_assets
-        == downstream_assets
-    )
+    assert decision.violations[0].downstream_impact_count == 3
+    assert decision.downstream_impacted_assets == downstream_assets
 
 
 def test_decision_is_deterministic_for_same_input() -> None:
@@ -412,9 +370,7 @@ def test_decision_is_deterministic_for_same_input() -> None:
         asset_id=asset_id,
     )
 
-    metadata_diff = _metadata_diff(
-        changes=(change,)
-    )
+    metadata_diff = _metadata_diff(changes=(change,))
 
     first = evaluate_metadata_governance(metadata_diff)
     second = evaluate_metadata_governance(metadata_diff)
@@ -425,9 +381,7 @@ def test_decision_is_deterministic_for_same_input() -> None:
 
 
 def test_violation_id_is_deterministic() -> None:
-    asset_id = _sha256(
-        "asset:violation-determinism"
-    )
+    asset_id = _sha256("asset:violation-determinism")
 
     change = _change(
         label="violation-determinism",
@@ -438,24 +392,17 @@ def test_violation_id_is_deterministic() -> None:
         field_name="amount",
     )
 
-    metadata_diff = _metadata_diff(
-        changes=(change,)
-    )
+    metadata_diff = _metadata_diff(changes=(change,))
 
     first = evaluate_metadata_governance(metadata_diff)
     second = evaluate_metadata_governance(metadata_diff)
 
-    assert (
-        first.violations[0].violation_id
-        == second.violations[0].violation_id
-    )
+    assert first.violations[0].violation_id == second.violations[0].violation_id
 
 
 def test_invalid_comparison_id_is_rejected() -> None:
     metadata_diff = _metadata_diff(
-        comparison_id=_sha256(
-            "incorrect-comparison-id"
-        ),
+        comparison_id=_sha256("incorrect-comparison-id"),
     )
 
     with pytest.raises(
@@ -466,21 +413,13 @@ def test_invalid_comparison_id_is_rejected() -> None:
 
 
 def test_duplicate_change_ids_are_rejected() -> None:
-    first_asset = _sha256(
-        "asset:duplicate-change-first"
-    )
-    second_asset = _sha256(
-        "asset:duplicate-change-second"
-    )
-    duplicate_change_id = _sha256(
-        "duplicate-change-id"
-    )
+    first_asset = _sha256("asset:duplicate-change-first")
+    second_asset = _sha256("asset:duplicate-change-second")
+    duplicate_change_id = _sha256("duplicate-change-id")
 
     first = MetadataChange(
         change_id=duplicate_change_id,
-        entity_id=_sha256(
-            "entity:duplicate-first"
-        ),
+        entity_id=_sha256("entity:duplicate-first"),
         entity_type=MetadataEntityType.ASSET,
         kind=MetadataChangeKind.ASSET_ADDED,
         severity=MetadataChangeSeverity.NON_BREAKING,
@@ -490,9 +429,7 @@ def test_duplicate_change_ids_are_rejected() -> None:
 
     second = MetadataChange(
         change_id=duplicate_change_id,
-        entity_id=_sha256(
-            "entity:duplicate-second"
-        ),
+        entity_id=_sha256("entity:duplicate-second"),
         entity_type=MetadataEntityType.ASSET,
         kind=MetadataChangeKind.ASSET_ADDED,
         severity=MetadataChangeSeverity.NON_BREAKING,
@@ -512,9 +449,7 @@ def test_duplicate_change_ids_are_rejected() -> None:
 
 
 def test_missing_direct_asset_evidence_is_rejected() -> None:
-    asset_id = _sha256(
-        "asset:missing-direct"
-    )
+    asset_id = _sha256("asset:missing-direct")
 
     change = _change(
         label="missing-direct",
@@ -536,9 +471,7 @@ def test_missing_direct_asset_evidence_is_rejected() -> None:
 
 
 def test_direct_and_downstream_asset_overlap_is_rejected() -> None:
-    asset_id = _sha256(
-        "asset:overlap"
-    )
+    asset_id = _sha256("asset:overlap")
 
     change = _change(
         label="overlap",
@@ -583,12 +516,8 @@ def test_invalid_asset_identifier_is_rejected() -> None:
 
 
 def test_duplicate_related_asset_ids_are_rejected() -> None:
-    asset_id = _sha256(
-        "asset:lineage-target"
-    )
-    related_asset = _sha256(
-        "asset:lineage-source"
-    )
+    asset_id = _sha256("asset:lineage-target")
+    related_asset = _sha256("asset:lineage-source")
 
     change = _change(
         label="duplicate-related-assets",
@@ -602,9 +531,7 @@ def test_duplicate_related_asset_ids_are_rejected() -> None:
         ),
     )
 
-    metadata_diff = _metadata_diff(
-        changes=(change,)
-    )
+    metadata_diff = _metadata_diff(changes=(change,))
 
     with pytest.raises(
         MetadataGovernanceError,
@@ -614,9 +541,7 @@ def test_duplicate_related_asset_ids_are_rejected() -> None:
 
 
 def test_duplicate_changed_properties_are_rejected() -> None:
-    asset_id = _sha256(
-        "asset:duplicate-properties"
-    )
+    asset_id = _sha256("asset:duplicate-properties")
 
     change = _change(
         label="duplicate-properties",
@@ -630,9 +555,7 @@ def test_duplicate_changed_properties_are_rejected() -> None:
         ),
     )
 
-    metadata_diff = _metadata_diff(
-        changes=(change,)
-    )
+    metadata_diff = _metadata_diff(changes=(change,))
 
     with pytest.raises(
         MetadataGovernanceError,
@@ -642,9 +565,7 @@ def test_duplicate_changed_properties_are_rejected() -> None:
 
 
 def test_serialized_decision_contains_stable_policy_identity() -> None:
-    asset_id = _sha256(
-        "asset:serialized-policy"
-    )
+    asset_id = _sha256("asset:serialized-policy")
 
     change = _change(
         label="serialized-policy",
@@ -653,21 +574,13 @@ def test_serialized_decision_contains_stable_policy_identity() -> None:
         asset_id=asset_id,
     )
 
-    decision = evaluate_metadata_governance(
-        _metadata_diff(changes=(change,))
-    )
+    decision = evaluate_metadata_governance(_metadata_diff(changes=(change,)))
 
     payload = decision.to_dict()
 
-    assert (
-        payload["policy_id"]
-        == "lotuslearn.metadata.compatibility"
-    )
+    assert payload["policy_id"] == "lotuslearn.metadata.compatibility"
     assert payload["policy_version"] == "1.0.0"
     assert payload["status"] == "REVIEW"
     assert payload["change_count"] == 1
     assert len(payload["violations"]) == 1
-    assert (
-        payload["violations"][0]["rule_id"]
-        == "LL-META-002"
-    )
+    assert payload["violations"][0]["rule_id"] == "LL-META-002"

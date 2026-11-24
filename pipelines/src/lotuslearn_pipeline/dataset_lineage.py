@@ -51,10 +51,7 @@ class DatasetRef:
                 raise ValueError(f"{field_name} must not contain NUL")
 
             if len(normalized) > MAX_DATASET_IDENTITY_LENGTH:
-                raise ValueError(
-                    f"{field_name} exceeds "
-                    f"{MAX_DATASET_IDENTITY_LENGTH} characters"
-                )
+                raise ValueError(f"{field_name} exceeds {MAX_DATASET_IDENTITY_LENGTH} characters")
 
             object.__setattr__(self, field_name, normalized)
 
@@ -183,9 +180,7 @@ def persist_dataset_lineage_edge(
         existing = cursor.fetchone()
 
     if existing is None:
-        raise RuntimeError(
-            "dataset lineage insertion was suppressed but no edge exists"
-        )
+        raise RuntimeError("dataset lineage insertion was suppressed but no edge exists")
 
     return DatasetLineageWriteResult(
         outcome=DatasetLineageWriteOutcome.EXISTING,

@@ -182,10 +182,7 @@ def test_lineage_is_scoped_ordered_and_bounded():
                 limit=1,
             )
 
-        assert tuple(
-            row.input_dataset.name
-            for row in rows
-        ) == (
+        assert tuple(row.input_dataset.name for row in rows) == (
             "public.analysis_runs",
             "public.analytical_events",
         )
@@ -254,9 +251,7 @@ def test_lineage_rows_are_immutable():
                 ),
             )
 
-            with pytest.raises(
-                psycopg.errors.ObjectNotInPrerequisiteState
-            ):
+            with pytest.raises(psycopg.errors.ObjectNotInPrerequisiteState):
                 conn.execute(
                     """
                     UPDATE pipeline_execution_dataset_lineage

@@ -33,15 +33,11 @@ class LedgerStub:
 
     def finish_execution(self, **kwargs):
         self.finished.append(kwargs)
-        return SimpleNamespace(
-            outcome=ExecutionWriteOutcome.TRANSITIONED
-        )
+        return SimpleNamespace(outcome=ExecutionWriteOutcome.TRANSITIONED)
 
 
 def invoke(monkeypatch, ledger, events, results=None, failure=None, **kwargs):
-    monkeypatch.setattr(
-        runtime, "PostgresPipelineExecutionLedger", lambda _: ledger
-    )
+    monkeypatch.setattr(runtime, "PostgresPipelineExecutionLedger", lambda _: ledger)
 
     def do_load(items):
         if failure is not None:
@@ -77,9 +73,7 @@ def test_success_counts_logical_attempts_and_retries(monkeypatch):
     ledger = LedgerStub()
 
     results = [
-        IngestionResult(
-            "e1", IngestionOutcome.ACCEPTED, retry_attempts=3
-        ),
+        IngestionResult("e1", IngestionOutcome.ACCEPTED, retry_attempts=3),
         IngestionResult("e2", IngestionOutcome.DUPLICATE),
     ]
 
@@ -125,25 +119,17 @@ def test_existing_execution_never_reingests(monkeypatch):
         ("reconcile", "RECONCILIATION_FAILED"),
     ],
 )
-def test_failure_records_fixed_safe_error_code(
-    monkeypatch, phase, expected
-):
+def test_failure_records_fixed_safe_error_code(monkeypatch, phase, expected):
     run, ledger, *_ = invoke(
         monkeypatch,
         LedgerStub(),
         [{"event_id": "e1"}],
         results=[],
-        failure=(
-            RuntimeError("Secret not safe to persist")
-            if phase == "ingest"
-            else None
-        ),
+        failure=(RuntimeError("Secret not safe to persist") if phase == "ingest" else None),
         read_fails=phase == "read",
     )
 
-    with pytest.raises(
-        (OSError, RuntimeError, ExecutionIntegrityError)
-    ):
+    with pytest.raises((OSError, RuntimeError, ExecutionIntegrityError)):
         run()
 
     assert ledger.finished[0]["status"] == ExecutionStatus.FAILED
@@ -163,10 +149,6 @@ def test_rejection_policy(monkeypatch, fail_on_rejection):
 
     run()
 
-    expected = (
-        ExecutionStatus.FAILED
-        if fail_on_rejection
-        else ExecutionStatus.SUCCEEDED
-    )
+    expected = ExecutionStatus.FAILED if fail_on_rejection else ExecutionStatus.SUCCEEDED
 
     assert ledger.finished[0]["status"] == expected

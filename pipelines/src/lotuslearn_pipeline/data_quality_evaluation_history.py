@@ -172,7 +172,6 @@ def _record_from_row(
     )
 
 
-
 def get_quality_evaluation(
     conn: Connection[Any],
     *,

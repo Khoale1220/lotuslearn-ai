@@ -81,9 +81,6 @@ def test_mig03_scope_remains_narrow() -> None:
     contract = load_contract()
     invariants = contract["invariants"]
 
-    assert (
-        "No Stage 4, Stage 5, Stage 6 ownership migration in MIG03"
-        in invariants
-    )
+    assert "No Stage 4, Stage 5, Stage 6 ownership migration in MIG03" in invariants
     assert "No frontend ownership migration in MIG03" in invariants
     assert "No database ownership migration in MIG03" in invariants

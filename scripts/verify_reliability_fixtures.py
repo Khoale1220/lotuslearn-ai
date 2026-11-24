@@ -10,7 +10,7 @@ FIXTURE = ROOT / "pipelines/tests/fixtures/reliability_events.json"
 
 sys.path.insert(0, str(PIPELINES_SRC))
 
-from lotuslearn_pipeline.reliability_fixture_producer import (  # noqa: E402
+from lotuslearn_pipeline.reliability_fixture_producer import (
     render_reliability_fixture,
 )
 
@@ -31,8 +31,7 @@ def render_bytes() -> bytes:
 def main() -> int:
     if not FIXTURE.is_file():
         print(
-            f"ERROR: reliability fixture does not exist: "
-            f"{FIXTURE.relative_to(ROOT)}",
+            f"ERROR: reliability fixture does not exist: {FIXTURE.relative_to(ROOT)}",
             file=sys.stderr,
         )
         return 1

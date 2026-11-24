@@ -32,25 +32,16 @@ from lotuslearn_pipeline.postgres import (
 
 @pytest.fixture(scope="module")
 def pg_url():
-    url = os.environ.get(
-        "LOTUSLEARN_TEST_DATABASE_URL"
-    )
+    url = os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
 
     if not url:
-        pytest.skip(
-            "Dedicated PostgreSQL test URL "
-            "is not configured"
-        )
+        pytest.skip("Dedicated PostgreSQL test URL is not configured")
 
     parsed = urlsplit(url)
 
-    dynamic_port_text = os.environ.get(
-        "LOTUSLEARN_TEST_DATABASE_DYNAMIC_PORT"
-    )
+    dynamic_port_text = os.environ.get("LOTUSLEARN_TEST_DATABASE_DYNAMIC_PORT")
     dynamic_port = (
-        int(dynamic_port_text)
-        if dynamic_port_text and dynamic_port_text.isdigit()
-        else None
+        int(dynamic_port_text) if dynamic_port_text and dynamic_port_text.isdigit() else None
     )
 
     allowed_ports = {5432, 55432}
@@ -83,46 +74,27 @@ def pg_url():
 
         assert identity is not None
 
-        assert (
-            identity["database_name"]
-            == "lotuslearn_test"
-        )
+        assert identity["database_name"] == "lotuslearn_test"
 
-        assert (
-            180000
-            <= int(identity["version_num"])
-            < 190000
-        )
+        assert 180000 <= int(identity["version_num"]) < 190000
 
         apply_postgres_migrations(conn)
 
-        migrations = (
-            get_migration_status(conn)
-        )
+        migrations = get_migration_status(conn)
 
         assert migrations
-        assert all(
-            row["applied"]
-            for row in migrations
-        )
-        assert all(
-            row["match"] is True
-            for row in migrations
-        )
+        assert all(row["applied"] for row in migrations)
+        assert all(row["match"] is True for row in migrations)
 
     return url
 
 
 def _request_key(prefix: str) -> str:
-    return (
-        f"c11-{prefix}-{uuid4()}"
-    )
+    return f"c11-{prefix}-{uuid4()}"
 
 
 def _pipeline_key() -> str:
-    return (
-        f"pipeline-{uuid4()}"
-    )
+    return f"pipeline-{uuid4()}"
 
 
 def _start() -> datetime:
@@ -139,37 +111,17 @@ def _insert_terminal_execution(
     slot,
     status,
 ):
-    finished_at = datetime.now(
-        timezone.utc
-    )
+    finished_at = datetime.now(timezone.utc)
 
-    started_at = (
-        finished_at
-        - timedelta(seconds=30)
-    )
+    started_at = finished_at - timedelta(seconds=30)
 
-    heartbeat_at = (
-        finished_at
-        - timedelta(seconds=10)
-    )
+    heartbeat_at = finished_at - timedelta(seconds=10)
 
-    error_code = (
-        None
-        if status == "SUCCEEDED"
-        else "UNEXPECTED_FAILURE"
-    )
+    error_code = None if status == "SUCCEEDED" else "UNEXPECTED_FAILURE"
 
-    accepted_count = (
-        1
-        if status == "SUCCEEDED"
-        else 0
-    )
+    accepted_count = 1 if status == "SUCCEEDED" else 0
 
-    failed_count = (
-        0
-        if status == "SUCCEEDED"
-        else 1
-    )
+    failed_count = 0 if status == "SUCCEEDED" else 1
 
     with psycopg.connect(
         url,
@@ -213,34 +165,16 @@ def _insert_terminal_execution(
             )
             """,
             {
-                "execution_id": (
-                    slot.execution_id
-                ),
-                "batch_id": (
-                    slot.batch_id
-                ),
-                "attempt_number": (
-                    slot.attempt_number
-                ),
+                "execution_id": (slot.execution_id),
+                "batch_id": (slot.batch_id),
+                "attempt_number": (slot.attempt_number),
                 "status": status,
-                "started_at": (
-                    started_at
-                ),
-                "heartbeat_at": (
-                    heartbeat_at
-                ),
-                "finished_at": (
-                    finished_at
-                ),
-                "accepted_count": (
-                    accepted_count
-                ),
-                "failed_count": (
-                    failed_count
-                ),
-                "error_code": (
-                    error_code
-                ),
+                "started_at": (started_at),
+                "heartbeat_at": (heartbeat_at),
+                "finished_at": (finished_at),
+                "accepted_count": (accepted_count),
+                "failed_count": (failed_count),
+                "error_code": (error_code),
             },
         )
 
@@ -266,21 +200,13 @@ def test_preview_is_read_only(
         pg_url,
         pipeline_key=_pipeline_key(),
         window_start=start,
-        window_end=(
-            start + timedelta(days=2)
-        ),
+        window_end=(start + timedelta(days=2)),
         interval=timedelta(days=1),
-        reprocess_behavior=(
-            ReprocessBehavior.NONE
-        ),
+        reprocess_behavior=(ReprocessBehavior.NONE),
     )
 
     assert len(preview) == 2
-    assert all(
-        slot.decision
-        is BackfillDecision.CREATE_MISSING
-        for slot in preview
-    )
+    assert all(slot.decision is BackfillDecision.CREATE_MISSING for slot in preview)
 
     with psycopg.connect(
         pg_url,
@@ -301,17 +227,13 @@ def test_create_is_idempotent_and_conflict_safe(
     pg_url,
 ):
     start = _start()
-    request_key = _request_key(
-        "idempotent"
-    )
+    request_key = _request_key("idempotent")
 
     kwargs = dict(
         pipeline_key=_pipeline_key(),
         request_key=request_key,
         window_start=start,
-        window_end=(
-            start + timedelta(days=2)
-        ),
+        window_end=(start + timedelta(days=2)),
         interval=timedelta(days=1),
         reprocess_behavior="none",
         max_active_runs=2,
@@ -331,19 +253,11 @@ def test_create_is_idempotent_and_conflict_safe(
     assert first.created is True
     assert second.created is False
 
-    assert (
-        first.request.backfill_id
-        == second.request.backfill_id
-    )
+    assert first.request.backfill_id == second.request.backfill_id
 
-    assert (
-        first.slots
-        == second.slots
-    )
+    assert first.slots == second.slots
 
-    with pytest.raises(
-        BackfillConflictError
-    ):
+    with pytest.raises(BackfillConflictError):
         create_backfill(
             pg_url,
             **{
@@ -361,13 +275,9 @@ def test_claim_respects_capacity_and_reverse_order(
     created = create_backfill(
         pg_url,
         pipeline_key=_pipeline_key(),
-        request_key=_request_key(
-            "claim"
-        ),
+        request_key=_request_key("claim"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=4)
-        ),
+        window_end=(start + timedelta(days=4)),
         interval=timedelta(days=1),
         reprocess_behavior="none",
         max_active_runs=2,
@@ -376,9 +286,7 @@ def test_claim_respects_capacity_and_reverse_order(
 
     claims = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="c11-test-worker",
         lease=timedelta(minutes=5),
         limit=100,
@@ -386,34 +294,18 @@ def test_claim_respects_capacity_and_reverse_order(
 
     assert len(claims) == 2
 
-    assert (
-        claims[0].slot_start
-        == start + timedelta(days=3)
-    )
+    assert claims[0].slot_start == start + timedelta(days=3)
 
-    assert (
-        claims[1].slot_start
-        == start + timedelta(days=2)
-    )
+    assert claims[1].slot_start == start + timedelta(days=2)
 
-    assert all(
-        slot.status
-        is BackfillSlotStatus.CLAIMED
-        for slot in claims
-    )
+    assert all(slot.status is BackfillSlotStatus.CLAIMED for slot in claims)
 
-    second_claim = (
-        claim_backfill_slots(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            worker_id=(
-                "c11-test-worker-2"
-            ),
-            lease=timedelta(minutes=5),
-            limit=100,
-        )
+    second_claim = claim_backfill_slots(
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        worker_id=("c11-test-worker-2"),
+        lease=timedelta(minutes=5),
+        limit=100,
     )
 
     assert second_claim == ()
@@ -427,22 +319,16 @@ def test_terminal_execution_links_back_to_slot(
     created = create_backfill(
         pg_url,
         pipeline_key=_pipeline_key(),
-        request_key=_request_key(
-            "complete"
-        ),
+        request_key=_request_key("complete"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=1)
-        ),
+        window_end=(start + timedelta(days=1)),
         interval=timedelta(days=1),
         max_active_runs=1,
     )
 
     claim = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="worker-complete",
         lease=timedelta(minutes=5),
     )[0]
@@ -453,35 +339,21 @@ def test_terminal_execution_links_back_to_slot(
         "SUCCEEDED",
     )
 
-    completed = (
-        complete_backfill_slot(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            slot_start=(
-                claim.slot_start
-            ),
-            worker_id=claim.worker_id,
-            fence_token=claim.fence_token,
-        )
+    completed = complete_backfill_slot(
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        slot_start=(claim.slot_start),
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
     )
 
-    assert (
-        completed.status
-        is BackfillSlotStatus.SUCCEEDED
-    )
+    assert completed.status is BackfillSlotStatus.SUCCEEDED
 
-    assert (
-        completed.execution_id
-        == claim.execution_id
-    )
+    assert completed.execution_id == claim.execution_id
 
     summary = get_backfill_summary(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
     )
 
     assert summary.succeeded == 1
@@ -498,13 +370,9 @@ def test_expired_unstarted_claim_is_requeued(
     created = create_backfill(
         pg_url,
         pipeline_key=_pipeline_key(),
-        request_key=_request_key(
-            "recovery"
-        ),
+        request_key=_request_key("recovery"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=1)
-        ),
+        window_end=(start + timedelta(days=1)),
         interval=timedelta(days=1),
         max_active_runs=1,
     )
@@ -522,17 +390,12 @@ def test_expired_unstarted_claim_is_requeued(
         ).fetchall()
 
     assert c12_initial_fences
-    assert all(
-        row[0] == 0
-        for row in c12_initial_fences
-    )
+    assert all(row[0] == 0 for row in c12_initial_fences)
     print("C12_PROOF_INITIAL_FENCE=0")
 
     claim = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="worker-expired",
         lease=timedelta(minutes=5),
     )[0]
@@ -562,9 +425,7 @@ def test_expired_unstarted_claim_is_requeued(
 
     actions = recover_expired_claims(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
     )
 
     # Recovery revokes ownership but must preserve generation.
@@ -575,8 +436,7 @@ def test_expired_unstarted_claim_is_requeued(
             FROM pipeline_backfill_slots
             WHERE backfill_id = %s
               AND slot_start = %s
-            """
-            ,
+            """,
             (
                 created.request.backfill_id,
                 claim.slot_start,
@@ -589,16 +449,11 @@ def test_expired_unstarted_claim_is_requeued(
 
     assert len(actions) == 1
 
-    assert (
-        actions[0].action
-        == "REQUEUED_NOT_STARTED"
-    )
+    assert actions[0].action == "REQUEUED_NOT_STARTED"
 
     reclaimed = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="worker-reclaim",
         lease=timedelta(minutes=5),
     )
@@ -609,20 +464,12 @@ def test_expired_unstarted_claim_is_requeued(
     assert reclaimed[0].fence_token == claim.fence_token + 1
     print(f"C12_PROOF_RECLAIM_FENCE={reclaimed[0].fence_token}")
 
-    assert (
-        reclaimed[0].attempt_number
-        == 2
-    )
+    assert reclaimed[0].attempt_number == 2
 
-    assert (
-        reclaimed[0].batch_id
-        == claim.batch_id
-    )
+    assert reclaimed[0].batch_id == claim.batch_id
 
-    assert (
-        reclaimed[0].execution_id
-        != claim.execution_id
-    )
+    assert reclaimed[0].execution_id != claim.execution_id
+
 
 def test_failed_only_reprocessing_semantics(
     pg_url,
@@ -633,13 +480,9 @@ def test_failed_only_reprocessing_semantics(
     first = create_backfill(
         pg_url,
         pipeline_key=pipeline_key,
-        request_key=_request_key(
-            "baseline"
-        ),
+        request_key=_request_key("baseline"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=2)
-        ),
+        window_end=(start + timedelta(days=2)),
         interval=timedelta(days=1),
         reprocess_behavior="none",
         max_active_runs=2,
@@ -647,9 +490,7 @@ def test_failed_only_reprocessing_semantics(
 
     claims = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            first.request.backfill_id
-        ),
+        backfill_id=(first.request.backfill_id),
         worker_id="baseline-worker",
         lease=timedelta(minutes=5),
         limit=2,
@@ -671,24 +512,16 @@ def test_failed_only_reprocessing_semantics(
 
     complete_backfill_slot(
         pg_url,
-        backfill_id=(
-            first.request.backfill_id
-        ),
-        slot_start=(
-            claims[0].slot_start
-        ),
+        backfill_id=(first.request.backfill_id),
+        slot_start=(claims[0].slot_start),
         worker_id=claims[0].worker_id,
         fence_token=claims[0].fence_token,
     )
 
     complete_backfill_slot(
         pg_url,
-        backfill_id=(
-            first.request.backfill_id
-        ),
-        slot_start=(
-            claims[1].slot_start
-        ),
+        backfill_id=(first.request.backfill_id),
+        slot_start=(claims[1].slot_start),
         worker_id=claims[1].worker_id,
         fence_token=claims[1].fence_token,
     )
@@ -697,47 +530,29 @@ def test_failed_only_reprocessing_semantics(
         pg_url,
         pipeline_key=pipeline_key,
         window_start=start,
-        window_end=(
-            start + timedelta(days=2)
-        ),
+        window_end=(start + timedelta(days=2)),
         interval=timedelta(days=1),
         reprocess_behavior="failed",
     )
 
-    assert (
-        preview[0].decision
-        is BackfillDecision.SKIP_EXISTING
-    )
+    assert preview[0].decision is BackfillDecision.SKIP_EXISTING
 
-    assert (
-        preview[1].decision
-        is BackfillDecision.REPROCESS_FAILED
-    )
+    assert preview[1].decision is BackfillDecision.REPROCESS_FAILED
 
     second = create_backfill(
         pg_url,
         pipeline_key=pipeline_key,
-        request_key=_request_key(
-            "failed-only"
-        ),
+        request_key=_request_key("failed-only"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=2)
-        ),
+        window_end=(start + timedelta(days=2)),
         interval=timedelta(days=1),
         reprocess_behavior="failed",
         max_active_runs=1,
     )
 
-    assert (
-        second.slots[0].status
-        is BackfillSlotStatus.SKIPPED
-    )
+    assert second.slots[0].status is BackfillSlotStatus.SKIPPED
 
-    assert (
-        second.slots[1].status
-        is BackfillSlotStatus.PENDING
-    )
+    assert second.slots[1].status is BackfillSlotStatus.PENDING
 
 
 def test_c11_indexes_are_installed(
@@ -766,12 +581,10 @@ def test_c11_indexes_are_installed(
             (list(expected),),
         ).fetchall()
 
-    actual = {
-        row["indexname"]
-        for row in rows
-    }
+    actual = {row["indexname"] for row in rows}
 
     assert actual == expected
+
 
 def test_stale_worker_cannot_complete_reclaimed_slot(pg_url):
     from lotuslearn_pipeline.backfill import (
@@ -825,9 +638,7 @@ def test_stale_worker_cannot_complete_reclaimed_slot(pg_url):
         ).fetchone()
     assert expired is not None
     assert expired[0] == stale_claim.fence_token
-    recovery_actions = recover_expired_claims(
-        pg_url, backfill_id=created.request.backfill_id
-    )
+    recovery_actions = recover_expired_claims(pg_url, backfill_id=created.request.backfill_id)
     assert recovery_actions
     c12_reclaimed = claim_backfill_slots(
         pg_url,
@@ -916,22 +727,16 @@ def test_terminal_completion_exact_replay_is_idempotent(
     created = create_backfill(
         pg_url,
         pipeline_key=_pipeline_key(),
-        request_key=_request_key(
-            "complete"
-        ),
+        request_key=_request_key("complete"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=1)
-        ),
+        window_end=(start + timedelta(days=1)),
         interval=timedelta(days=1),
         max_active_runs=1,
     )
 
     claim = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="worker-complete",
         lease=timedelta(minutes=5),
     )[0]
@@ -942,31 +747,21 @@ def test_terminal_completion_exact_replay_is_idempotent(
         "SUCCEEDED",
     )
 
-    completed = (
-        complete_backfill_slot(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            slot_start=(
-                claim.slot_start
-            ),
-            worker_id=claim.worker_id,
-            fence_token=claim.fence_token,
-        )
+    completed = complete_backfill_slot(
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        slot_start=(claim.slot_start),
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
     )
     # Exact retry of an already committed terminal write must be a no-op.
     replayed = complete_backfill_slot(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            slot_start=(
-                claim.slot_start
-            ),
-            worker_id=claim.worker_id,
-            fence_token=claim.fence_token,
-        )
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        slot_start=(claim.slot_start),
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
+    )
 
     assert replayed == completed
     assert replayed.status == completed.status
@@ -975,27 +770,20 @@ def test_terminal_completion_exact_replay_is_idempotent(
     assert replayed.execution_id == completed.execution_id
     assert replayed.finished_at == completed.finished_at
 
-    assert (
-        completed.status
-        is BackfillSlotStatus.SUCCEEDED
-    )
+    assert completed.status is BackfillSlotStatus.SUCCEEDED
 
-    assert (
-        completed.execution_id
-        == claim.execution_id
-    )
+    assert completed.execution_id == claim.execution_id
 
     summary = get_backfill_summary(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
     )
 
     assert summary.succeeded == 1
     assert summary.pending == 0
     assert summary.claimed == 0
     assert summary.complete is True
+
 
 # C13 terminal replay fail-closed proofs.
 def test_terminal_completion_replay_wrong_worker_is_rejected(
@@ -1006,20 +794,16 @@ def test_terminal_completion_replay_wrong_worker_is_rejected(
     created = create_backfill(
         pg_url,
         pipeline_key=_pipeline_key(),
-        request_key=_request_key('complete-wrong-worker'),
+        request_key=_request_key("complete-wrong-worker"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=1)
-        ),
+        window_end=(start + timedelta(days=1)),
         interval=timedelta(days=1),
         max_active_runs=1,
     )
 
     claim = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="worker-complete",
         lease=timedelta(minutes=5),
     )[0]
@@ -1030,18 +814,12 @@ def test_terminal_completion_replay_wrong_worker_is_rejected(
         "SUCCEEDED",
     )
 
-    _completed = (
-        complete_backfill_slot(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            slot_start=(
-                claim.slot_start
-            ),
-            worker_id=claim.worker_id,
-            fence_token=claim.fence_token,
-        )
+    _completed = complete_backfill_slot(
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        slot_start=(claim.slot_start),
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
     )
     # Exact retry of an already committed terminal write must be a no-op.
     from lotuslearn_pipeline.backfill import (
@@ -1089,6 +867,8 @@ def test_terminal_completion_replay_wrong_worker_is_rejected(
     assert after_row[2] == claim.fence_token
 
     print("C13_NEGATIVE_WRONG_WORKER=PASS")
+
+
 def test_terminal_completion_replay_wrong_fence_is_rejected(
     pg_url,
 ):
@@ -1097,20 +877,16 @@ def test_terminal_completion_replay_wrong_fence_is_rejected(
     created = create_backfill(
         pg_url,
         pipeline_key=_pipeline_key(),
-        request_key=_request_key('complete-wrong-fence'),
+        request_key=_request_key("complete-wrong-fence"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=1)
-        ),
+        window_end=(start + timedelta(days=1)),
         interval=timedelta(days=1),
         max_active_runs=1,
     )
 
     claim = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="worker-complete",
         lease=timedelta(minutes=5),
     )[0]
@@ -1121,18 +897,12 @@ def test_terminal_completion_replay_wrong_fence_is_rejected(
         "SUCCEEDED",
     )
 
-    _completed = (
-        complete_backfill_slot(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            slot_start=(
-                claim.slot_start
-            ),
-            worker_id=claim.worker_id,
-            fence_token=claim.fence_token,
-        )
+    _completed = complete_backfill_slot(
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        slot_start=(claim.slot_start),
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
     )
     # Exact retry of an already committed terminal write must be a no-op.
     from lotuslearn_pipeline.backfill import (
@@ -1180,6 +950,8 @@ def test_terminal_completion_replay_wrong_fence_is_rejected(
     assert after_row[2] == claim.fence_token
 
     print("C13_NEGATIVE_WRONG_FENCE=PASS")
+
+
 def test_terminal_execution_evidence_is_immutable_across_exact_replay(
     pg_url,
 ):
@@ -1188,20 +960,16 @@ def test_terminal_execution_evidence_is_immutable_across_exact_replay(
     created = create_backfill(
         pg_url,
         pipeline_key=_pipeline_key(),
-        request_key=_request_key('complete-evidence-drift'),
+        request_key=_request_key("complete-evidence-drift"),
         window_start=start,
-        window_end=(
-            start + timedelta(days=1)
-        ),
+        window_end=(start + timedelta(days=1)),
         interval=timedelta(days=1),
         max_active_runs=1,
     )
 
     claim = claim_backfill_slots(
         pg_url,
-        backfill_id=(
-            created.request.backfill_id
-        ),
+        backfill_id=(created.request.backfill_id),
         worker_id="worker-complete",
         lease=timedelta(minutes=5),
     )[0]
@@ -1212,18 +980,12 @@ def test_terminal_execution_evidence_is_immutable_across_exact_replay(
         "SUCCEEDED",
     )
 
-    _completed = (
-        complete_backfill_slot(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            slot_start=(
-                claim.slot_start
-            ),
-            worker_id=claim.worker_id,
-            fence_token=claim.fence_token,
-        )
+    _completed = complete_backfill_slot(
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        slot_start=(claim.slot_start),
+        worker_id=claim.worker_id,
+        fence_token=claim.fence_token,
     )
     # Exact retry of an already committed terminal write must be a no-op.
 
@@ -1272,7 +1034,6 @@ def test_terminal_execution_evidence_is_immutable_across_exact_replay(
                 """,
                 (execution_id,),
             )
-
 
     replayed = complete_backfill_slot(
         pg_url,
@@ -1349,30 +1110,15 @@ def test_pending_backfill_cancellation_is_durable_and_unclaimable(pg_url):
 
     assert len(rows_before_replay) == 2
 
-    assert all(
-        row[0] == "CANCELLED"
-        for row in rows_before_replay
-    )
+    assert all(row[0] == "CANCELLED" for row in rows_before_replay)
 
-    assert all(
-        row[1] is None
-        for row in rows_before_replay
-    )
+    assert all(row[1] is None for row in rows_before_replay)
 
-    assert all(
-        row[2] is None
-        for row in rows_before_replay
-    )
+    assert all(row[2] is None for row in rows_before_replay)
 
-    assert all(
-        row[3] is None
-        for row in rows_before_replay
-    )
+    assert all(row[3] is None for row in rows_before_replay)
 
-    assert all(
-        row[4] == 0
-        for row in rows_before_replay
-    )
+    assert all(row[4] == 0 for row in rows_before_replay)
 
     claims = backfill_module.claim_backfill_slots(
         pg_url,
@@ -1405,6 +1151,8 @@ def test_pending_backfill_cancellation_is_durable_and_unclaimable(pg_url):
         ).fetchall()
 
     assert rows_after_replay == rows_before_replay
+
+
 def test_backfill_cancellation_with_claimed_slot_is_atomic_fail_closed(
     pg_url,
 ):
@@ -1575,11 +1323,7 @@ def test_backfill_cancellation_preserves_terminal_slots(pg_url):
     assert sum(row[1] == "SKIPPED" for row in rows) == 1
     assert sum(row[1] == "CANCELLED" for row in rows) == 1
 
-    terminal_after = next(
-        row
-        for row in rows
-        if row[1] == "SKIPPED"
-    )
+    terminal_after = next(row for row in rows if row[1] == "SKIPPED")
 
     assert terminal_after == terminal_before
 
@@ -1621,31 +1365,25 @@ def test_c15_failed_slot_controlled_retry_api_is_required():
 def _c15_prepare_claimed_slot(pg_url):
     start = _start()
     created = create_backfill(
-            pg_url,
-            pipeline_key=_pipeline_key(),
-            request_key=_request_key(
-                "complete"
-            ),
-            window_start=start,
-            window_end=(
-                start + timedelta(days=1)
-            ),
-            interval=timedelta(days=1),
-            max_active_runs=1,
-        )
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key("complete"),
+        window_start=start,
+        window_end=(start + timedelta(days=1)),
+        interval=timedelta(days=1),
+        max_active_runs=1,
+    )
     claim = claim_backfill_slots(
-            pg_url,
-            backfill_id=(
-                created.request.backfill_id
-            ),
-            worker_id="worker-complete",
-            lease=timedelta(minutes=5),
-        )[0]
+        pg_url,
+        backfill_id=(created.request.backfill_id),
+        worker_id="worker-complete",
+        lease=timedelta(minutes=5),
+    )[0]
     _insert_terminal_execution(
-            pg_url,
-            claim,
-            "SUCCEEDED",
-        )
+        pg_url,
+        claim,
+        "SUCCEEDED",
+    )
     return created, claim
 
 
@@ -1690,9 +1428,7 @@ def _c15_force_slot_status(
                 "SUCCEEDED",
             ):
                 if "finished_at" in current:
-                    assignments.append(
-                        "finished_at = statement_timestamp()"
-                    )
+                    assignments.append("finished_at = statement_timestamp()")
 
             if status == "CANCELLED":
                 for field in (
@@ -1703,14 +1439,10 @@ def _c15_force_slot_status(
                     "execution_id",
                 ):
                     if field in current:
-                        assignments.append(
-                            f"{field} = NULL"
-                        )
+                        assignments.append(f"{field} = NULL")
 
                 if "finished_at" in current:
-                    assignments.append(
-                        "finished_at = statement_timestamp()"
-                    )
+                    assignments.append("finished_at = statement_timestamp()")
 
             query = f"""
                 UPDATE pipeline_backfill_slots
@@ -1756,9 +1488,7 @@ def _c15_execution_count(pg_url):
 def test_c15_failed_slot_retry_moves_failed_to_pending(
     pg_url,
 ):
-    created, claim = _c15_prepare_claimed_slot(
-        pg_url
-    )
+    created, claim = _c15_prepare_claimed_slot(pg_url)
 
     old_fence = claim.fence_token
 
@@ -1769,9 +1499,7 @@ def test_c15_failed_slot_retry_moves_failed_to_pending(
         status="FAILED",
     )
 
-    executions_before = _c15_execution_count(
-        pg_url
-    )
+    executions_before = _c15_execution_count(pg_url)
 
     retried = retry_backfill_slot(
         pg_url,
@@ -1779,9 +1507,7 @@ def test_c15_failed_slot_retry_moves_failed_to_pending(
         slot_start=claim.slot_start,
     )
 
-    executions_after = _c15_execution_count(
-        pg_url
-    )
+    executions_after = _c15_execution_count(pg_url)
 
     assert retried.status is BackfillSlotStatus.PENDING
     assert retried.worker_id is None
@@ -1794,9 +1520,7 @@ def test_c15_failed_slot_retry_moves_failed_to_pending(
 def test_c15_failed_slot_exact_retry_is_idempotent(
     pg_url,
 ):
-    created, claim = _c15_prepare_claimed_slot(
-        pg_url
-    )
+    created, claim = _c15_prepare_claimed_slot(pg_url)
 
     _c15_force_slot_status(
         pg_url,
@@ -1805,9 +1529,7 @@ def test_c15_failed_slot_exact_retry_is_idempotent(
         status="FAILED",
     )
 
-    executions_before = _c15_execution_count(
-        pg_url
-    )
+    executions_before = _c15_execution_count(pg_url)
 
     first = retry_backfill_slot(
         pg_url,
@@ -1821,9 +1543,7 @@ def test_c15_failed_slot_exact_retry_is_idempotent(
         slot_start=claim.slot_start,
     )
 
-    executions_after = _c15_execution_count(
-        pg_url
-    )
+    executions_after = _c15_execution_count(pg_url)
 
     assert first.status is BackfillSlotStatus.PENDING
     assert second.status is BackfillSlotStatus.PENDING
@@ -1834,9 +1554,7 @@ def test_c15_failed_slot_exact_retry_is_idempotent(
 def test_c15_failed_slot_reclaim_advances_fence_generation(
     pg_url,
 ):
-    created, claim = _c15_prepare_claimed_slot(
-        pg_url
-    )
+    created, claim = _c15_prepare_claimed_slot(pg_url)
 
     old_fence = claim.fence_token
 
@@ -1859,17 +1577,13 @@ def test_c15_failed_slot_reclaim_advances_fence_generation(
     reclaimed_slots = claim_backfill_slots(
         pg_url,
         backfill_id=created.request.backfill_id,
-        worker_id='worker-c15-reclaim',
+        worker_id="worker-c15-reclaim",
         lease=timedelta(minutes=5),
     )
 
     assert reclaimed_slots
 
-    reclaim = next(
-        slot
-        for slot in reclaimed_slots
-        if slot.slot_start == claim.slot_start
-    )
+    reclaim = next(slot for slot in reclaimed_slots if slot.slot_start == claim.slot_start)
 
     assert reclaim.worker_id == "worker-c15-reclaim"
     assert reclaim.fence_token == old_fence + 1
@@ -1878,9 +1592,7 @@ def test_c15_failed_slot_reclaim_advances_fence_generation(
 def test_c15_claimed_slot_retry_fails_closed(
     pg_url,
 ):
-    created, claim = _c15_prepare_claimed_slot(
-        pg_url
-    )
+    created, claim = _c15_prepare_claimed_slot(pg_url)
 
     with pytest.raises(BackfillConflictError):
         retry_backfill_slot(
@@ -1893,9 +1605,7 @@ def test_c15_claimed_slot_retry_fails_closed(
 def test_c15_succeeded_slot_retry_fails_closed(
     pg_url,
 ):
-    created, claim = _c15_prepare_claimed_slot(
-        pg_url
-    )
+    created, claim = _c15_prepare_claimed_slot(pg_url)
 
     _c15_force_slot_status(
         pg_url,
@@ -1915,9 +1625,7 @@ def test_c15_succeeded_slot_retry_fails_closed(
 def test_c15_cancelled_slot_retry_fails_closed(
     pg_url,
 ):
-    created, claim = _c15_prepare_claimed_slot(
-        pg_url
-    )
+    created, claim = _c15_prepare_claimed_slot(pg_url)
 
     _c15_force_slot_status(
         pg_url,
@@ -1939,9 +1647,7 @@ def test_c15_unknown_slot_retry_fails_closed(
 ):
     from uuid import uuid4
 
-    created, claim = _c15_prepare_claimed_slot(
-        pg_url
-    )
+    created, claim = _c15_prepare_claimed_slot(pg_url)
 
     with pytest.raises(BackfillConflictError):
         retry_backfill_slot(
@@ -1949,6 +1655,8 @@ def test_c15_unknown_slot_retry_fails_closed(
             backfill_id=uuid4(),
             slot_start=claim.slot_start,
         )
+
+
 def test_c16_reconcile_backfill_slots_api_is_required():
     from lotuslearn_pipeline import backfill as backfill_module
 
@@ -2002,6 +1710,7 @@ def test_c16_reconcile_backfill_slots_api_is_required():
 
 # C16_BEHAVIORAL_BOUNDARY_REDS_INSTALLED
 
+
 def test_c16_reconcile_api_does_not_exist_without_explicit_domain_implementation():
     from lotuslearn_pipeline import backfill as backfill_module
 
@@ -2022,9 +1731,7 @@ def test_c16_reconciliation_must_not_create_execution_authority():
         None,
     )
 
-    assert reconcile is not None, (
-        "C16 contract: reconcile_backfill_slots API is required"
-    )
+    assert reconcile is not None, "C16 contract: reconcile_backfill_slots API is required"
 
     source = inspect.getsource(reconcile)
 
@@ -2043,9 +1750,7 @@ def test_c16_reconciliation_must_not_reimplement_failed_retry():
         None,
     )
 
-    assert reconcile is not None, (
-        "C16 contract: reconcile_backfill_slots API is required"
-    )
+    assert reconcile is not None, "C16 contract: reconcile_backfill_slots API is required"
 
     source = inspect.getsource(reconcile)
 
@@ -2063,9 +1768,7 @@ def test_c16_reconciliation_must_not_reimplement_cancellation():
         None,
     )
 
-    assert reconcile is not None, (
-        "C16 contract: reconcile_backfill_slots API is required"
-    )
+    assert reconcile is not None, "C16 contract: reconcile_backfill_slots API is required"
 
     source = inspect.getsource(reconcile)
 
@@ -2084,32 +1787,32 @@ def test_c16_reconciliation_must_not_delegate_expired_claim_recovery():
         None,
     )
 
-    assert reconcile is not None, (
-        "C16 contract: reconcile_backfill_slots API is required"
-    )
+    assert reconcile is not None, "C16 contract: reconcile_backfill_slots API is required"
 
     source = inspect.getsource(reconcile)
 
     assert "recover_expired_claims(" not in source
 
+
 def _c16_seed_claimed(pg_url):
     start = _start()
     created = create_backfill(
-            pg_url,
-            pipeline_key=_pipeline_key(),
-            request_key=_request_key("complete"),
-            window_start=start,
-            window_end=start + timedelta(days=1),
-            interval=timedelta(days=1),
-            max_active_runs=1,
-        )
+        pg_url,
+        pipeline_key=_pipeline_key(),
+        request_key=_request_key("complete"),
+        window_start=start,
+        window_end=start + timedelta(days=1),
+        interval=timedelta(days=1),
+        max_active_runs=1,
+    )
     claim = claim_backfill_slots(
-            pg_url,
-            backfill_id=created.request.backfill_id,
-            worker_id="worker-complete",
-            lease=timedelta(minutes=5),
-        )[0]
+        pg_url,
+        backfill_id=created.request.backfill_id,
+        worker_id="worker-complete",
+        lease=timedelta(minutes=5),
+    )[0]
     return created, claim
+
 
 def _c16_reconcile(pg_url, backfill_id):
     from lotuslearn_pipeline import backfill as backfill_module
@@ -2123,6 +1826,7 @@ def _c16_reconcile(pg_url, backfill_id):
             conn,
             backfill_id=backfill_id,
         )
+
 
 # C16_POSTGRES_BEHAVIORAL_CONTRACTS_V2
 #

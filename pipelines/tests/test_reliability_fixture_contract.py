@@ -11,11 +11,7 @@ from lotuslearn_pipeline.analytical_event_id import (
     compute_event_id,
 )
 
-FIXTURE = (
-    Path(__file__).parent
-    / "fixtures"
-    / "reliability_events.json"
-)
+FIXTURE = Path(__file__).parent / "fixtures" / "reliability_events.json"
 
 EMAIL_PATTERN = re.compile(
     r"\b[a-zA-Z0-9._%+-]+@"
@@ -43,11 +39,7 @@ FORBIDDEN_KEYS = {
 
 
 def _load() -> dict[str, Any]:
-    return json.loads(
-        FIXTURE.read_text(
-            encoding="utf-8"
-        )
-    )
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 
 def _events(value: Any) -> list[dict[str, Any]]:
@@ -64,15 +56,11 @@ def _events(value: Any) -> list[dict[str, Any]]:
             found.append(value)
 
         for child in value.values():
-            found.extend(
-                _events(child)
-            )
+            found.extend(_events(child))
 
     elif isinstance(value, list):
         for child in value:
-            found.extend(
-                _events(child)
-            )
+            found.extend(_events(child))
 
     return found
 
@@ -82,10 +70,7 @@ def _assert_fixture_zero_pii(
     key_name: str = "root",
 ) -> None:
     if isinstance(value, dict):
-        assert not (
-            FORBIDDEN_KEYS
-            & set(value)
-        )
+        assert not (FORBIDDEN_KEYS & set(value))
 
         for key, child in value.items():
             _assert_fixture_zero_pii(
@@ -123,19 +108,13 @@ def test_top_level_contract_is_frozen() -> None:
         "equalTimestampDecisions",
     ]
 
-    assert len(
-        payload["standardBatch"]
-    ) == 7
+    assert len(payload["standardBatch"]) == 7
 
 
 def test_standard_batch_order_is_frozen() -> None:
     payload = _load()
 
-    assert [
-        event["event_type"]
-        for event
-        in payload["standardBatch"]
-    ] == [
+    assert [event["event_type"] for event in payload["standardBatch"]] == [
         "ANALYSIS_INGESTED",
         "FINDING_IDENTIFIED",
         "FINDING_IDENTIFIED",
@@ -195,165 +174,94 @@ def test_standard_batch_event_ids() -> None:
     ):
         event_type, run_id, business_key = contract
 
-        assert (
-            event["event_id"]
-            == compute_event_id(
-                event_type,
-                run_id,
-                business_key,
-            )
+        assert event["event_id"] == compute_event_id(
+            event_type,
+            run_id,
+            business_key,
         )
 
 
 def test_replay_pair_is_exact_replay() -> None:
     pair = _load()["replayPair"]
 
-    assert (
-        pair["original"]
-        == pair["replay"]
-    )
+    assert pair["original"] == pair["replay"]
 
 
 def test_payload_conflict_contract() -> None:
-    pair = _load()[
-        "payloadConflictPair"
-    ]
+    pair = _load()["payloadConflictPair"]
 
     original = pair["original"]
     conflicting = pair["conflicting"]
 
-    assert (
-        original["event_id"]
-        == conflicting["event_id"]
-    )
+    assert original["event_id"] == conflicting["event_id"]
 
-    differing = {
-        key
-        for key in original
-        if original[key]
-        != conflicting[key]
-    }
+    differing = {key for key in original if original[key] != conflicting[key]}
 
     assert differing == {
         "subject",
     }
 
-    assert (
-        original["subject"]
-        == "Mathematics"
-    )
+    assert original["subject"] == "Mathematics"
 
-    assert (
-        conflicting["subject"]
-        == "Algebra I Honors"
-    )
+    assert conflicting["subject"] == "Algebra I Honors"
 
 
 def test_analysis_run_conflict_contract() -> None:
-    pair = _load()[
-        "analysisRunConflictPair"
-    ]
+    pair = _load()["analysisRunConflictPair"]
 
     run_a = pair["runA"]
     run_b = pair["runB"]
 
-    assert (
-        run_a["analysis_run_id"]
-        == run_b["analysis_run_id"]
-        == "run-de02b-conflict-002"
+    assert run_a["analysis_run_id"] == run_b["analysis_run_id"] == "run-de02b-conflict-002"
+
+    assert run_a["event_id"] == compute_event_id(
+        "ANALYSIS_INGESTED",
+        "run-de02b-conflict-002",
+        "metadata-a",
     )
 
-    assert (
-        run_a["event_id"]
-        == compute_event_id(
-            "ANALYSIS_INGESTED",
-            "run-de02b-conflict-002",
-            "metadata-a",
-        )
+    assert run_b["event_id"] == compute_event_id(
+        "ANALYSIS_INGESTED",
+        "run-de02b-conflict-002",
+        "metadata-b",
     )
 
-    assert (
-        run_b["event_id"]
-        == compute_event_id(
-            "ANALYSIS_INGESTED",
-            "run-de02b-conflict-002",
-            "metadata-b",
-        )
-    )
+    assert run_a["event_id"] != run_b["event_id"]
 
-    assert (
-        run_a["event_id"]
-        != run_b["event_id"]
-    )
+    assert run_a["total_duration_ms"] == 1200
 
-    assert (
-        run_a["total_duration_ms"]
-        == 1200
-    )
+    assert run_b["total_duration_ms"] == 9999
 
-    assert (
-        run_b["total_duration_ms"]
-        == 9999
-    )
+    assert run_a["execution_mode"] == "live_gemini"
 
-    assert (
-        run_a["execution_mode"]
-        == "live_gemini"
-    )
-
-    assert (
-        run_b["execution_mode"]
-        == "demo_resilience"
-    )
+    assert run_b["execution_mode"] == "demo_resilience"
 
 
 def test_equal_timestamp_decision_contract() -> None:
-    pair = _load()[
-        "equalTimestampDecisions"
-    ]
+    pair = _load()["equalTimestampDecisions"]
 
     decision_a = pair["decisionA"]
     decision_b = pair["decisionB"]
 
-    assert (
-        decision_a["occurred_at"]
-        == decision_b["occurred_at"]
-        == "2026-10-26T12:00:00Z"
+    assert decision_a["occurred_at"] == decision_b["occurred_at"] == "2026-10-26T12:00:00Z"
+
+    assert decision_a["decision_recorded_at"] == decision_b["decision_recorded_at"]
+
+    assert decision_a["target_id"] == decision_b["target_id"] == "cluster-fractions"
+
+    assert decision_a["event_id"] == compute_event_id(
+        "DECISION_RECORDED",
+        "run-de02b-rel-001",
+        "action-cluster-fractions-1200-a",
     )
 
-    assert (
-        decision_a["decision_recorded_at"]
-        == decision_b["decision_recorded_at"]
+    assert decision_b["event_id"] == compute_event_id(
+        "DECISION_RECORDED",
+        "run-de02b-rel-001",
+        "action-cluster-fractions-1200-b",
     )
 
-    assert (
-        decision_a["target_id"]
-        == decision_b["target_id"]
-        == "cluster-fractions"
-    )
-
-    assert (
-        decision_a["event_id"]
-        == compute_event_id(
-            "DECISION_RECORDED",
-            "run-de02b-rel-001",
-            "action-cluster-fractions-1200-a",
-        )
-    )
-
-    assert (
-        decision_b["event_id"]
-        == compute_event_id(
-            "DECISION_RECORDED",
-            "run-de02b-rel-001",
-            "action-cluster-fractions-1200-b",
-        )
-    )
-
-    assert (
-        decision_a["event_id"]
-        != decision_b["event_id"]
-    )
+    assert decision_a["event_id"] != decision_b["event_id"]
 
 
 def test_all_events_preserve_zero_pii_contract() -> None:
@@ -374,22 +282,15 @@ def test_all_events_preserve_zero_pii_contract() -> None:
                 continue
 
             assert all(
-                isinstance(student_id, str)
-                and student_id.strip()
-                for student_id
-                in event[key]
+                isinstance(student_id, str) and student_id.strip() for student_id in event[key]
             )
 
 
 def test_all_event_ids_are_lowercase_sha256() -> None:
-    pattern = re.compile(
-        r"^[0-9a-f]{64}$"
-    )
+    pattern = re.compile(r"^[0-9a-f]{64}$")
 
     for event in _events(_load()):
-        assert pattern.fullmatch(
-            event["event_id"]
-        )
+        assert pattern.fullmatch(event["event_id"])
 
 
 def test_python_json_serialization_is_byte_exact() -> None:
@@ -401,9 +302,4 @@ def test_python_json_serialization_is_byte_exact() -> None:
         ensure_ascii=False,
     )
 
-    assert (
-        rendered
-        == FIXTURE.read_text(
-            encoding="utf-8"
-        )
-    )
+    assert rendered == FIXTURE.read_text(encoding="utf-8")

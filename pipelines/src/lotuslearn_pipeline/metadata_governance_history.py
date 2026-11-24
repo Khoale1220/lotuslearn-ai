@@ -33,15 +33,11 @@ class MetadataGovernanceHistoryError(RuntimeError):
     """Base error for immutable metadata governance history operations."""
 
 
-class MetadataGovernanceHistoryConflictError(
-    MetadataGovernanceHistoryError
-):
+class MetadataGovernanceHistoryConflictError(MetadataGovernanceHistoryError):
     """Raised when an existing governance identity has different content."""
 
 
-class MetadataGovernanceHistoryIntegrityError(
-    MetadataGovernanceHistoryError
-):
+class MetadataGovernanceHistoryIntegrityError(MetadataGovernanceHistoryError):
     """Raised when persisted governance history fails integrity verification."""
 
 
@@ -67,24 +63,15 @@ def _canonical_json(value: Any) -> str:
 
 
 def _digest(value: Any) -> str:
-    return hashlib.sha256(
-        _canonical_json(value).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: Any) -> bool:
-    return (
-        isinstance(value, str)
-        and _SHA256.fullmatch(value) is not None
-    )
+    return isinstance(value, str) and _SHA256.fullmatch(value) is not None
 
 
 def _is_non_negative_int(value: Any) -> bool:
-    return (
-        isinstance(value, int)
-        and not isinstance(value, bool)
-        and value >= 0
-    )
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
 def _decode_payload(value: Any) -> dict[str, Any]:
@@ -123,10 +110,7 @@ def _expected_decision_id(
             "policy_version": decision.policy_version,
             "comparison_id": decision.comparison_id,
             "status": decision.status.value,
-            "violation_ids": [
-                violation.violation_id
-                for violation in decision.violations
-            ],
+            "violation_ids": [violation.violation_id for violation in decision.violations],
         }
     )
 
@@ -134,16 +118,10 @@ def _expected_decision_id(
 def _expected_status(
     violations: tuple[MetadataPolicyViolation, ...],
 ) -> MetadataGovernanceStatus:
-    if any(
-        violation.status == MetadataGovernanceStatus.BLOCK
-        for violation in violations
-    ):
+    if any(violation.status == MetadataGovernanceStatus.BLOCK for violation in violations):
         return MetadataGovernanceStatus.BLOCK
 
-    if any(
-        violation.status == MetadataGovernanceStatus.REVIEW
-        for violation in violations
-    ):
+    if any(violation.status == MetadataGovernanceStatus.REVIEW for violation in violations):
         return MetadataGovernanceStatus.REVIEW
 
     return MetadataGovernanceStatus.PASS
@@ -238,68 +216,47 @@ def _validate_violation(
             "Metadata governance violation has an invalid severity"
         )
 
-    if (
-        violation.asset_id is not None
-        and not _is_sha256(violation.asset_id)
-    ):
+    if violation.asset_id is not None and not _is_sha256(violation.asset_id):
         raise MetadataGovernanceHistoryIntegrityError(
             "Metadata governance violation has an invalid asset identifier"
         )
 
-    if (
-        violation.field_name is not None
-        and not isinstance(violation.field_name, str)
-    ):
+    if violation.field_name is not None and not isinstance(violation.field_name, str):
         raise MetadataGovernanceHistoryIntegrityError(
             "Metadata governance violation has an invalid field name"
         )
 
-    if not _is_non_negative_int(
-        violation.downstream_impact_count
-    ):
+    if not _is_non_negative_int(violation.downstream_impact_count):
         raise MetadataGovernanceHistoryIntegrityError(
             "Metadata governance violation has an invalid downstream impact count"
         )
 
-    if (
-        violation.downstream_impact_count
-        != len(decision.downstream_impacted_assets)
-    ):
+    if violation.downstream_impact_count != len(decision.downstream_impacted_assets):
         raise MetadataGovernanceHistoryIntegrityError(
-            "Metadata governance violation downstream impact evidence "
-            "does not match its decision"
+            "Metadata governance violation downstream impact evidence does not match its decision"
         )
 
     if (
         violation.asset_id is not None
-        and violation.asset_id
-        not in decision.directly_changed_assets
+        and violation.asset_id not in decision.directly_changed_assets
     ):
         raise MetadataGovernanceHistoryIntegrityError(
-            "Metadata governance violation asset is missing from "
-            "directly changed asset evidence"
+            "Metadata governance violation asset is missing from directly changed asset evidence"
         )
 
     if violation.rule == MetadataPolicyRule.BREAKING_CHANGE:
         if (
-            violation.status
-            != MetadataGovernanceStatus.BLOCK
-            or violation.severity
-            != MetadataChangeSeverity.BREAKING
+            violation.status != MetadataGovernanceStatus.BLOCK
+            or violation.severity != MetadataChangeSeverity.BREAKING
         ):
             raise MetadataGovernanceHistoryIntegrityError(
                 "Metadata governance breaking violation is inconsistent"
             )
 
-    elif (
-        violation.rule
-        == MetadataPolicyRule.REVIEW_REQUIRED_CHANGE
-    ):
+    elif violation.rule == MetadataPolicyRule.REVIEW_REQUIRED_CHANGE:
         if (
-            violation.status
-            != MetadataGovernanceStatus.REVIEW
-            or violation.severity
-            != MetadataChangeSeverity.REVIEW_REQUIRED
+            violation.status != MetadataGovernanceStatus.REVIEW
+            or violation.severity != MetadataChangeSeverity.REVIEW_REQUIRED
         ):
             raise MetadataGovernanceHistoryIntegrityError(
                 "Metadata governance review violation is inconsistent"
@@ -310,10 +267,7 @@ def _validate_violation(
             "Metadata governance violation references an unsupported rule"
         )
 
-    if (
-        violation.violation_id
-        != _expected_violation_id(decision, violation)
-    ):
+    if violation.violation_id != _expected_violation_id(decision, violation):
         raise MetadataGovernanceHistoryIntegrityError(
             "Metadata governance violation identifier failed verification"
         )
@@ -324,8 +278,7 @@ def _validate_decision(
 ) -> None:
     if not isinstance(decision, MetadataGovernanceDecision):
         raise MetadataGovernanceHistoryIntegrityError(
-            "Metadata governance history requires a "
-            "MetadataGovernanceDecision"
+            "Metadata governance history requires a MetadataGovernanceDecision"
         )
 
     if not _is_sha256(decision.decision_id):
@@ -348,18 +301,12 @@ def _validate_decision(
             "Metadata governance decision has an invalid current checksum"
         )
 
-    if (
-        not isinstance(decision.policy_id, str)
-        or not decision.policy_id.strip()
-    ):
+    if not isinstance(decision.policy_id, str) or not decision.policy_id.strip():
         raise MetadataGovernanceHistoryIntegrityError(
             "Metadata governance decision has an invalid policy identifier"
         )
 
-    if (
-        not isinstance(decision.policy_version, str)
-        or not decision.policy_version.strip()
-    ):
+    if not isinstance(decision.policy_version, str) or not decision.policy_version.strip():
         raise MetadataGovernanceHistoryIntegrityError(
             "Metadata governance decision has an invalid policy version"
         )
@@ -380,10 +327,7 @@ def _validate_decision(
         decision.metadata_only_change_count,
     )
 
-    if any(
-        not _is_non_negative_int(value)
-        for value in count_fields
-    ):
+    if any(not _is_non_negative_int(value) for value in count_fields):
         raise MetadataGovernanceHistoryIntegrityError(
             "Metadata governance decision contains an invalid change count"
         )
@@ -410,8 +354,7 @@ def _validate_decision(
 
     if set(direct_assets) & set(downstream_assets):
         raise MetadataGovernanceHistoryIntegrityError(
-            "Metadata governance decision has overlapping direct "
-            "and downstream assets"
+            "Metadata governance decision has overlapping direct and downstream assets"
         )
 
     if not isinstance(decision.violations, tuple):
@@ -427,22 +370,19 @@ def _validate_decision(
 
         if violation.violation_id in violation_ids:
             raise MetadataGovernanceHistoryIntegrityError(
-                "Metadata governance decision contains duplicate "
-                "violation identifiers"
+                "Metadata governance decision contains duplicate violation identifiers"
             )
 
         if violation.change_id in violation_change_ids:
             raise MetadataGovernanceHistoryIntegrityError(
-                "Metadata governance decision contains duplicate "
-                "violation change identifiers"
+                "Metadata governance decision contains duplicate violation change identifiers"
             )
 
         violation_ids.add(violation.violation_id)
         violation_change_ids.add(violation.change_id)
 
     expected_violation_count = (
-        decision.breaking_change_count
-        + decision.review_required_change_count
+        decision.breaking_change_count + decision.review_required_change_count
     )
 
     if len(decision.violations) != expected_violation_count:
@@ -451,13 +391,11 @@ def _validate_decision(
         )
 
     block_count = sum(
-        violation.status == MetadataGovernanceStatus.BLOCK
-        for violation in decision.violations
+        violation.status == MetadataGovernanceStatus.BLOCK for violation in decision.violations
     )
 
     review_count = sum(
-        violation.status == MetadataGovernanceStatus.REVIEW
-        for violation in decision.violations
+        violation.status == MetadataGovernanceStatus.REVIEW for violation in decision.violations
     )
 
     if block_count != decision.breaking_change_count:
@@ -493,24 +431,12 @@ def _decision_summary(
         "baseline_checksum": decision.baseline_checksum,
         "current_checksum": decision.current_checksum,
         "change_count": decision.change_count,
-        "breaking_change_count": (
-            decision.breaking_change_count
-        ),
-        "review_required_change_count": (
-            decision.review_required_change_count
-        ),
-        "non_breaking_change_count": (
-            decision.non_breaking_change_count
-        ),
-        "metadata_only_change_count": (
-            decision.metadata_only_change_count
-        ),
-        "directly_changed_asset_count": len(
-            decision.directly_changed_assets
-        ),
-        "downstream_impacted_asset_count": len(
-            decision.downstream_impacted_assets
-        ),
+        "breaking_change_count": (decision.breaking_change_count),
+        "review_required_change_count": (decision.review_required_change_count),
+        "non_breaking_change_count": (decision.non_breaking_change_count),
+        "metadata_only_change_count": (decision.metadata_only_change_count),
+        "directly_changed_asset_count": len(decision.directly_changed_assets),
+        "downstream_impacted_asset_count": len(decision.downstream_impacted_assets),
         "violation_count": len(decision.violations),
     }
 
@@ -527,23 +453,15 @@ def _violation_from_dict(
         return MetadataPolicyViolation(
             violation_id=value["violation_id"],
             rule=MetadataPolicyRule(value["rule_id"]),
-            status=MetadataGovernanceStatus(
-                value["status"]
-            ),
+            status=MetadataGovernanceStatus(value["status"]),
             change_id=value["change_id"],
             entity_id=value["entity_id"],
-            entity_type=MetadataEntityType(
-                value["entity_type"]
-            ),
+            entity_type=MetadataEntityType(value["entity_type"]),
             kind=MetadataChangeKind(value["kind"]),
-            severity=MetadataChangeSeverity(
-                value["severity"]
-            ),
+            severity=MetadataChangeSeverity(value["severity"]),
             asset_id=value.get("asset_id"),
             field_name=value.get("field_name"),
-            downstream_impact_count=value[
-                "downstream_impact_count"
-            ],
+            downstream_impact_count=value["downstream_impact_count"],
         )
     except (
         KeyError,
@@ -571,12 +489,8 @@ def _decision_from_dict(
                 "Persisted metadata governance violations are not a JSON array"
             )
 
-        direct_assets_value = value[
-            "directly_changed_assets"
-        ]
-        downstream_assets_value = value[
-            "downstream_impacted_assets"
-        ]
+        direct_assets_value = value["directly_changed_assets"]
+        downstream_assets_value = value["downstream_impacted_assets"]
 
         if not isinstance(direct_assets_value, list):
             raise MetadataGovernanceHistoryIntegrityError(
@@ -595,37 +509,18 @@ def _decision_from_dict(
             decision_id=value["decision_id"],
             policy_id=value["policy_id"],
             policy_version=value["policy_version"],
-            status=MetadataGovernanceStatus(
-                value["status"]
-            ),
+            status=MetadataGovernanceStatus(value["status"]),
             comparison_id=value["comparison_id"],
-            baseline_checksum=value[
-                "baseline_checksum"
-            ],
+            baseline_checksum=value["baseline_checksum"],
             current_checksum=value["current_checksum"],
             change_count=value["change_count"],
-            breaking_change_count=value[
-                "breaking_change_count"
-            ],
-            review_required_change_count=value[
-                "review_required_change_count"
-            ],
-            non_breaking_change_count=value[
-                "non_breaking_change_count"
-            ],
-            metadata_only_change_count=value[
-                "metadata_only_change_count"
-            ],
-            directly_changed_assets=tuple(
-                direct_assets_value
-            ),
-            downstream_impacted_assets=tuple(
-                downstream_assets_value
-            ),
-            violations=tuple(
-                _violation_from_dict(violation)
-                for violation in violations_value
-            ),
+            breaking_change_count=value["breaking_change_count"],
+            review_required_change_count=value["review_required_change_count"],
+            non_breaking_change_count=value["non_breaking_change_count"],
+            metadata_only_change_count=value["metadata_only_change_count"],
+            directly_changed_assets=tuple(direct_assets_value),
+            downstream_impacted_assets=tuple(downstream_assets_value),
+            violations=tuple(_violation_from_dict(violation) for violation in violations_value),
         )
     except MetadataGovernanceHistoryIntegrityError:
         raise
@@ -648,13 +543,8 @@ class PostgresMetadataGovernanceHistoryStore:
     """Persist immutable governance decisions with database arbitration."""
 
     def __init__(self, database_url: str):
-        if (
-            not isinstance(database_url, str)
-            or not database_url.strip()
-        ):
-            raise ValueError(
-                "A PostgreSQL database URL is required"
-            )
+        if not isinstance(database_url, str) or not database_url.strip():
+            raise ValueError("A PostgreSQL database URL is required")
 
         self._database_url = database_url
 
@@ -672,9 +562,7 @@ class PostgresMetadataGovernanceHistoryStore:
         dict[str, Any],
     ]:
         try:
-            payload = _decode_payload(
-                row["payload_json"]
-            )
+            payload = _decode_payload(row["payload_json"])
 
             decision = _decision_from_dict(payload)
 
@@ -683,25 +571,17 @@ class PostgresMetadataGovernanceHistoryStore:
 
         except Exception:
             raise MetadataGovernanceHistoryIntegrityError(
-                "Persisted metadata governance decision failed "
-                "integrity verification"
+                "Persisted metadata governance decision failed integrity verification"
             ) from None
 
         expected = _decision_summary(decision)
 
-        if any(
-            row[key] != value
-            for key, value in expected.items()
-        ):
+        if any(row[key] != value for key, value in expected.items()):
             raise MetadataGovernanceHistoryIntegrityError(
-                "Persisted metadata governance summary does not "
-                "match its payload"
+                "Persisted metadata governance summary does not match its payload"
             )
 
-        if (
-            _canonical_json(decision.to_dict())
-            != _canonical_json(payload)
-        ):
+        if _canonical_json(decision.to_dict()) != _canonical_json(payload):
             raise MetadataGovernanceHistoryIntegrityError(
                 "Persisted metadata governance payload is not canonical"
             )
@@ -763,9 +643,7 @@ class PostgresMetadataGovernanceHistoryStore:
         ).fetchone()
 
         if inserted is not None:
-            return (
-                MetadataGovernanceHistoryWriteOutcome.INSERTED
-            )
+            return MetadataGovernanceHistoryWriteOutcome.INSERTED
 
         existing = conn.execute(
             """
@@ -787,19 +665,13 @@ class PostgresMetadataGovernanceHistoryStore:
                 "Existing metadata governance decision could not be read"
             )
 
-        stored_decision, stored_payload = (
-            self._stored_decision(existing)
-        )
+        stored_decision, stored_payload = self._stored_decision(existing)
 
-        if (
-            _decision_summary(stored_decision)
-            != summary
-            or _canonical_json(stored_payload)
-            != _canonical_json(payload)
-        ):
+        if _decision_summary(stored_decision) != summary or _canonical_json(
+            stored_payload
+        ) != _canonical_json(payload):
             raise MetadataGovernanceHistoryConflictError(
-                "Metadata governance decision identity has "
-                "different immutable content"
+                "Metadata governance decision identity has different immutable content"
             )
 
         return MetadataGovernanceHistoryWriteOutcome.EXISTING
@@ -835,9 +707,7 @@ class PostgresMetadataGovernanceHistoryStore:
         """Read and verify one persisted decision by deterministic ID."""
 
         if not _is_sha256(decision_id):
-            raise ValueError(
-                "A valid metadata governance decision ID is required"
-            )
+            raise ValueError("A valid metadata governance decision ID is required")
 
         with self._connect() as conn:
             row = conn.execute(
@@ -866,25 +736,13 @@ class PostgresMetadataGovernanceHistoryStore:
         """Read one verified decision by its governance business identity."""
 
         if not _is_sha256(comparison_id):
-            raise ValueError(
-                "A valid metadata comparison ID is required"
-            )
+            raise ValueError("A valid metadata comparison ID is required")
 
-        if (
-            not isinstance(policy_id, str)
-            or not policy_id.strip()
-        ):
-            raise ValueError(
-                "A metadata governance policy ID is required"
-            )
+        if not isinstance(policy_id, str) or not policy_id.strip():
+            raise ValueError("A metadata governance policy ID is required")
 
-        if (
-            not isinstance(policy_version, str)
-            or not policy_version.strip()
-        ):
-            raise ValueError(
-                "A metadata governance policy version is required"
-            )
+        if not isinstance(policy_version, str) or not policy_version.strip():
+            raise ValueError("A metadata governance policy version is required")
 
         with self._connect() as conn:
             row = conn.execute(

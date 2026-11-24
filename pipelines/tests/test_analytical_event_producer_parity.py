@@ -14,11 +14,7 @@ from lotuslearn_pipeline.analytical_event_id import compute_event_id
 from lotuslearn_pipeline.ingestion import AnalyticalEventValidator
 from lotuslearn_pipeline.models import IngestionOutcome
 
-FIXTURE = (
-    Path(__file__).parent
-    / "fixtures"
-    / "analytical_event_producer_parity.json"
-)
+FIXTURE = Path(__file__).parent / "fixtures" / "analytical_event_producer_parity.json"
 
 EXPECTED_EVENT_COUNTS = {
     "ANALYSIS_INGESTED": 1,
@@ -33,10 +29,7 @@ def _load_fixture() -> dict[str, Any]:
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
     assert payload["fixture_version"] == 1
-    assert (
-        payload["source_implementation"]
-        == "server/services/analyticalEventProducer.ts"
-    )
+    assert payload["source_implementation"] == "server/services/analyticalEventProducer.ts"
 
     return payload
 
@@ -64,18 +57,12 @@ def _typescript_fallback_dataset_fingerprint(
         )
 
         observation_keys.append(
-            (
-                f"{observation['studentId']}:"
-                f"{','.join(demonstrated)}:"
-                f"{','.join(misconceptions)}"
-            )
+            (f"{observation['studentId']}:{','.join(demonstrated)}:{','.join(misconceptions)}")
         )
 
     canonical = ";".join(sorted(observation_keys))
 
-    return hashlib.sha256(
-        canonical.encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _business_key(event: dict[str, Any]) -> str:
@@ -106,9 +93,7 @@ def _business_key(event: dict[str, Any]) -> str:
             f"{event['decision_recorded_at']}"
         )
 
-    raise AssertionError(
-        f"Unsupported event type: {event_type}"
-    )
+    raise AssertionError(f"Unsupported event type: {event_type}")
 
 
 def test_golden_fixture_contract_metadata() -> None:
@@ -118,22 +103,15 @@ def test_golden_fixture_contract_metadata() -> None:
     result = payload["analysis_result"]
     events = payload["expected_events"]
 
-    assert normalization["analysis_run_id"] == (
-        "run-mig01-analytical-producer-parity-001"
-    )
-    assert normalization["analysis_timestamp"] == (
-        "2026-10-26T10:00:00.000Z"
-    )
+    assert normalization["analysis_run_id"] == ("run-mig01-analytical-producer-parity-001")
+    assert normalization["analysis_timestamp"] == ("2026-10-26T10:00:00.000Z")
 
     assert result["id"] == normalization["analysis_run_id"]
     assert result["timestamp"] == normalization["analysis_timestamp"]
 
     assert len(events) == 12
 
-    counts = Counter(
-        event["event_type"]
-        for event in events
-    )
+    counts = Counter(event["event_type"] for event in events)
 
     assert dict(counts) == EXPECTED_EVENT_COUNTS
 
@@ -151,15 +129,12 @@ def test_golden_events_pass_python_contract_and_privacy() -> None:
         )
 
         assert result.outcome == IngestionOutcome.ACCEPTED, (
-            f"{event['event_type']} rejected: "
-            f"{result.rejection_reason}"
+            f"{event['event_type']} rejected: {result.rejection_reason}"
         )
 
         event_ids.add(event["event_id"])
 
-    assert len(event_ids) == len(
-        payload["expected_events"]
-    )
+    assert len(event_ids) == len(payload["expected_events"])
 
 
 def test_golden_event_ids_match_python_sha256_contract() -> None:
@@ -186,27 +161,15 @@ def test_dataset_fingerprint_matches_typescript_fallback() -> None:
 
     assert "datasetFingerprint" not in execution_metadata
 
-    expected_fingerprint = (
-        _typescript_fallback_dataset_fingerprint(
-            analysis_result
-        )
-    )
+    expected_fingerprint = _typescript_fallback_dataset_fingerprint(analysis_result)
 
     ingested = next(
-        event
-        for event in payload["expected_events"]
-        if event["event_type"] == "ANALYSIS_INGESTED"
+        event for event in payload["expected_events"] if event["event_type"] == "ANALYSIS_INGESTED"
     )
 
-    assert ingested["dataset_fingerprint"] == (
-        expected_fingerprint
-    )
+    assert ingested["dataset_fingerprint"] == (expected_fingerprint)
 
-    assert ingested["submission_count"] == (
-        analysis_result["classSnapshot"][
-            "totalSubmissions"
-        ]
-    )
+    assert ingested["submission_count"] == (analysis_result["classSnapshot"]["totalSubmissions"])
 
 
 def test_golden_fixture_captures_stable_sorting() -> None:
@@ -214,58 +177,40 @@ def test_golden_fixture_captures_stable_sorting() -> None:
     events = payload["expected_events"]
 
     finding_ids = [
-        event["finding_id"]
-        for event in events
-        if event["event_type"] == "FINDING_IDENTIFIED"
+        event["finding_id"] for event in events if event["event_type"] == "FINDING_IDENTIFIED"
     ]
 
-    group_ids = [
-        event["group_id"]
-        for event in events
-        if event["event_type"] == "GROUP_FORMED"
-    ]
+    group_ids = [event["group_id"] for event in events if event["event_type"] == "GROUP_FORMED"]
 
     assert finding_ids == sorted(finding_ids)
     assert group_ids == sorted(group_ids)
 
     for event in events:
         if event["event_type"] == "FINDING_IDENTIFIED":
-            assert event["affected_student_ids"] == sorted(
-                event["affected_student_ids"]
-            )
+            assert event["affected_student_ids"] == sorted(event["affected_student_ids"])
 
         if event["event_type"] == "GROUP_FORMED":
-            assert event["student_ids"] == sorted(
-                event["student_ids"]
-            )
+            assert event["student_ids"] == sorted(event["student_ids"])
 
 
 def test_decision_events_preserve_authentic_timestamps() -> None:
     payload = _load_fixture()
 
-    analysis_timestamp = payload[
-        "normalization"
-    ]["analysis_timestamp"]
+    analysis_timestamp = payload["normalization"]["analysis_timestamp"]
 
     decision_events = [
-        event
-        for event in payload["expected_events"]
-        if event["event_type"] == "DECISION_RECORDED"
+        event for event in payload["expected_events"] if event["event_type"] == "DECISION_RECORDED"
     ]
 
     assert len(decision_events) == 2
 
     for event in decision_events:
         assert event["provenance"] == "human"
-        assert event["occurred_at"] == (
-            event["decision_recorded_at"]
-        )
+        assert event["occurred_at"] == (event["decision_recorded_at"])
         assert event["occurred_at"] != analysis_timestamp
 
     non_decision_events = [
-        event
-        for event in payload["expected_events"]
-        if event["event_type"] != "DECISION_RECORDED"
+        event for event in payload["expected_events"] if event["event_type"] != "DECISION_RECORDED"
     ]
 
     for event in non_decision_events:
@@ -283,13 +228,9 @@ def test_python_producer_matches_typescript_golden_output_exactly() -> None:
 
     expected = payload["expected_events"]
 
-    first = produce_analytical_events(
-        payload["analysis_result"]
-    )
+    first = produce_analytical_events(payload["analysis_result"])
 
-    second = produce_analytical_events(
-        payload["analysis_result"]
-    )
+    second = produce_analytical_events(payload["analysis_result"])
 
     assert first == expected
     assert second == expected
@@ -299,11 +240,7 @@ def test_python_producer_matches_typescript_golden_output_exactly() -> None:
 def _fresh_analysis_result() -> dict[str, Any]:
     """Return a deep JSON-compatible copy of the frozen analysis input."""
 
-    return json.loads(
-        json.dumps(
-            _load_fixture()["analysis_result"]
-        )
-    )
+    return json.loads(json.dumps(_load_fixture()["analysis_result"]))
 
 
 def test_python_producer_rejects_missing_subject_or_grade_level() -> None:
@@ -378,9 +315,7 @@ def test_python_producer_rejects_group_without_suggested_activity() -> None:
 
     invalid = _fresh_analysis_result()
 
-    invalid["instructionalGroups"][0][
-        "suggestedActivity"
-    ] = ""
+    invalid["instructionalGroups"][0]["suggestedActivity"] = ""
 
     with pytest.raises(
         ValueError,
@@ -396,9 +331,7 @@ def test_python_producer_fails_closed_on_malformed_verification() -> None:
 
     missing_check = _fresh_analysis_result()
 
-    del missing_check["verification"][
-        "deterministicChecks"
-    ]["coveragePassed"]
+    del missing_check["verification"]["deterministicChecks"]["coveragePassed"]
 
     with pytest.raises(
         ValueError,
@@ -408,9 +341,7 @@ def test_python_producer_fails_closed_on_malformed_verification() -> None:
 
     invalid_status = _fresh_analysis_result()
 
-    invalid_status["verification"][
-        "overallStatus"
-    ] = "fabricated_success"
+    invalid_status["verification"]["overallStatus"] = "fabricated_success"
 
     with pytest.raises(
         ValueError,
@@ -429,10 +360,7 @@ def test_python_producer_omits_verification_when_not_performed() -> None:
 
     events = produce_analytical_events(result)
 
-    assert all(
-        event["event_type"] != "VERIFICATION_AUDITED"
-        for event in events
-    )
+    assert all(event["event_type"] != "VERIFICATION_AUDITED" for event in events)
 
 
 def test_python_producer_suppresses_pending_and_legacy_decisions() -> None:
@@ -448,15 +376,9 @@ def test_python_producer_suppresses_pending_and_legacy_decisions() -> None:
     for intervention in pending["interventions"]:
         intervention["teacherDecision"] = "pending"
 
-    pending_events = produce_analytical_events(
-        pending
-    )
+    pending_events = produce_analytical_events(pending)
 
-    assert not [
-        event
-        for event in pending_events
-        if event["event_type"] == "DECISION_RECORDED"
-    ]
+    assert not [event for event in pending_events if event["event_type"] == "DECISION_RECORDED"]
 
     legacy = _fresh_analysis_result()
 
@@ -472,15 +394,9 @@ def test_python_producer_suppresses_pending_and_legacy_decisions() -> None:
             None,
         )
 
-    legacy_events = produce_analytical_events(
-        legacy
-    )
+    legacy_events = produce_analytical_events(legacy)
 
-    assert not [
-        event
-        for event in legacy_events
-        if event["event_type"] == "DECISION_RECORDED"
-    ]
+    assert not [event for event in legacy_events if event["event_type"] == "DECISION_RECORDED"]
 
 
 def test_python_producer_decision_ids_change_with_authentic_timestamp() -> None:
@@ -491,30 +407,20 @@ def test_python_producer_decision_ids_change_with_authentic_timestamp() -> None:
     first_result = _fresh_analysis_result()
     second_result = _fresh_analysis_result()
 
-    first_result["misconceptionClusters"][0][
-        "decisionRecordedAt"
-    ] = "2026-10-26T10:15:00.000Z"
+    first_result["misconceptionClusters"][0]["decisionRecordedAt"] = "2026-10-26T10:15:00.000Z"
 
-    second_result["misconceptionClusters"][0][
-        "decisionRecordedAt"
-    ] = "2026-10-26T10:25:00.000Z"
+    second_result["misconceptionClusters"][0]["decisionRecordedAt"] = "2026-10-26T10:25:00.000Z"
 
-    first_events = produce_analytical_events(
-        first_result
-    )
+    first_events = produce_analytical_events(first_result)
 
-    second_events = produce_analytical_events(
-        second_result
-    )
+    second_events = produce_analytical_events(second_result)
 
     first_decision = next(
         event
         for event in first_events
         if (
-            event["event_type"]
-            == "DECISION_RECORDED"
-            and event["target_type"]
-            == "misconception_cluster"
+            event["event_type"] == "DECISION_RECORDED"
+            and event["target_type"] == "misconception_cluster"
         )
     )
 
@@ -522,22 +428,14 @@ def test_python_producer_decision_ids_change_with_authentic_timestamp() -> None:
         event
         for event in second_events
         if (
-            event["event_type"]
-            == "DECISION_RECORDED"
-            and event["target_type"]
-            == "misconception_cluster"
+            event["event_type"] == "DECISION_RECORDED"
+            and event["target_type"] == "misconception_cluster"
         )
     )
 
-    assert (
-        first_decision["event_id"]
-        != second_decision["event_id"]
-    )
+    assert first_decision["event_id"] != second_decision["event_id"]
 
-    assert (
-        first_decision["occurred_at"]
-        != second_decision["occurred_at"]
-    )
+    assert first_decision["occurred_at"] != second_decision["occurred_at"]
 
 
 def test_python_producer_fails_closed_on_email_and_phone_pii() -> None:
@@ -547,9 +445,7 @@ def test_python_producer_fails_closed_on_email_and_phone_pii() -> None:
 
     email_result = _fresh_analysis_result()
 
-    email_result["context"]["subject"] = (
-        "English teacher@school.edu"
-    )
+    email_result["context"]["subject"] = "English teacher@school.edu"
 
     with pytest.raises(
         ValueError,
@@ -559,9 +455,7 @@ def test_python_producer_fails_closed_on_email_and_phone_pii() -> None:
 
     phone_result = _fresh_analysis_result()
 
-    phone_result["context"]["subject"] = (
-        "English 415-555-1212"
-    )
+    phone_result["context"]["subject"] = "English 415-555-1212"
 
     with pytest.raises(
         ValueError,

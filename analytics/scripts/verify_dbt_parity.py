@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +13,7 @@ import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
 
-
-DEFAULT_MANIFEST_PATH = (
-    Path(__file__).resolve().parents[1] / "target" / "manifest.json"
-)
+DEFAULT_MANIFEST_PATH = Path(__file__).resolve().parents[1] / "target" / "manifest.json"
 
 
 def get_database_url() -> str:
@@ -47,7 +44,7 @@ def load_manifest(manifest_path: Path) -> dict[str, Any]:
         manifest = json.load(manifest_file)
 
     if not isinstance(manifest, dict):
-        raise RuntimeError("dbt manifest root must be a JSON object.")
+        raise TypeError("dbt manifest root must be a JSON object.")
 
     if "nodes" not in manifest or "sources" not in manifest:
         raise RuntimeError(
@@ -71,8 +68,7 @@ def resolve_model_relation(
     matches = [
         node
         for node in manifest["nodes"].values()
-        if node.get("resource_type") == "model"
-        and node.get("name") == model_name
+        if node.get("resource_type") == "model" and node.get("name") == model_name
     ]
 
     if len(matches) != 1:
@@ -184,9 +180,7 @@ def four_decimal_ratio(
     if denominator == 0:
         return None
 
-    return (
-        Decimal(numerator) / Decimal(denominator)
-    ).quantize(
+    return (Decimal(numerator) / Decimal(denominator)).quantize(
         Decimal("0.0001"),
         rounding=ROUND_HALF_UP,
     )
@@ -238,88 +232,79 @@ def verify_dbt_parity(
         "v_cohort_prevalence",
     )
 
-    print(
-        "Verifying operational PostgreSQL metrics "
-        "against dbt analytical models..."
-    )
+    print("Verifying operational PostgreSQL metrics against dbt analytical models...")
 
-    with psycopg.connect(
-        database_url,
-        row_factory=dict_row,
-    ) as conn:
-        with conn.cursor() as cur:
-            # 1. Analysis run parity
-            cur.execute(
-                sql.SQL(
-                    "SELECT COUNT(*)::INTEGER AS count FROM {}"
-                ).format(analysis_runs)
+    with (
+        psycopg.connect(
+            database_url,
+            row_factory=dict_row,
+        ) as conn,
+        conn.cursor() as cur,
+    ):
+        # 1. Analysis run parity
+        cur.execute(
+            sql.SQL("SELECT COUNT(*)::INTEGER AS count FROM {}").format(analysis_runs)
+        )
+        operational_run_count = cur.fetchone()["count"]
+
+        cur.execute(
+            sql.SQL("SELECT COUNT(*)::INTEGER AS count FROM {}").format(
+                dim_analysis_run
             )
-            operational_run_count = cur.fetchone()["count"]
+        )
+        dbt_run_count = cur.fetchone()["count"]
 
-            cur.execute(
-                sql.SQL(
-                    "SELECT COUNT(*)::INTEGER AS count FROM {}"
-                ).format(dim_analysis_run)
+        assert operational_run_count == dbt_run_count, (
+            "Analysis run count mismatch: "
+            f"operational={operational_run_count}, "
+            f"dbt={dbt_run_count}"
+        )
+
+        print(f"[PASS] Analysis run count: {operational_run_count}")
+
+        # 2. Accepted event parity
+        #
+        # fct_ingestion_attempts now preserves one row per durable
+        # audit attempt. event_id is intentionally not unique because
+        # accepted, duplicate, conflict, and rejected attempts may
+        # reference the same analytical event identity.
+        cur.execute(
+            sql.SQL("SELECT COUNT(*)::INTEGER AS count FROM {}").format(
+                analytical_events
             )
-            dbt_run_count = cur.fetchone()["count"]
+        )
+        committed_event_count = cur.fetchone()["count"]
 
-            assert operational_run_count == dbt_run_count, (
-                "Analysis run count mismatch: "
-                f"operational={operational_run_count}, "
-                f"dbt={dbt_run_count}"
-            )
-
-            print(
-                "[PASS] Analysis run count: "
-                f"{operational_run_count}"
-            )
-
-            # 2. Accepted event parity
-            #
-            # fct_ingestion_attempts now preserves one row per durable
-            # audit attempt. event_id is intentionally not unique because
-            # accepted, duplicate, conflict, and rejected attempts may
-            # reference the same analytical event identity.
-            cur.execute(
-                sql.SQL(
-                    "SELECT COUNT(*)::INTEGER AS count FROM {}"
-                ).format(analytical_events)
-            )
-            committed_event_count = cur.fetchone()["count"]
-
-            cur.execute(
-                sql.SQL(
-                    """
+        cur.execute(
+            sql.SQL(
+                """
                     SELECT COUNT(*)::INTEGER AS count
                     FROM {}
                     WHERE outcome = 'accepted'
                     """
-                ).format(fct_ingestion_attempts)
-            )
-            accepted_attempt_count = cur.fetchone()["count"]
+            ).format(fct_ingestion_attempts)
+        )
+        accepted_attempt_count = cur.fetchone()["count"]
 
-            assert committed_event_count == accepted_attempt_count, (
-                "Accepted event parity mismatch: "
-                f"committed_events={committed_event_count}, "
-                f"accepted_attempts={accepted_attempt_count}"
-            )
+        assert committed_event_count == accepted_attempt_count, (
+            "Accepted event parity mismatch: "
+            f"committed_events={committed_event_count}, "
+            f"accepted_attempts={accepted_attempt_count}"
+        )
 
-            print(
-                "[PASS] Accepted event count: "
-                f"{committed_event_count}"
-            )
+        print(f"[PASS] Accepted event count: {committed_event_count}")
 
-            # 3. Student appearance parity
-            cur.execute(
-                sql.SQL(
-                    "SELECT COUNT(*)::INTEGER AS count FROM {}"
-                ).format(v_run_scoped_students)
+        # 3. Student appearance parity
+        cur.execute(
+            sql.SQL("SELECT COUNT(*)::INTEGER AS count FROM {}").format(
+                v_run_scoped_students
             )
-            operational_student_appearances = cur.fetchone()["count"]
+        )
+        operational_student_appearances = cur.fetchone()["count"]
 
-            cur.execute(
-                sql.SQL(
-                    """
+        cur.execute(
+            sql.SQL(
+                """
                     SELECT
                         COALESCE(
                             SUM(student_appearances_count),
@@ -327,28 +312,24 @@ def verify_dbt_parity(
                         )::INTEGER AS count
                     FROM {}
                     """
-                ).format(mart_run_quality)
-            )
-            dbt_student_appearances = cur.fetchone()["count"]
+            ).format(mart_run_quality)
+        )
+        dbt_student_appearances = cur.fetchone()["count"]
 
-            assert (
-                operational_student_appearances
-                == dbt_student_appearances
-            ), (
-                "Student appearance mismatch: "
-                f"operational={operational_student_appearances}, "
-                f"dbt={dbt_student_appearances}"
-            )
+        assert operational_student_appearances == dbt_student_appearances, (
+            "Student appearance mismatch: "
+            f"operational={operational_student_appearances}, "
+            f"dbt={dbt_student_appearances}"
+        )
 
-            print(
-                "[PASS] Run-scoped student appearances: "
-                f"{operational_student_appearances}"
-            )
+        print(
+            f"[PASS] Run-scoped student appearances: {operational_student_appearances}"
+        )
 
-            # 4. Educator modification parity
-            cur.execute(
-                sql.SQL(
-                    """
+        # 4. Educator modification parity
+        cur.execute(
+            sql.SQL(
+                """
                     SELECT
                         COALESCE(
                             SUM(count_accepted),
@@ -368,25 +349,23 @@ def verify_dbt_parity(
                         )::INTEGER AS total_reviewed
                     FROM {}
                     """
-                ).format(v_educator_decisions)
-            )
-            operational_decisions = cur.fetchone()
+            ).format(v_educator_decisions)
+        )
+        operational_decisions = cur.fetchone()
 
-            operational_modification_count = (
-                operational_decisions["total_edited"]
-                + operational_decisions["total_dismissed"]
-            )
-            operational_reviewed_count = (
-                operational_decisions["total_reviewed"]
-            )
-            operational_rate = four_decimal_ratio(
-                operational_modification_count,
-                operational_reviewed_count,
-            )
+        operational_modification_count = (
+            operational_decisions["total_edited"]
+            + operational_decisions["total_dismissed"]
+        )
+        operational_reviewed_count = operational_decisions["total_reviewed"]
+        operational_rate = four_decimal_ratio(
+            operational_modification_count,
+            operational_reviewed_count,
+        )
 
-            cur.execute(
-                sql.SQL(
-                    """
+        cur.execute(
+            sql.SQL(
+                """
                     SELECT
                         COALESCE(
                             SUM(teacher_modifications_count),
@@ -398,128 +377,102 @@ def verify_dbt_parity(
                         )::INTEGER AS total_reviewed
                     FROM {}
                     """
-                ).format(mart_run_quality)
-            )
-            dbt_decisions = cur.fetchone()
+            ).format(mart_run_quality)
+        )
+        dbt_decisions = cur.fetchone()
 
-            dbt_modification_count = (
-                dbt_decisions["total_modifications"]
-            )
-            dbt_reviewed_count = dbt_decisions["total_reviewed"]
-            dbt_rate = four_decimal_ratio(
-                dbt_modification_count,
-                dbt_reviewed_count,
+        dbt_modification_count = dbt_decisions["total_modifications"]
+        dbt_reviewed_count = dbt_decisions["total_reviewed"]
+        dbt_rate = four_decimal_ratio(
+            dbt_modification_count,
+            dbt_reviewed_count,
+        )
+
+        assert operational_modification_count == dbt_modification_count, (
+            "Educator modification count mismatch: "
+            f"operational={operational_modification_count}, "
+            f"dbt={dbt_modification_count}"
+        )
+
+        assert operational_reviewed_count == dbt_reviewed_count, (
+            "Educator reviewed count mismatch: "
+            f"operational={operational_reviewed_count}, "
+            f"dbt={dbt_reviewed_count}"
+        )
+
+        assert operational_rate == dbt_rate, (
+            "Educator modification rate mismatch: "
+            f"operational={operational_rate}, "
+            f"dbt={dbt_rate}"
+        )
+
+        print(f"[PASS] Educator modification rate: {operational_rate}")
+
+        # 5. Concept prevalence parity
+        cur.execute(
+            sql.SQL(
+                """
+                    SELECT
+                        analysis_run_id,
+                        cluster_id,
+                        prevalence_rate
+                    FROM {}
+                    ORDER BY analysis_run_id, cluster_id
+                    """
+            ).format(v_cohort_prevalence)
+        )
+        operational_prevalence = cur.fetchall()
+
+        cur.execute(
+            sql.SQL(
+                """
+                    SELECT
+                        analysis_run_id,
+                        cluster_id,
+                        prevalence_rate
+                    FROM {}
+                    ORDER BY analysis_run_id, cluster_id
+                    """
+            ).format(mart_concept_prevalence)
+        )
+        dbt_prevalence = cur.fetchall()
+
+        assert len(operational_prevalence) == len(dbt_prevalence), (
+            "Concept prevalence row-count mismatch: "
+            f"operational={len(operational_prevalence)}, "
+            f"dbt={len(dbt_prevalence)}"
+        )
+
+        for operational_row, dbt_row in zip(
+            operational_prevalence,
+            dbt_prevalence,
+            strict=True,
+        ):
+            assert operational_row["analysis_run_id"] == dbt_row["analysis_run_id"], (
+                "Concept prevalence analysis_run_id mismatch: "
+                f"operational={operational_row['analysis_run_id']}, "
+                f"dbt={dbt_row['analysis_run_id']}"
             )
 
-            assert (
-                operational_modification_count
-                == dbt_modification_count
-            ), (
-                "Educator modification count mismatch: "
-                f"operational={operational_modification_count}, "
-                f"dbt={dbt_modification_count}"
+            assert operational_row["cluster_id"] == dbt_row["cluster_id"], (
+                "Concept prevalence cluster_id mismatch: "
+                f"operational={operational_row['cluster_id']}, "
+                f"dbt={dbt_row['cluster_id']}"
             )
 
-            assert operational_reviewed_count == dbt_reviewed_count, (
-                "Educator reviewed count mismatch: "
-                f"operational={operational_reviewed_count}, "
-                f"dbt={dbt_reviewed_count}"
-            )
+            operational_rate = decimal_or_none(operational_row["prevalence_rate"])
+            dbt_rate = decimal_or_none(dbt_row["prevalence_rate"])
 
             assert operational_rate == dbt_rate, (
-                "Educator modification rate mismatch: "
+                "Concept prevalence rate mismatch for "
+                f"{operational_row['cluster_id']}: "
                 f"operational={operational_rate}, "
                 f"dbt={dbt_rate}"
             )
 
-            print(
-                "[PASS] Educator modification rate: "
-                f"{operational_rate}"
-            )
+        print(f"[PASS] Concept prevalence rows: {len(operational_prevalence)}")
 
-            # 5. Concept prevalence parity
-            cur.execute(
-                sql.SQL(
-                    """
-                    SELECT
-                        analysis_run_id,
-                        cluster_id,
-                        prevalence_rate
-                    FROM {}
-                    ORDER BY analysis_run_id, cluster_id
-                    """
-                ).format(v_cohort_prevalence)
-            )
-            operational_prevalence = cur.fetchall()
-
-            cur.execute(
-                sql.SQL(
-                    """
-                    SELECT
-                        analysis_run_id,
-                        cluster_id,
-                        prevalence_rate
-                    FROM {}
-                    ORDER BY analysis_run_id, cluster_id
-                    """
-                ).format(mart_concept_prevalence)
-            )
-            dbt_prevalence = cur.fetchall()
-
-            assert len(operational_prevalence) == len(
-                dbt_prevalence
-            ), (
-                "Concept prevalence row-count mismatch: "
-                f"operational={len(operational_prevalence)}, "
-                f"dbt={len(dbt_prevalence)}"
-            )
-
-            for operational_row, dbt_row in zip(
-                operational_prevalence,
-                dbt_prevalence,
-                strict=True,
-            ):
-                assert (
-                    operational_row["analysis_run_id"]
-                    == dbt_row["analysis_run_id"]
-                ), (
-                    "Concept prevalence analysis_run_id mismatch: "
-                    f"operational={operational_row['analysis_run_id']}, "
-                    f"dbt={dbt_row['analysis_run_id']}"
-                )
-
-                assert (
-                    operational_row["cluster_id"]
-                    == dbt_row["cluster_id"]
-                ), (
-                    "Concept prevalence cluster_id mismatch: "
-                    f"operational={operational_row['cluster_id']}, "
-                    f"dbt={dbt_row['cluster_id']}"
-                )
-
-                operational_rate = decimal_or_none(
-                    operational_row["prevalence_rate"]
-                )
-                dbt_rate = decimal_or_none(
-                    dbt_row["prevalence_rate"]
-                )
-
-                assert operational_rate == dbt_rate, (
-                    "Concept prevalence rate mismatch for "
-                    f"{operational_row['cluster_id']}: "
-                    f"operational={operational_rate}, "
-                    f"dbt={dbt_rate}"
-                )
-
-            print(
-                "[PASS] Concept prevalence rows: "
-                f"{len(operational_prevalence)}"
-            )
-
-    print(
-        "SUCCESS: Operational and dbt analytical parity "
-        "verified with no mismatches."
-    )
+    print("SUCCESS: Operational and dbt analytical parity verified with no mismatches.")
 
 
 def main() -> int:
@@ -538,7 +491,7 @@ def main() -> int:
             database_url=database_url,
             manifest_path=manifest_path,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(
             f"ERROR: Parity verification failed: {exc}",
             file=sys.stderr,

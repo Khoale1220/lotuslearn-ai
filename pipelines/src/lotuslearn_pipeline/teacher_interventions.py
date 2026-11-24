@@ -17,7 +17,6 @@ from uuid import UUID
 
 from psycopg.types.json import Jsonb
 
-
 _ALLOWED_FIELDS = frozenset(
     {
         "interventionKey",
@@ -77,13 +76,9 @@ def _canonical_created_at(value: Any) -> datetime:
         try:
             parsed = datetime.fromisoformat(candidate)
         except ValueError as exc:
-            raise ValueError(
-                "createdAt must be an ISO-8601 timestamp"
-            ) from exc
+            raise ValueError("createdAt must be an ISO-8601 timestamp") from exc
     else:
-        raise ValueError(
-            "createdAt must be a datetime or ISO-8601 string"
-        )
+        raise ValueError("createdAt must be a datetime or ISO-8601 string")
 
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError("createdAt must include a timezone")
@@ -104,9 +99,7 @@ def _canonical_provenance(value: Any) -> dict[str, Any]:
         )
         canonical = json.loads(encoded)
     except (TypeError, ValueError) as exc:
-        raise ValueError(
-            "provenance must contain JSON-compatible values"
-        ) from exc
+        raise ValueError("provenance must contain JSON-compatible values") from exc
 
     if not isinstance(canonical, dict):
         raise ValueError("provenance must be an object")
@@ -132,17 +125,13 @@ def canonicalize_teacher_intervention(
 
     if unknown:
         raise ValueError(
-            "unsupported intervention fields: "
-            + ", ".join(sorted(str(item) for item in unknown))
+            "unsupported intervention fields: " + ", ".join(sorted(str(item) for item in unknown))
         )
 
     missing = _REQUIRED_FIELDS - supplied
 
     if missing:
-        raise ValueError(
-            "missing intervention fields: "
-            + ", ".join(sorted(missing))
-        )
+        raise ValueError("missing intervention fields: " + ", ".join(sorted(missing)))
 
     analysis_key = intervention.get("analysisKey")
 
@@ -153,9 +142,7 @@ def canonicalize_teacher_intervention(
         )
 
     return {
-        "interventionKey": _canonical_uuid(
-            intervention["interventionKey"]
-        ),
+        "interventionKey": _canonical_uuid(intervention["interventionKey"]),
         "studentKey": _require_non_empty_string(
             intervention["studentKey"],
             "studentKey",
@@ -165,12 +152,8 @@ def canonicalize_teacher_intervention(
             "actionType",
         ),
         "analysisKey": analysis_key,
-        "createdAt": _canonical_created_at(
-            intervention["createdAt"]
-        ),
-        "provenance": _canonical_provenance(
-            intervention["provenance"]
-        ),
+        "createdAt": _canonical_created_at(intervention["createdAt"]),
+        "provenance": _canonical_provenance(intervention["provenance"]),
     }
 
 
@@ -237,9 +220,7 @@ def persist_teacher_intervention(
     intervention key for a different canonical payload fails closed.
     """
 
-    canonical = canonicalize_teacher_intervention(
-        intervention
-    )
+    canonical = canonicalize_teacher_intervention(intervention)
 
     cursor.execute(
         """
@@ -290,16 +271,10 @@ def persist_teacher_intervention(
     )
 
     if existing is None:
-        raise RuntimeError(
-            "intervention conflict occurred but existing row "
-            "could not be loaded"
-        )
+        raise RuntimeError("intervention conflict occurred but existing row could not be loaded")
 
     if existing != canonical:
-        raise ValueError(
-            "interventionKey already exists with a different "
-            "canonical payload"
-        )
+        raise ValueError("interventionKey already exists with a different canonical payload")
 
     return existing, False
 

@@ -66,9 +66,7 @@ def handle_verify(db: Any) -> int:
             conn = db.get_connection()
             status_list = get_migration_status(conn)
             unapplied = [s for s in status_list if not s["applied"]]
-            invalid_checksums = [
-                s for s in status_list if s["applied"] and not s["checksum_valid"]
-            ]
+            invalid_checksums = [s for s in status_list if s["applied"] and not s["checksum_valid"]]
 
             print("\n--- PostgreSQL Database Verification ---")
             print("Connectivity:                  PASS")
@@ -186,15 +184,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument("--batch-id", help="Operational batch UUID")
     parser.add_argument("--execution-id", help="Unique execution UUID")
-    parser.add_argument(
-        "--attempt-number", type=int, help="Positive batch attempt number"
-    )
+    parser.add_argument("--attempt-number", type=int, help="Positive batch attempt number")
     args = parser.parse_args(argv)
     command = args.command_flag or args.command
 
     has_identity = any(
-        value is not None
-        for value in (args.batch_id, args.execution_id, args.attempt_number)
+        value is not None for value in (args.batch_id, args.execution_id, args.attempt_number)
     )
     if has_identity and not args.track_execution:
         parser.error("Execution identity options require --track-execution")
@@ -203,8 +198,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if command not in (None, "ingest") or args.input is None:
             parser.error("--track-execution requires ingest with --input")
         if not all(
-            value is not None
-            for value in (args.batch_id, args.execution_id, args.attempt_number)
+            value is not None for value in (args.batch_id, args.execution_id, args.attempt_number)
         ):
             parser.error("Tracked ingest requires all three identity options")
         try:
@@ -215,9 +209,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.attempt_number <= 0:
             parser.error("--attempt-number must be positive")
 
-        database_url = args.db or os.environ.get(
-            "LOTUSLEARN_DATABASE_URL", ""
-        ).strip()
+        database_url = args.db or os.environ.get("LOTUSLEARN_DATABASE_URL", "").strip()
         if not database_url.startswith(("postgresql://", "postgres://")):
             parser.error("Tracked execution requires a PostgreSQL --db or URL")
 
@@ -273,10 +265,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 raise
 
             results = tracked.results
-            print(
-                f"Loaded {tracked.report.total_attempted} candidate events "
-                f"from {args.input}"
-            )
+            print(f"Loaded {tracked.report.total_attempted} candidate events from {args.input}")
         else:
             events = load_events_from_file(args.input)
             print(f"Loaded {len(events)} candidate events from {args.input}")
@@ -295,11 +284,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"Rejected:        {rejected_count}")
 
         if args.reconcile:
-            report = (
-                tracked.report
-                if args.track_execution
-                else reconcile_batch(results)
-            )
+            report = tracked.report if args.track_execution else reconcile_batch(results)
             print("\n" + report.format_summary())
 
         if rejected_count > 0 or conflict_count > 0:

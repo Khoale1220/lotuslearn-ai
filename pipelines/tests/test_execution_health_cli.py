@@ -40,10 +40,14 @@ def test_empty_running_set_is_healthy(monkeypatch, capsys):
         lambda *args, **kwargs: [],
     )
 
-    rc = cli.main([
-        "--db", URL,
-        "--stale-after-seconds", "900",
-    ])
+    rc = cli.main(
+        [
+            "--db",
+            URL,
+            "--stale-after-seconds",
+            "900",
+        ]
+    )
 
     report = json.loads(capsys.readouterr().out)
 
@@ -87,10 +91,14 @@ def test_health_classification(
         lambda *args, **kwargs: [sample],
     )
 
-    rc = cli.main([
-        "--db", URL,
-        "--stale-after-seconds", "900",
-    ])
+    rc = cli.main(
+        [
+            "--db",
+            URL,
+            "--stale-after-seconds",
+            "900",
+        ]
+    )
 
     report = json.loads(capsys.readouterr().out)
 
@@ -114,11 +122,16 @@ def test_query_parameters_are_forwarded(monkeypatch, capsys):
         fake_monitor,
     )
 
-    rc = cli.main([
-        "--db", URL,
-        "--stale-after-seconds", "120",
-        "--limit", "25",
-    ])
+    rc = cli.main(
+        [
+            "--db",
+            URL,
+            "--stale-after-seconds",
+            "120",
+            "--limit",
+            "25",
+        ]
+    )
 
     capsys.readouterr()
 
@@ -158,11 +171,16 @@ def test_limit_saturation_fails_closed(monkeypatch, capsys):
         lambda *args, **kwargs: [sample],
     )
 
-    rc = cli.main([
-        "--db", URL,
-        "--stale-after-seconds", "900",
-        "--limit", "1",
-    ])
+    rc = cli.main(
+        [
+            "--db",
+            URL,
+            "--stale-after-seconds",
+            "900",
+            "--limit",
+            "1",
+        ]
+    )
 
     report = json.loads(capsys.readouterr().out)
 
@@ -183,9 +201,12 @@ def test_limit_saturation_fails_closed(monkeypatch, capsys):
 )
 def test_invalid_numeric_options_fail(argument, value):
     args = [
-        "--db", URL,
-        "--stale-after-seconds", "900",
-        argument, value,
+        "--db",
+        URL,
+        "--stale-after-seconds",
+        "900",
+        argument,
+        value,
     ]
 
     with pytest.raises(SystemExit) as error:
@@ -196,10 +217,14 @@ def test_invalid_numeric_options_fail(argument, value):
 
 def test_non_postgres_database_rejected():
     with pytest.raises(SystemExit) as error:
-        cli.main([
-            "--db", "sqlite://local",
-            "--stale-after-seconds", "900",
-        ])
+        cli.main(
+            [
+                "--db",
+                "sqlite://local",
+                "--stale-after-seconds",
+                "900",
+            ]
+        )
 
     assert error.value.code == 2
 
@@ -231,10 +256,14 @@ def test_database_error_does_not_leak_secrets(
         failing_monitor,
     )
 
-    rc = cli.main([
-        "--db", URL,
-        "--stale-after-seconds", "900",
-    ])
+    rc = cli.main(
+        [
+            "--db",
+            URL,
+            "--stale-after-seconds",
+            "900",
+        ]
+    )
 
     output = capsys.readouterr()
 
@@ -253,11 +282,16 @@ def test_text_output(monkeypatch, capsys):
         lambda *args, **kwargs: [sample],
     )
 
-    rc = cli.main([
-        "--db", URL,
-        "--stale-after-seconds", "900",
-        "--format", "text",
-    ])
+    rc = cli.main(
+        [
+            "--db",
+            URL,
+            "--stale-after-seconds",
+            "900",
+            "--format",
+            "text",
+        ]
+    )
 
     output = capsys.readouterr().out
 

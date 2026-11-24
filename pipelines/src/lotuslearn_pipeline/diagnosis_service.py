@@ -107,9 +107,7 @@ def _require_non_empty_string(
     )
 
     if not text.strip():
-        raise ValueError(
-            f"{field} must be a non-empty string"
-        )
+        raise ValueError(f"{field} must be a non-empty string")
 
     return text
 
@@ -123,20 +121,13 @@ def _require_probability(
     if value is None:
         return default
 
-    if (
-        not isinstance(value, (int, float))
-        or isinstance(value, bool)
-    ):
-        raise ValueError(
-            f"{field} must be numeric"
-        )
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"{field} must be numeric")
 
     probability = float(value)
 
     if probability < 0 or probability > 1:
-        raise ValueError(
-            f"{field} must be between 0 and 1"
-        )
+        raise ValueError(f"{field} must be between 0 and 1")
 
     return probability
 
@@ -144,9 +135,7 @@ def _require_probability(
 def _js_round_nonnegative(
     value: float,
 ) -> int:
-    return int(
-        math.floor(value + 0.5)
-    )
+    return int(math.floor(value + 0.5))
 
 
 def _decode_provider_payload(
@@ -171,10 +160,7 @@ def _decode_provider_payload(
             decoded = json.loads(cleaned)
 
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                "provider_result.text contains malformed JSON: "
-                f"{exc.msg}"
-            ) from exc
+            raise ValueError(f"provider_result.text contains malformed JSON: {exc.msg}") from exc
 
     return _require_mapping(
         decoded,
@@ -192,19 +178,13 @@ def _normalize_evidence_examples(
 
     items = _require_list(
         value,
-        field=(
-            f"misconceptionClusters[{cluster_index}]"
-            ".evidenceExamples"
-        ),
+        field=(f"misconceptionClusters[{cluster_index}].evidenceExamples"),
     )
 
     normalized: list[JsonObject] = []
 
     for evidence_index, item in enumerate(items):
-        field = (
-            f"misconceptionClusters[{cluster_index}]"
-            f".evidenceExamples[{evidence_index}]"
-        )
+        field = f"misconceptionClusters[{cluster_index}].evidenceExamples[{evidence_index}]"
 
         evidence = _require_mapping(
             item,
@@ -235,15 +215,11 @@ def _normalize_evidence_examples(
             )
 
             if source_type not in _SOURCE_TYPES:
-                raise ValueError(
-                    f"{field}.sourceType is invalid"
-                )
+                raise ValueError(f"{field}.sourceType is invalid")
 
             normalized_item["sourceType"] = source_type
 
-        deterministic_match = evidence.get(
-            "deterministicMatch"
-        )
+        deterministic_match = evidence.get("deterministicMatch")
 
         if deterministic_match is not None:
             deterministic_match = _require_string(
@@ -252,9 +228,7 @@ def _normalize_evidence_examples(
             )
 
             if deterministic_match not in _DETERMINISTIC_MATCHES:
-                raise ValueError(
-                    f"{field}.deterministicMatch is invalid"
-                )
+                raise ValueError(f"{field}.deterministicMatch is invalid")
 
             normalized_item["deterministicMatch"] = deterministic_match
 
@@ -308,16 +282,11 @@ def _normalize_clusters(
 
         affected: list[str] = []
 
-        for student_index, student_id in enumerate(
-            affected_raw
-        ):
+        for student_index, student_id in enumerate(affected_raw):
             affected.append(
                 _require_string(
                     student_id,
-                    field=(
-                        f"{field}.affectedStudentIds"
-                        f"[{student_index}]"
-                    ),
+                    field=(f"{field}.affectedStudentIds[{student_index}]"),
                 )
             )
 
@@ -332,9 +301,7 @@ def _normalize_clusters(
         )
 
         if teaching_priority not in _TEACHING_PRIORITIES:
-            raise ValueError(
-                f"{field}.teachingPriority is invalid"
-            )
+            raise ValueError(f"{field}.teachingPriority is invalid")
 
         confidence = _require_probability(
             cluster.get("confidence"),
@@ -343,13 +310,8 @@ def _normalize_clusters(
         )
 
         recommended_response = _require_string(
-            cluster.get(
-                "recommendedInstructionalResponse"
-            ),
-            field=(
-                f"{field}."
-                "recommendedInstructionalResponse"
-            ),
+            cluster.get("recommendedInstructionalResponse"),
+            field=(f"{field}.recommendedInstructionalResponse"),
         )
 
         count = len(affected)
@@ -358,16 +320,12 @@ def _normalize_clusters(
             observation_count,
         )
 
-        percentage = _js_round_nonnegative(
-            count / denominator * 100
-        )
+        percentage = _js_round_nonnegative(count / denominator * 100)
 
         normalized.append(
             {
                 "clusterId": cluster_id or f"cluster-{index + 1}",
-                "misconceptionTitle": (
-                    title or f"Misconception {index + 1}"
-                ),
+                "misconceptionTitle": (title or f"Misconception {index + 1}"),
                 "explanation": explanation,
                 "affectedStudentIds": affected,
                 "studentCount": count,
@@ -400,9 +358,7 @@ def _normalize_snapshot(
             "totalSubmissions": observation_count,
             "misconceptionCount": cluster_count,
             "strongestConcept": "Core objective foundation",
-            "highestPriorityNeed": (
-                "Targeted misconception remediation"
-            ),
+            "highestPriorityNeed": ("Targeted misconception remediation"),
             "overallRecommendation": (
                 "Address the highest-prevalence misconception "
                 "in tomorrow's opening diagnostic review."
@@ -426,10 +382,7 @@ def _normalize_snapshot(
 
     recommendation = snapshot.get(
         "overallRecommendation",
-        (
-            "Address highest-prevalence misconception "
-            "in tomorrow warm-up."
-        ),
+        ("Address highest-prevalence misconception in tomorrow warm-up."),
     )
 
     return {
@@ -464,17 +417,11 @@ def diagnose_class_patterns_from_provider_result(
         observations,
         (str, bytes, bytearray),
     ):
-        raise ValueError(
-            "observations must be an array"
-        )
+        raise ValueError("observations must be an array")
 
-    normalized_observations: list[
-        Mapping[str, Any]
-    ] = []
+    normalized_observations: list[Mapping[str, Any]] = []
 
-    for index, observation in enumerate(
-        observations
-    ):
+    for index, observation in enumerate(observations):
         normalized_observations.append(
             _require_mapping(
                 observation,
@@ -487,22 +434,16 @@ def diagnose_class_patterns_from_provider_result(
         field="provider_result",
     )
 
-    raw = _decode_provider_payload(
-        provider_result
-    )
+    raw = _decode_provider_payload(provider_result)
 
     clusters = _normalize_clusters(
         raw.get("misconceptionClusters"),
-        observation_count=len(
-            normalized_observations
-        ),
+        observation_count=len(normalized_observations),
     )
 
     snapshot = _normalize_snapshot(
         raw.get("classSnapshot"),
-        observation_count=len(
-            normalized_observations
-        ),
+        observation_count=len(normalized_observations),
         cluster_count=len(clusters),
     )
 
@@ -511,25 +452,16 @@ def diagnose_class_patterns_from_provider_result(
         field="provider_result.modelUsed",
     )
 
-    duration = provider_result.get(
-        "durationMs"
-    )
+    duration = provider_result.get("durationMs")
 
-    if (
-        not isinstance(
-            duration,
-            (int, float),
-        )
-        or isinstance(duration, bool)
-    ):
-        raise ValueError(
-            "provider_result.durationMs must be numeric"
-        )
+    if not isinstance(
+        duration,
+        (int, float),
+    ) or isinstance(duration, bool):
+        raise ValueError("provider_result.durationMs must be numeric")
 
     if duration < 0:
-        raise ValueError(
-            "provider_result.durationMs must be non-negative"
-        )
+        raise ValueError("provider_result.durationMs must be non-negative")
 
     telemetry = dict(
         _require_mapping(
@@ -562,17 +494,11 @@ def diagnose_class_patterns(
         observations,
         (str, bytes, bytearray),
     ):
-        raise ValueError(
-            "observations must be an array"
-        )
+        raise ValueError("observations must be an array")
 
-    normalized_observations: list[
-        Mapping[str, Any]
-    ] = []
+    normalized_observations: list[Mapping[str, Any]] = []
 
-    for index, observation in enumerate(
-        observations
-    ):
+    for index, observation in enumerate(observations):
         normalized_observations.append(
             _require_mapping(
                 observation,

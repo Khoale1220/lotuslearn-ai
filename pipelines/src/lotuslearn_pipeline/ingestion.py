@@ -22,13 +22,15 @@ PHONE_REGEX = re.compile(
 
 HEX_64_REGEX = re.compile(r"^[0-9a-f]{64}$")
 
-ALLOWED_EVENT_TYPES = frozenset({
-    "ANALYSIS_INGESTED",
-    "FINDING_IDENTIFIED",
-    "GROUP_FORMED",
-    "VERIFICATION_AUDITED",
-    "DECISION_RECORDED",
-})
+ALLOWED_EVENT_TYPES = frozenset(
+    {
+        "ANALYSIS_INGESTED",
+        "FINDING_IDENTIFIED",
+        "GROUP_FORMED",
+        "VERIFICATION_AUDITED",
+        "DECISION_RECORDED",
+    }
+)
 
 SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.0.0"})
 
@@ -121,6 +123,7 @@ class AnalyticalEventValidator:
         Enforce fail-closed zero-PII check.
         Never echo or log candidate PII text in error diagnostics.
         """
+
         def check_forbidden_keys(node: Any) -> Optional[str]:
             if isinstance(node, dict):
                 for k, v in node.items():

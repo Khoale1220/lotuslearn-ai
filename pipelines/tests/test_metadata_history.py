@@ -27,12 +27,10 @@ BASE_TIME = datetime(2026, 11, 9, 12, 0, tzinfo=timezone.utc)
 
 
 def connect_test_database(*, autocommit=False):
-    conn = psycopg.connect(
-        TEST_DATABASE_URL, autocommit=autocommit, row_factory=dict_row
-    )
-    database_name = conn.execute(
-        "SELECT current_database() AS database_name;"
-    ).fetchone()["database_name"]
+    conn = psycopg.connect(TEST_DATABASE_URL, autocommit=autocommit, row_factory=dict_row)
+    database_name = conn.execute("SELECT current_database() AS database_name;").fetchone()[
+        "database_name"
+    ]
     if database_name != "lotuslearn_test":
         conn.close()
         raise RuntimeError("Refusing metadata history test access outside lotuslearn_test")
@@ -103,9 +101,7 @@ def history_store():
 
 
 def test_snapshot_identity_is_observation_id_not_semantic_checksum(history_store):
-    first = make_snapshot(
-        "observation-a", extraction_sources=["postgres:catalog-a"]
-    )
+    first = make_snapshot("observation-a", extraction_sources=["postgres:catalog-a"])
     second = make_snapshot(
         "observation-b",
         generated_at=BASE_TIME + timedelta(minutes=1),
@@ -181,9 +177,7 @@ def test_record_comparison_persists_snapshots_and_verified_diff(history_store):
 def test_same_comparison_id_allows_distinct_observation_pairs(history_store):
     baseline_a = make_snapshot("baseline-a")
     current_a = make_snapshot("current-a", field_names=("id", "amount"))
-    baseline_b = make_snapshot(
-        "baseline-b", generated_at=BASE_TIME + timedelta(minutes=2)
-    )
+    baseline_b = make_snapshot("baseline-b", generated_at=BASE_TIME + timedelta(minutes=2))
     current_b = make_snapshot(
         "current-b",
         generated_at=BASE_TIME + timedelta(minutes=3),
@@ -236,9 +230,7 @@ def test_concurrent_same_comparison_pair_creates_one_row(history_store):
     current = make_snapshot("concurrent-current", field_names=("id", "amount"))
     with ThreadPoolExecutor(max_workers=8) as executor:
         results = list(
-            executor.map(
-                lambda _: history_store.record_comparison(baseline, current), range(8)
-            )
+            executor.map(lambda _: history_store.record_comparison(baseline, current), range(8))
         )
 
     assert sum(result.outcome == MetadataHistoryWriteOutcome.INSERTED for result in results) == 1
@@ -314,9 +306,7 @@ def test_snapshot_summary_corruption_fails_closed(history_store):
 @pytest.mark.parametrize("corruption", ["payload", "summary"])
 def test_comparison_corruption_fails_closed(history_store, corruption):
     baseline = make_snapshot(f"corrupt-diff-baseline-{corruption}")
-    current = make_snapshot(
-        f"corrupt-diff-current-{corruption}", field_names=("id", "amount")
-    )
+    current = make_snapshot(f"corrupt-diff-current-{corruption}", field_names=("id", "amount"))
     history_store.record_comparison(baseline, current)
     with connect_test_database() as conn:
         if corruption == "payload":
@@ -349,9 +339,7 @@ def test_latest_and_keyset_pagination_use_deterministic_tie_breaker(history_stor
     assert history_store.get_latest_snapshot().snapshot_id == "tie-c"
     first_page = history_store.list_snapshots(limit=2)
     assert [item.snapshot_id for item in first_page] == ["tie-c", "tie-b"]
-    second_page = history_store.list_snapshots(
-        limit=2, before=(BASE_TIME, "tie-b")
-    )
+    second_page = history_store.list_snapshots(limit=2, before=(BASE_TIME, "tie-b"))
     assert [item.snapshot_id for item in second_page] == ["tie-a"]
 
 
@@ -398,9 +386,7 @@ def test_database_schema_has_required_constraints_foreign_keys_and_indexes(histo
               AND tablename IN ('metadata_snapshot_history', 'metadata_diff_history');
             """
         ).fetchall()
-        migration_names = {
-            migration[1] for migration in get_postgres_migration_files()
-        }
+        migration_names = {migration[1] for migration in get_postgres_migration_files()}
 
     assert sum(row["contype"] == "p" for row in constraint_rows) == 2
     assert sum(row["contype"] == "f" for row in constraint_rows) == 2

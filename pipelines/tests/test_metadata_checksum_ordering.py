@@ -40,9 +40,7 @@ def test_checksum_round_trip_survives_sensitive_field_redaction_order_change():
 
     for token in sorted(metadata.PROHIBITED_PII_TOKENS):
         candidate = f"zz_{token}"
-        sanitized = metadata._sanitize_metadata_serialization(
-            {"field_name": candidate}
-        )
+        sanitized = metadata._sanitize_metadata_serialization({"field_name": candidate})
 
         if sanitized["field_name"] == "<redacted>":
             sensitive_name = candidate
@@ -68,10 +66,7 @@ def test_checksum_round_trip_survives_sensitive_field_redaction_order_change():
 
     serialized = snapshot.to_dict()
 
-    serialized_names = [
-        field["field_name"]
-        for field in serialized["fields"]
-    ]
+    serialized_names = [field["field_name"] for field in serialized["fields"]]
 
     assert "direction" in serialized_names
     assert "<redacted>" in serialized_names

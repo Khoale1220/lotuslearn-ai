@@ -121,9 +121,7 @@ def test_untrusted_event_id_with_email_is_sanitized_and_never_leaked(
     assert res.event_id == "invalid_event_id"
 
 
-def test_untrusted_event_id_with_phone_is_sanitized(
-    validator, sample_ingested_event
-):
+def test_untrusted_event_id_with_phone_is_sanitized(validator, sample_ingested_event):
     sensitive_phone = "+84901234567"
     bad_event = dict(sample_ingested_event)
     bad_event["event_id"] = sensitive_phone
@@ -169,9 +167,7 @@ def test_sanitize_event_id_is_strictly_idempotent():
         "091-234-5678",
     ],
 )
-def test_vietnamese_phone_formats_detected_in_payload(
-    validator, sample_finding_event, vn_phone
-):
+def test_vietnamese_phone_formats_detected_in_payload(validator, sample_finding_event, vn_phone):
     leaked_event = dict(sample_finding_event)
     leaked_event["explanation"] = f"Teacher notes with contact {vn_phone}"
 
@@ -181,9 +177,7 @@ def test_vietnamese_phone_formats_detected_in_payload(
     assert vn_phone not in (res.rejection_reason or "")
 
 
-def test_unsupported_schema_version_rejected(
-    validator, sample_ingested_event
-):
+def test_unsupported_schema_version_rejected(validator, sample_ingested_event):
     bad_future_event = dict(sample_ingested_event)
     bad_future_event["schema_version"] = "2.0.0"
 
@@ -225,9 +219,7 @@ def test_unhashable_schema_version_returns_structured_rejection(
     assert str(unhashable_version) not in (res.rejection_reason or "")
 
 
-def test_untrusted_event_type_sanitized(
-    validator, sample_ingested_event
-):
+def test_untrusted_event_type_sanitized(validator, sample_ingested_event):
     bad_event = dict(sample_ingested_event)
     bad_event["event_type"] = "MALICIOUS_TYPE_student.name@district.k12.us"
 
@@ -237,9 +229,7 @@ def test_untrusted_event_type_sanitized(
     assert "student.name@district.k12.us" not in (res.rejection_reason or "")
 
 
-def test_valid_64_hex_event_id_preserved_when_schema_fails(
-    validator, sample_ingested_event
-):
+def test_valid_64_hex_event_id_preserved_when_schema_fails(validator, sample_ingested_event):
     bad_event = dict(sample_ingested_event)
     del bad_event["subject"]  # Missing required field
 

@@ -137,9 +137,7 @@ class PostgresMetadataHistoryStore:
     def _connect(self) -> psycopg.Connection:
         return psycopg.connect(self._database_url, row_factory=dict_row)
 
-    def _stored_snapshot(
-        self, row: dict[str, Any]
-    ) -> tuple[MetadataSnapshot, dict[str, Any]]:
+    def _stored_snapshot(self, row: dict[str, Any]) -> tuple[MetadataSnapshot, dict[str, Any]]:
         try:
             payload = _decode_payload(row["payload_json"])
             snapshot = MetadataSnapshot.from_dict(payload)
@@ -309,10 +307,9 @@ class PostgresMetadataHistoryStore:
             "baseline_snapshot_id": baseline_snapshot_id,
             "current_snapshot_id": current_snapshot_id,
         }
-        if (
-            any(existing[key] != value for key, value in expected_summary.items())
-            or _canonical_json(existing_payload) != _canonical_json(payload)
-        ):
+        if any(
+            existing[key] != value for key, value in expected_summary.items()
+        ) or _canonical_json(existing_payload) != _canonical_json(payload):
             raise MetadataHistoryConflictError(
                 "Metadata comparison observation identity has different immutable content"
             )
@@ -410,10 +407,9 @@ class PostgresMetadataHistoryStore:
                         "Metadata comparison snapshots failed integrity verification"
                     ) from None
                 stored_payload = _decode_payload(row["payload_json"])
-                if (
-                    any(row[key] != value for key, value in _diff_summary(diff).items())
-                    or _canonical_json(stored_payload) != _canonical_json(diff.to_dict())
-                ):
+                if any(
+                    row[key] != value for key, value in _diff_summary(diff).items()
+                ) or _canonical_json(stored_payload) != _canonical_json(diff.to_dict()):
                     raise MetadataHistoryIntegrityError(
                         "Persisted metadata comparison failed integrity verification"
                     )

@@ -12,9 +12,7 @@ from lotuslearn_pipeline.diagnosis_service import (
 
 def _context() -> dict[str, str]:
     return {
-        "learningObjective": (
-            "Distinguish present perfect from past simple."
-        ),
+        "learningObjective": ("Distinguish present perfect from past simple."),
     }
 
 
@@ -40,29 +38,19 @@ def _payload() -> dict[str, object]:
             "misconceptionCount": 999,
             "strongestConcept": "Experience language",
             "highestPriorityNeed": "Finished-time adverbs",
-            "overallRecommendation": (
-                "Contrast finished and unfinished time."
-            ),
+            "overallRecommendation": ("Contrast finished and unfinished time."),
         },
         "misconceptionClusters": [
             {
                 "clusterId": "cluster-1",
                 "misconceptionTitle": "Finished-time adverbs",
-                "explanation": (
-                    "Students combine incompatible time framing."
-                ),
-                "affectedStudentIds": [
-                    "S-01"
-                ],
+                "explanation": ("Students combine incompatible time framing."),
+                "affectedStudentIds": ["S-01"],
                 "evidenceExamples": [
                     {
                         "studentId": "S-01",
-                        "excerpt": (
-                            "I have visited Hue last year."
-                        ),
-                        "groundingReason": (
-                            "The quote combines both forms."
-                        ),
+                        "excerpt": ("I have visited Hue last year."),
+                        "groundingReason": ("The quote combines both forms."),
                     }
                 ],
                 "teachingPriority": "urgent",
@@ -97,9 +85,7 @@ def test_recomputes_counts_and_rounding() -> None:
     result = diagnose_class_patterns_from_provider_result(
         _context(),
         _observations(8),
-        _provider_result(
-            _payload()
-        ),
+        _provider_result(_payload()),
     )
 
     assert result.class_snapshot["totalSubmissions"] == 8
@@ -127,10 +113,7 @@ def test_preserves_provider_metadata() -> None:
 
     assert contract["modelUsed"] == "gemini-test-model"
     assert contract["durationMs"] == 42.0
-    assert (
-        contract["telemetry"]["actualModel"]
-        == "gemini-test-model"
-    )
+    assert contract["telemetry"]["actualModel"] == "gemini-test-model"
 
 
 def test_applies_current_defaults() -> None:
@@ -150,20 +133,14 @@ def test_applies_current_defaults() -> None:
         dict,
     )
 
-    cluster.pop(
-        "teachingPriority"
-    )
+    cluster.pop("teachingPriority")
 
-    cluster.pop(
-        "confidence"
-    )
+    cluster.pop("confidence")
 
     result = diagnose_class_patterns_from_provider_result(
         _context(),
         _observations(),
-        _provider_result(
-            payload
-        ),
+        _provider_result(payload),
     )
 
     normalized = result.misconception_clusters[0]
@@ -189,9 +166,7 @@ def test_rejects_missing_required_response() -> None:
         dict,
     )
 
-    cluster.pop(
-        "recommendedInstructionalResponse"
-    )
+    cluster.pop("recommendedInstructionalResponse")
 
     with pytest.raises(
         ValueError,
@@ -200,16 +175,12 @@ def test_rejects_missing_required_response() -> None:
         diagnose_class_patterns_from_provider_result(
             _context(),
             _observations(),
-            _provider_result(
-                payload
-            ),
+            _provider_result(payload),
         )
 
 
 def test_rejects_malformed_json() -> None:
-    provider_result = _provider_result(
-        _payload()
-    )
+    provider_result = _provider_result(_payload())
 
     provider_result["text"] = "{not-json"
 
@@ -225,17 +196,9 @@ def test_rejects_malformed_json() -> None:
 
 
 def test_accepts_fenced_json_compatibility() -> None:
-    provider_result = _provider_result(
-        _payload()
-    )
+    provider_result = _provider_result(_payload())
 
-    provider_result["text"] = (
-        "```json\n"
-        + json.dumps(
-            _payload()
-        )
-        + "\n```"
-    )
+    provider_result["text"] = "```json\n" + json.dumps(_payload()) + "\n```"
 
     result = diagnose_class_patterns_from_provider_result(
         _context(),
@@ -266,9 +229,7 @@ def test_injected_provider_receives_inputs() -> None:
             )
         )
 
-        return _provider_result(
-            _payload()
-        )
+        return _provider_result(_payload())
 
     observations = _observations()
 
@@ -280,12 +241,9 @@ def test_injected_provider_receives_inputs() -> None:
 
     assert result.model_used == "gemini-test-model"
 
-    assert (
-        calls
-        == [
-            (
-                _context(),
-                observations,
-            )
-        ]
-    )
+    assert calls == [
+        (
+            _context(),
+            observations,
+        )
+    ]

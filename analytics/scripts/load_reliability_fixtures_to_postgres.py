@@ -13,10 +13,15 @@ from lotuslearn_pipeline.postgres import PostgresAnalyticalDatabase
 
 def load_reliability_fixtures(database_url: str) -> None:
     repo_root = Path(__file__).resolve().parent.parent.parent
-    fixture_path = repo_root / "pipelines" / "tests" / "fixtures" / "reliability_events.json"
+    fixture_path = (
+        repo_root / "pipelines" / "tests" / "fixtures" / "reliability_events.json"
+    )
 
     if not fixture_path.exists():
-        print(f"ERROR: Reliability fixture file not found at {fixture_path}", file=sys.stderr)
+        print(
+            f"ERROR: Reliability fixture file not found at {fixture_path}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     with open(fixture_path, encoding="utf-8") as f:
@@ -40,13 +45,14 @@ def load_reliability_fixtures(database_url: str) -> None:
     db.ingest_single_event(fixtures["equalTimestampDecisions"]["decisionB"])
 
     db.close()
-    print("SUCCESS: Reliability fixture suite successfully loaded into PostgreSQL 18 operational tables.")
+    print(
+        "SUCCESS: Reliability fixture suite successfully loaded into PostgreSQL 18 operational tables."
+    )
 
 
 if __name__ == "__main__":
-    url = (
-        os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
-        or os.environ.get("LOTUSLEARN_DATABASE_URL")
+    url = os.environ.get("LOTUSLEARN_TEST_DATABASE_URL") or os.environ.get(
+        "LOTUSLEARN_DATABASE_URL"
     )
     if not url:
         raise RuntimeError(

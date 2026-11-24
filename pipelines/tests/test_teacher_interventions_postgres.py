@@ -16,7 +16,6 @@ from lotuslearn_pipeline.teacher_interventions import (
     persist_teacher_intervention,
 )
 
-
 PIPELINES_ROOT = Path(__file__).resolve().parents[1]
 
 MIGRATION_PATH = (
@@ -45,28 +44,20 @@ def _safe_test_url() -> str:
                 "localhost",
                 "::1",
             }:
-                raise RuntimeError(
-                    "Refusing PostgreSQL teacher-intervention "
-                    "test outside loopback"
-                )
+                raise RuntimeError("Refusing PostgreSQL teacher-intervention test outside loopback")
 
             if parsed.path != "/lotuslearn_test":
                 raise RuntimeError(
-                    "Refusing PostgreSQL teacher-intervention "
-                    "test outside lotuslearn_test"
+                    "Refusing PostgreSQL teacher-intervention test outside lotuslearn_test"
                 )
 
             return value
 
-    raise RuntimeError(
-        "Dedicated safe PostgreSQL test URL is not configured"
-    )
+    raise RuntimeError("Dedicated safe PostgreSQL test URL is not configured")
 
 
 def _apply_migration(connection: psycopg.Connection) -> None:
-    migration = MIGRATION_PATH.read_text(
-        encoding="utf-8"
-    )
+    migration = MIGRATION_PATH.read_text(encoding="utf-8")
 
     for fragment in migration.split(";"):
         statement = fragment.strip()
@@ -100,11 +91,7 @@ def _command(
     analysis_key: str | None = "analysis-demo-001",
 ) -> dict[str, object]:
     return {
-        "interventionKey": (
-            intervention_key
-            if intervention_key is not None
-            else str(uuid4())
-        ),
+        "interventionKey": (intervention_key if intervention_key is not None else str(uuid4())),
         "studentKey": student_key,
         "actionType": action_type,
         "analysisKey": analysis_key,
@@ -163,10 +150,7 @@ def test_migration_installs_append_only_identity_contract(
     # App owns identity. PostgreSQL must not generate UUIDs.
     assert columns["intervention_key"]["default"] is None
 
-    assert (
-        columns["persisted_at"]["default"]
-        is not None
-    )
+    assert columns["persisted_at"]["default"] is not None
 
 
 def test_persist_round_trip_and_identical_replay_is_idempotent(
@@ -178,18 +162,14 @@ def test_persist_round_trip_and_identical_replay_is_idempotent(
 
     try:
         with connection.cursor() as cursor:
-            first, first_created = (
-                persist_teacher_intervention(
-                    cursor,
-                    command,
-                )
+            first, first_created = persist_teacher_intervention(
+                cursor,
+                command,
             )
 
-            second, second_created = (
-                persist_teacher_intervention(
-                    cursor,
-                    command,
-                )
+            second, second_created = persist_teacher_intervention(
+                cursor,
+                command,
             )
 
             loaded = load_teacher_intervention(
@@ -202,9 +182,7 @@ def test_persist_round_trip_and_identical_replay_is_idempotent(
         assert first == second
         assert loaded == first
 
-        assert first["interventionKey"] == (
-            command["interventionKey"]
-        )
+        assert first["interventionKey"] == (command["interventionKey"])
         assert first["studentKey"] == "student-demo-001"
         assert first["actionType"] == "reteach"
         assert first["analysisKey"] == "analysis-demo-001"
@@ -233,11 +211,9 @@ def test_conflicting_identity_replay_fails_closed(
 
     try:
         with connection.cursor() as cursor:
-            persisted, created = (
-                persist_teacher_intervention(
-                    cursor,
-                    first,
-                )
+            persisted, created = persist_teacher_intervention(
+                cursor,
+                first,
             )
 
             assert created is True
@@ -275,9 +251,7 @@ def test_unknown_and_privacy_fields_are_rejected_before_write() -> None:
         ValueError,
         match="missing intervention fields",
     ):
-        canonicalize_teacher_intervention(
-            missing_identity
-        )
+        canonicalize_teacher_intervention(missing_identity)
 
 
 def test_created_at_requires_timezone() -> None:
@@ -318,13 +292,9 @@ def test_repository_does_not_own_postgres_connection() -> None:
 
 
 def test_persistence_surface_contains_no_raw_student_fields() -> None:
-    repository_source = inspect.getsource(
-        repository_module
-    ).lower()
+    repository_source = inspect.getsource(repository_module).lower()
 
-    migration_source = MIGRATION_PATH.read_text(
-        encoding="utf-8"
-    ).lower()
+    migration_source = MIGRATION_PATH.read_text(encoding="utf-8").lower()
 
     combined = repository_source + migration_source
 

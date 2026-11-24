@@ -11,9 +11,7 @@ from lotuslearn_pipeline.analytical_event_id import (
     compute_event_id,
 )
 
-_LEGACY_SOURCE: Final = (
-    "server/services/analyticalEventProducer.ts"
-)
+_LEGACY_SOURCE: Final = "server/services/analyticalEventProducer.ts"
 
 _INPUTS: Final[
     tuple[
@@ -110,9 +108,7 @@ def render_event_id_vector_fixture() -> str:
 def main() -> int:
     """Write the deterministic vector fixture to stdout."""
 
-    sys.stdout.write(
-        render_event_id_vector_fixture()
-    )
+    sys.stdout.write(render_event_id_vector_fixture())
 
     return 0
 

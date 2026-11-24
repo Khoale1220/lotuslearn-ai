@@ -57,7 +57,11 @@ def test_cli_emits_only_contract_json() -> None:
     assert run.stderr == ""
     result = json.loads(run.stdout)
     assert set(result) == {
-        "classSnapshot", "misconceptionClusters", "modelUsed", "durationMs", "telemetry"
+        "classSnapshot",
+        "misconceptionClusters",
+        "modelUsed",
+        "durationMs",
+        "telemetry",
     }
     assert result["classSnapshot"]["totalSubmissions"] == 1
     assert result["modelUsed"] == "offline-fixture"
@@ -98,7 +102,7 @@ def test_cli_missing_live_key_fails_closed() -> None:
 
 
 def test_cli_rejects_non_object_root() -> None:
-    run = _run('[1, 2]')
+    run = _run("[1, 2]")
     assert run.returncode == 2
     assert run.stdout == ""
     assert "JSON object" in run.stderr

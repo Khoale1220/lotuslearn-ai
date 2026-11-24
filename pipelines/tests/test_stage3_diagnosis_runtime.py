@@ -72,9 +72,7 @@ class FakeClient:
 
 def test_primary_route_uses_diagnosis_metadata() -> None:
     client = FakeClient([FakeResponse(json.dumps(_payload()))])
-    provider_result = generate_diagnosis_provider_result(
-        _context(), _observations(), client=client
-    )
+    provider_result = generate_diagnosis_provider_result(_context(), _observations(), client=client)
     assert client.calls[0]["model"] == PRIMARY_MODEL
     config = client.calls[0]["config"]
     assert isinstance(config, dict)

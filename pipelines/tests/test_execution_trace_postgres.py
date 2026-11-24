@@ -76,10 +76,7 @@ def test_execution_trace_composes_execution_and_quality_evidence():
         assert trace is not None
         assert trace.execution.execution_id == execution_id
         assert trace.recovery is None
-        assert tuple(
-            item.evaluation_key
-            for item in trace.quality_evaluations
-        ) == (evaluation_key,)
+        assert tuple(item.evaluation_key for item in trace.quality_evaluations) == (evaluation_key,)
 
     finally:
         with psycopg.connect(url, autocommit=True) as conn:
@@ -103,7 +100,10 @@ def test_execution_trace_composes_execution_and_quality_evidence():
 def test_execution_trace_returns_none_for_unknown_execution():
     url = _database_url()
 
-    assert get_execution_trace(
-        url,
-        execution_id=uuid4(),
-    ) is None
+    assert (
+        get_execution_trace(
+            url,
+            execution_id=uuid4(),
+        )
+        is None
+    )

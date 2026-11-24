@@ -1,4 +1,4 @@
-﻿"""Deterministic tests for safe backfill semantics."""
+"""Deterministic tests for safe backfill semantics."""
 
 from __future__ import annotations
 
@@ -34,23 +34,13 @@ def test_build_backfill_windows_are_half_open_and_bounded():
     assert len(windows) == 3
 
     assert windows[0].slot_start == START
-    assert windows[0].slot_end == (
-        START + timedelta(hours=2)
-    )
+    assert windows[0].slot_end == (START + timedelta(hours=2))
 
-    assert windows[1].slot_start == (
-        START + timedelta(hours=2)
-    )
-    assert windows[1].slot_end == (
-        START + timedelta(hours=4)
-    )
+    assert windows[1].slot_start == (START + timedelta(hours=2))
+    assert windows[1].slot_end == (START + timedelta(hours=4))
 
-    assert windows[2].slot_start == (
-        START + timedelta(hours=4)
-    )
-    assert windows[2].slot_end == (
-        START + timedelta(hours=5)
-    )
+    assert windows[2].slot_start == (START + timedelta(hours=4))
+    assert windows[2].slot_end == (START + timedelta(hours=5))
 
 
 def test_max_slots_fails_closed():
@@ -143,28 +133,22 @@ def test_explicit_reprocessing_semantics(
 def test_execution_identity_is_deterministic_per_attempt():
     backfill_id = uuid4()
 
-    batch_1, execution_1 = (
-        derive_execution_identity(
-            backfill_id=backfill_id,
-            slot_start=START,
-            attempt_number=1,
-        )
+    batch_1, execution_1 = derive_execution_identity(
+        backfill_id=backfill_id,
+        slot_start=START,
+        attempt_number=1,
     )
 
-    batch_1_again, execution_1_again = (
-        derive_execution_identity(
-            backfill_id=backfill_id,
-            slot_start=START,
-            attempt_number=1,
-        )
+    batch_1_again, execution_1_again = derive_execution_identity(
+        backfill_id=backfill_id,
+        slot_start=START,
+        attempt_number=1,
     )
 
-    batch_2, execution_2 = (
-        derive_execution_identity(
-            backfill_id=backfill_id,
-            slot_start=START,
-            attempt_number=2,
-        )
+    batch_2, execution_2 = derive_execution_identity(
+        backfill_id=backfill_id,
+        slot_start=START,
+        attempt_number=2,
     )
 
     assert batch_1 == batch_1_again
@@ -185,9 +169,7 @@ def test_execution_identity_is_deterministic_per_attempt():
 def test_invalid_attempt_number_fails_closed(
     attempt,
 ):
-    with pytest.raises(
-        (TypeError, ValueError)
-    ):
+    with pytest.raises((TypeError, ValueError)):
         derive_execution_identity(
             backfill_id=uuid4(),
             slot_start=START,

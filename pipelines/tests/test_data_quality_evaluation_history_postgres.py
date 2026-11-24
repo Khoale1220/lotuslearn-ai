@@ -457,6 +457,7 @@ def test_unknown_execution_uuid_is_rejected_by_database_fk(conn):
 
     assert row is None
 
+
 def test_detector_evidence_round_trips_through_postgres_and_exact_replay(conn):
     from dataclasses import replace
 
@@ -500,11 +501,7 @@ def test_detector_evidence_round_trips_through_postgres_and_exact_replay(conn):
     ).fetchone()
 
     assert first_row is not None
-    first_evidence = (
-        first_row["detector_evidence"]
-        if hasattr(first_row, "keys")
-        else first_row[0]
-    )
+    first_evidence = first_row["detector_evidence"] if hasattr(first_row, "keys") else first_row[0]
 
     assert first_evidence is not None
     assert first_evidence["detectors_agree"] is True
@@ -534,13 +531,10 @@ def test_detector_evidence_round_trips_through_postgres_and_exact_replay(conn):
 
     assert replay_row is not None
     replay_evidence = (
-        replay_row["detector_evidence"]
-        if hasattr(replay_row, "keys")
-        else replay_row[0]
+        replay_row["detector_evidence"] if hasattr(replay_row, "keys") else replay_row[0]
     )
 
     assert replay_evidence == first_evidence
-
 
 
 # DE04 C6 operational evidence read-model contracts
@@ -643,10 +637,7 @@ def test_list_quality_evaluations_for_execution_is_filtered_and_bounded(conn):
     assert len(records) == 2
     assert records[0] == first.record
     assert records[1] == second.record
-    assert all(
-        record.execution_id == execution_id
-        for record in records
-    )
+    assert all(record.execution_id == execution_id for record in records)
 
 
 def test_list_quality_evaluations_for_execution_returns_empty_tuple(conn):

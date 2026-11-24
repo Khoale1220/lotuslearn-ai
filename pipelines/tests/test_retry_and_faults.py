@@ -23,10 +23,7 @@ from lotuslearn_pipeline.retry import (
     is_transient_postgres_error,
 )
 
-TEST_PG_URL = (
-    os.environ.get("LOTUSLEARN_TEST_DATABASE_URL")
-    or ""
-)
+TEST_PG_URL = os.environ.get("LOTUSLEARN_TEST_DATABASE_URL") or ""
 
 
 def test_is_transient_postgres_error():
@@ -37,9 +34,7 @@ def test_is_transient_postgres_error():
     err_40p01 = DeadlockDetected("deadlock detected")
     assert is_transient_postgres_error(err_40p01) is True
 
-    err_23505 = UniqueViolation(
-        "duplicate key value violates unique constraint"
-    )
+    err_23505 = UniqueViolation("duplicate key value violates unique constraint")
     assert is_transient_postgres_error(err_23505) is False
 
     assert is_transient_postgres_error(ValueError("bad input")) is False
@@ -54,9 +49,7 @@ def test_retry_transient_serialization_success():
         nonlocal attempts
         attempts += 1
         if attempts == 1:
-            raise SerializationFailure(
-                "40001: could not serialize access"
-            )
+            raise SerializationFailure("40001: could not serialize access")
         return "SUCCESS"
 
     result = execute_with_retry(
@@ -160,9 +153,7 @@ def clean_pg_db():
     with psycopg.connect(TEST_PG_URL, autocommit=True) as conn:
         database_name = conn.execute("SELECT current_database();").fetchone()[0]
         if database_name != "lotuslearn_test":
-            raise RuntimeError(
-                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
-            )
+            raise RuntimeError("Refusing destructive PostgreSQL test setup outside lotuslearn_test")
         conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
 
     db = PostgresAnalyticalDatabase(connection_url=TEST_PG_URL)
@@ -279,10 +270,7 @@ def test_fault_injection_rollback_after_projection_insert(clean_pg_db):
 
     assert failed_result.outcome == IngestionOutcome.REJECTED
     assert failed_result.rejection_reason is not None
-    assert (
-        "CRASH_INJECTED_AFTER_PROJECTION_INSERT"
-        in failed_result.rejection_reason
-    )
+    assert "CRASH_INJECTED_AFTER_PROJECTION_INSERT" in failed_result.rejection_reason
 
     conn = clean_pg_db.get_connection()
     with conn.cursor() as cur:

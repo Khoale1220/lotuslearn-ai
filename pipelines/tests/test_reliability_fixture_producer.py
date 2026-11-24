@@ -13,18 +13,11 @@ from lotuslearn_pipeline.reliability_fixture_producer import (
     render_reliability_fixture,
 )
 
-FIXTURE = (
-    Path(__file__).parent
-    / "fixtures"
-    / "reliability_events.json"
-)
+FIXTURE = Path(__file__).parent / "fixtures" / "reliability_events.json"
 
 
 def test_python_producer_is_byte_identical_to_fixture() -> None:
-    assert (
-        render_reliability_fixture()
-        == FIXTURE.read_text(encoding="utf-8")
-    )
+    assert render_reliability_fixture() == FIXTURE.read_text(encoding="utf-8")
 
 
 def test_python_producer_is_deterministic() -> None:
@@ -66,23 +59,12 @@ def test_privacy_gate_applied_at_legacy_boundary(
 
     assert len(validated) == 9
 
-    expected_ids = [
-        str(event["event_id"])
-        for event in suite["standardBatch"]
-    ]
+    expected_ids = [str(event["event_id"]) for event in suite["standardBatch"]]
 
     expected_ids.extend(
         [
-            str(
-                suite["equalTimestampDecisions"][
-                    "decisionA"
-                ]["event_id"]
-            ),
-            str(
-                suite["equalTimestampDecisions"][
-                    "decisionB"
-                ]["event_id"]
-            ),
+            str(suite["equalTimestampDecisions"]["decisionA"]["event_id"]),
+            str(suite["equalTimestampDecisions"]["decisionB"]["event_id"]),
         ]
     )
 
@@ -103,10 +85,7 @@ def test_payload_conflict_isolated_from_original() -> None:
 
     pair = suite["payloadConflictPair"]
 
-    assert (
-        pair["original"]["event_id"]
-        == pair["conflicting"]["event_id"]
-    )
+    assert pair["original"]["event_id"] == pair["conflicting"]["event_id"]
 
     assert pair["original"]["subject"] == "Mathematics"
     assert pair["conflicting"]["subject"] == "Algebra I Honors"
@@ -128,10 +107,7 @@ def test_module_cli_is_byte_identical_to_fixture() -> None:
 
     assert completed.stderr == ""
 
-    assert (
-        completed.stdout
-        == FIXTURE.read_text(encoding="utf-8")
-    )
+    assert completed.stdout == FIXTURE.read_text(encoding="utf-8")
 
 
 def test_serialized_output_is_valid_json() -> None:

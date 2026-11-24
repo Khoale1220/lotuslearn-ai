@@ -22,9 +22,7 @@ def clean_postgres_db(url: str) -> None:
     with psycopg.connect(url, autocommit=True) as conn:
         database_name = conn.execute("SELECT current_database();").fetchone()[0]
         if database_name != "lotuslearn_test":
-            raise RuntimeError(
-                "Refusing destructive PostgreSQL test setup outside lotuslearn_test"
-            )
+            raise RuntimeError("Refusing destructive PostgreSQL test setup outside lotuslearn_test")
         conn.execute("DROP SCHEMA public CASCADE;")
         conn.execute("CREATE SCHEMA public;")
         conn.execute("GRANT ALL ON SCHEMA public TO PUBLIC;")
@@ -331,4 +329,3 @@ def test_parity_reliability_fixtures(dual_databases):
     assert sq_metrics.total_accepted_events == pg_metrics.total_accepted_events
     assert sq_metrics.student_appearances == pg_metrics.student_appearances
     assert sq_metrics.educator_modification_rate == pg_metrics.educator_modification_rate
-

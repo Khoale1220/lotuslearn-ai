@@ -11,62 +11,38 @@ from lotuslearn_pipeline.event_id_vector_generator import (
     render_event_id_vector_fixture,
 )
 
-FIXTURE = (
-    Path(__file__).parent
-    / "fixtures"
-    / "event_id_vectors.json"
-)
+FIXTURE = Path(__file__).parent / "fixtures" / "event_id_vectors.json"
 
 
 def test_python_generator_is_byte_identical_to_frozen_fixture() -> None:
-    expected = FIXTURE.read_text(
-        encoding="utf-8"
-    )
+    expected = FIXTURE.read_text(encoding="utf-8")
 
-    assert (
-        render_event_id_vector_fixture()
-        == expected
-    )
+    assert render_event_id_vector_fixture() == expected
 
 
 def test_python_generator_preserves_frozen_vector_contract() -> None:
     payload = build_event_id_vector_fixture()
 
     assert payload["schema_version"] == 1
-    assert (
-        payload["source"]
-        == "server/services/analyticalEventProducer.ts"
-    )
+    assert payload["source"] == "server/services/analyticalEventProducer.ts"
 
     vectors = payload["vectors"]
 
     assert isinstance(vectors, list)
     assert len(vectors) == 8
 
-    assert (
-        vectors[0]["event_id"]
-        == vectors[1]["event_id"]
-    )
+    assert vectors[0]["event_id"] == vectors[1]["event_id"]
 
-    assert (
-        vectors[0]["event_id"]
-        != vectors[6]["event_id"]
-    )
+    assert vectors[0]["event_id"] != vectors[6]["event_id"]
 
-    assert (
-        vectors[0]["event_id"]
-        != vectors[7]["event_id"]
-    )
+    assert vectors[0]["event_id"] != vectors[7]["event_id"]
 
 
 def test_python_generator_is_deterministic() -> None:
     first = render_event_id_vector_fixture()
 
     for _ in range(100):
-        assert (
-            render_event_id_vector_fixture()
-            == first
-        )
+        assert render_event_id_vector_fixture() == first
 
 
 def test_module_cli_stdout_is_byte_identical_to_fixture() -> None:
@@ -74,10 +50,7 @@ def test_module_cli_stdout_is_byte_identical_to_fixture() -> None:
         [
             sys.executable,
             "-m",
-            (
-                "lotuslearn_pipeline."
-                "event_id_vector_generator"
-            ),
+            ("lotuslearn_pipeline.event_id_vector_generator"),
         ],
         check=True,
         capture_output=True,
@@ -86,9 +59,4 @@ def test_module_cli_stdout_is_byte_identical_to_fixture() -> None:
 
     assert completed.stderr == ""
 
-    assert (
-        completed.stdout
-        == FIXTURE.read_text(
-            encoding="utf-8"
-        )
-    )
+    assert completed.stdout == FIXTURE.read_text(encoding="utf-8")
