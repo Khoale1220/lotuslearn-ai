@@ -1,4 +1,8 @@
 import { createClassroomEnvironmentalAudioV20 } from "./classroomEnvironmentalAudioV20.js";
+import {
+  createClassroomVisualFidelityV22
+} from "./classroomVisualFidelityV22.js";
+
 import { createClassroomTeacherDeskHeadphonesV19A } from "./classroomTeacherDeskHeadphonesV19A.js";
 import { createClassroomOceanAtmosphereDepthV19 } from "./classroomOceanAtmosphereDepthV19.js";
 import { createClassroomSeagullFlocksV18 } from "./classroomSeagullFlocksV18.js";
@@ -568,6 +572,15 @@ const classroomInteractionAuthorityV11 =
           classroomFinalContentV6
       });
 
+    const classroomVisualFidelityV22 =
+      createClassroomVisualFidelityV22({
+        renderer,
+        scene,
+        camera,
+        documentObject:
+          document
+      });
+
     const unlockEnvironmentalAudioV20 =
       () => {
         void classroomEnvironmentalAudioV20.unlock();
@@ -984,6 +997,12 @@ const classroomInteractionAuthorityV11 =
         camera
       });
 
+      classroomVisualFidelityV22.tick({
+        timestamp,
+        deltaSeconds:
+          delta
+      });
+
       classroomEnvironmentalAudioV20.tick({
       timestamp
     });
@@ -1025,6 +1044,8 @@ const classroomInteractionAuthorityV11 =
       unlockEnvironmentalAudioV20,
       true
     );
+
+      classroomVisualFidelityV22.dispose();
 
     classroomEnvironmentalAudioV20.dispose();
 
