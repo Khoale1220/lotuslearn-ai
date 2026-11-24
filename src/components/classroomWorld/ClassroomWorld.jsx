@@ -47,6 +47,10 @@ import {
 import {
   createClassroomExteriorDepthArtV38
 } from "./classroomExteriorDepthArtV38.js";
+import {
+  createClassroomForegroundCompositionV39
+} from "./classroomForegroundCompositionV39.js";
+
 
 
 
@@ -595,6 +599,12 @@ function ClassroomWorld({
     const classroomExteriorDepthArtV38 =
       createClassroomExteriorDepthArtV38({
         scene
+      });
+
+    const classroomForegroundCompositionV39 =
+      createClassroomForegroundCompositionV39({
+        scene,
+        camera
       });
 
     const classroomFinalContentV6 =
@@ -1188,6 +1198,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomForegroundCompositionV39.dispose();
 
       classroomExteriorDepthArtV38.dispose();
 
