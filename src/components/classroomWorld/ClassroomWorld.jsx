@@ -29,6 +29,10 @@ import {
 import {
   createClassroomReferenceCharacterDeskMicrodetailV32
 } from "./classroomReferenceCharacterDeskMicrodetailV32.js";
+import {
+  createClassroomPixelFaceLivedInPolishV33
+} from "./classroomPixelFaceLivedInPolishV33.js";
+
 
 
 
@@ -539,6 +543,11 @@ function ClassroomWorld({
 
     const classroomReferenceCharacterDeskMicrodetailV32 =
       createClassroomReferenceCharacterDeskMicrodetailV32({
+        scene
+      });
+
+    const classroomPixelFaceLivedInPolishV33 =
+      createClassroomPixelFaceLivedInPolishV33({
         scene
       });
 
@@ -1131,6 +1140,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomPixelFaceLivedInPolishV33.dispose();
 
       classroomReferenceCharacterDeskMicrodetailV32.dispose();
 
