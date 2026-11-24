@@ -52,6 +52,7 @@ import {
 } from "./classroomForegroundCompositionV39.js";
 import { createClassroomAmbientPixelPolishV40 } from "./classroomAmbientPixelPolishV40.js";
 import { createClassroomEnvironmentalSpriteFidelityV41 } from "./classroomEnvironmentalSpriteFidelityV41.js";
+import { createClassroomCharacterSceneCohesionV42 } from "./classroomCharacterSceneCohesionV42.js";
 
 
 
@@ -692,6 +693,19 @@ function ClassroomWorld({
           classroomOceanSkyWorldV15
       });
 
+const classroomCharacterSceneCohesionV42 =
+
+
+  createClassroomCharacterSceneCohesionV42({
+
+
+    scene
+
+
+  });
+
+
+
 const classroomInteractionAuthorityV11 =
       createClassroomInteractionAuthorityV11({
         scene,
@@ -1167,6 +1181,16 @@ const classroomInteractionAuthorityV11 =
 
       classroomCharacterDepthOcclusionPolishV37.tick();
 
+      classroomCharacterSceneCohesionV42.tick({
+
+
+        timestamp
+
+
+      });
+
+
+
       classroomOceanSkyWorldV15.tick({
         timestamp,
         camera
@@ -1278,6 +1302,10 @@ const classroomInteractionAuthorityV11 =
       classroomInteractionReplayAuditV12.dispose();
 
       classroomCharacterCompositionV26.dispose();
+
+      classroomCharacterSceneCohesionV42.dispose();
+
+
 
       classroomCharacterVisualIntegrationV10.dispose();
 
