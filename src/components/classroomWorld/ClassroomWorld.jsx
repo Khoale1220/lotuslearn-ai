@@ -8,6 +8,10 @@ import {
 import {
   createClassroomReferenceWorldArtV24
 } from "./classroomReferenceWorldArtV24.js";
+import {
+  createClassroomCharacterCompositionV26
+} from "./classroomCharacterCompositionV26.js";
+
 
 
 
@@ -454,6 +458,12 @@ function ClassroomWorld({
           classroomCharacterV3,
         documentObject:
           document
+      });
+
+    const classroomCharacterCompositionV26 =
+      createClassroomCharacterCompositionV26({
+        scene,
+        camera
       });
 
 
@@ -1091,6 +1101,8 @@ const classroomInteractionAuthorityV11 =
       classroomInputStateTimelineV13.dispose();
 
       classroomInteractionReplayAuditV12.dispose();
+
+      classroomCharacterCompositionV26.dispose();
 
       classroomCharacterVisualIntegrationV10.dispose();
 
