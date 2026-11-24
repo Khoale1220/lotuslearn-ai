@@ -14,6 +14,10 @@ import {
 import {
   createClassroomPropDensityLightingV27
 } from "./classroomPropDensityLightingV27.js";
+import {
+  createClassroomPixelMaterialDepthV28
+} from "./classroomPixelMaterialDepthV28.js";
+
 
 
 
@@ -494,6 +498,11 @@ function ClassroomWorld({
       createClassroomPropDensityLightingV27({
         scene,
         teacherAnchor
+      });
+
+    const classroomPixelMaterialDepthV28 =
+      createClassroomPixelMaterialDepthV28({
+        scene
       });
 
     const classroomFinalContentV6 =
@@ -1085,6 +1094,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomPixelMaterialDepthV28.dispose();
 
       classroomPropDensityLightingV27.dispose();
 
