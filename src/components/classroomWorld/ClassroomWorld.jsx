@@ -53,6 +53,7 @@ import {
 import { createClassroomAmbientPixelPolishV40 } from "./classroomAmbientPixelPolishV40.js";
 import { createClassroomEnvironmentalSpriteFidelityV41 } from "./classroomEnvironmentalSpriteFidelityV41.js";
 import { createClassroomCharacterSceneCohesionV42 } from "./classroomCharacterSceneCohesionV42.js";
+import { createClassroomCharacterAtlasFidelityV43 } from "./classroomCharacterAtlasFidelityV43.js";
 
 
 
@@ -704,6 +705,11 @@ const classroomCharacterSceneCohesionV42 =
 
   });
 
+    const classroomCharacterAtlasFidelityV43 =
+      createClassroomCharacterAtlasFidelityV43({
+        scene
+      });
+
 
 
 const classroomInteractionAuthorityV11 =
@@ -1302,6 +1308,10 @@ const classroomInteractionAuthorityV11 =
       classroomInteractionReplayAuditV12.dispose();
 
       classroomCharacterCompositionV26.dispose();
+
+      classroomCharacterAtlasFidelityV43.dispose();
+
+
 
       classroomCharacterSceneCohesionV42.dispose();
 
