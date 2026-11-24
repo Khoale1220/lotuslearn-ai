@@ -11,6 +11,10 @@ import {
 import {
   createClassroomCharacterCompositionV26
 } from "./classroomCharacterCompositionV26.js";
+import {
+  createClassroomPropDensityLightingV27
+} from "./classroomPropDensityLightingV27.js";
+
 
 
 
@@ -484,6 +488,12 @@ function ClassroomWorld({
         scene,
         materials:
           classroomVisualSystem.materials
+      });
+
+    const classroomPropDensityLightingV27 =
+      createClassroomPropDensityLightingV27({
+        scene,
+        teacherAnchor
       });
 
     const classroomFinalContentV6 =
@@ -1075,6 +1085,8 @@ const classroomInteractionAuthorityV11 =
       sceneRoster.dispose();
       sceneRosterRef.current = null;
       collisionObstaclesRef.current = [];
+
+      classroomPropDensityLightingV27.dispose();
 
       classroomRetroCompositionV4.dispose();
 
