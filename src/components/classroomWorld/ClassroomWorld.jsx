@@ -58,6 +58,7 @@ import { createClassroomCharacterBodyClothingFidelityV44 } from "./classroomChar
 import { createClassroomCharacterCastVarietyV45 } from "./classroomCharacterCastVarietyV45.js";
 import { createClassroomCharacterFirstPersonStagingV46 } from "./classroomCharacterFirstPersonStagingV46.js";
 import { createClassroomDeskSurfacePropsV47 } from "./classroomDeskSurfacePropsV47.js";
+import { createClassroomBackpackWallStorytellingV48 } from "./classroomBackpackWallStorytellingV48.js";
 
 
 
@@ -735,6 +736,11 @@ const classroomCharacterSceneCohesionV42 =
         scene
       });
 
+    const classroomBackpackWallStorytellingV48 =
+      createClassroomBackpackWallStorytellingV48({
+        scene
+      });
+
 
 
 const classroomInteractionAuthorityV11 =
@@ -1065,6 +1071,7 @@ const classroomInteractionAuthorityV11 =
       classroomCharacterV3.tick();
       classroomRetroCompositionV4.tick(camera, timestamp);
       classroomDeskSurfacePropsV47.tick();
+      classroomBackpackWallStorytellingV48.tick();
 
       classroomFinalContentV6.tick({
         timestamp,
@@ -1334,6 +1341,8 @@ const classroomInteractionAuthorityV11 =
       classroomInteractionReplayAuditV12.dispose();
 
       classroomCharacterCompositionV26.dispose();
+
+      classroomBackpackWallStorytellingV48.dispose();
 
       classroomDeskSurfacePropsV47.dispose();
 
