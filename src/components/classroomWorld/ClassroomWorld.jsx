@@ -51,6 +51,7 @@ import {
   createClassroomForegroundCompositionV39
 } from "./classroomForegroundCompositionV39.js";
 import { createClassroomAmbientPixelPolishV40 } from "./classroomAmbientPixelPolishV40.js";
+import { createClassroomEnvironmentalSpriteFidelityV41 } from "./classroomEnvironmentalSpriteFidelityV41.js";
 
 
 
@@ -614,6 +615,12 @@ function ClassroomWorld({
         camera
       });
 
+    const classroomEnvironmentalSpriteFidelityV41 =
+      createClassroomEnvironmentalSpriteFidelityV41({
+        scene,
+        camera
+      });
+
     const classroomFinalContentV6 =
       createClassroomFinalContentV6({
         scene,
@@ -1024,6 +1031,11 @@ const classroomInteractionAuthorityV11 =
         deltaSeconds: delta
       });
 
+      classroomEnvironmentalSpriteFidelityV41.tick({
+        timestamp,
+        deltaSeconds: delta
+      });
+
       classroomExteriorDepthV2.update(camera);
       classroomPerformanceBudget.sample();
 
@@ -1207,6 +1219,7 @@ const classroomInteractionAuthorityV11 =
       controls.dispose();
       controlsRef.current = null;
 
+      classroomEnvironmentalSpriteFidelityV41.dispose();
       classroomAmbientPixelPolishV40.dispose();
       sceneRoster.dispose();
       sceneRosterRef.current = null;
