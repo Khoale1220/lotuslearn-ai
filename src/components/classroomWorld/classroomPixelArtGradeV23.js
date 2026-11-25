@@ -17,16 +17,20 @@ const CLASSROOM_PIXEL_ART_GRADE_V23_PROFILE =
     deterministic:
       true,
 
+    // CW08_CLEAN_BASELINE_GRADE:
+    // Preserve crisp pixel presentation without coarse
+    // posterization, screen-space edge amplification,
+    // or full-frame dithering noise.
     posterizeLevels:
       Object.freeze({
         red:
-          18,
+          64,
 
         green:
-          18,
+          64,
 
         blue:
-          16
+          64
       }),
 
     saturation:
@@ -36,10 +40,10 @@ const CLASSROOM_PIXEL_ART_GRADE_V23_PROFILE =
       1.00,
 
     edgeStrength:
-      0.08,
+      0,
 
     ditherStrength:
-      0.0015
+      0
   });
 
 const CLASSROOM_PIXEL_ART_GRADE_V23_PALETTE =

@@ -22,9 +22,9 @@ test(
     assert.deepEqual(
       profile.posterizeLevels,
       {
-        red: 18,
-        green: 18,
-        blue: 16
+        red: 64,
+        green: 64,
+        blue: 64
       }
     );
 
@@ -40,12 +40,12 @@ test(
 
     assert.ok(
       profile.edgeStrength <=
-        0.08
+        0
     );
 
     assert.ok(
       profile.ditherStrength <=
-        0.0015
+        0
     );
   }
 );
