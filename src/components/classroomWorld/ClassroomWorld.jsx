@@ -61,6 +61,7 @@ import { createClassroomDeskSurfacePropsV47 } from "./classroomDeskSurfacePropsV
 import { createClassroomBackpackWallStorytellingV48 } from "./classroomBackpackWallStorytellingV48.js";
 import { createClassroomEnvironmentalStoryDensityV49 } from "./classroomEnvironmentalStoryDensityV49.js";
 import { createClassroomCinematicPaletteCohesionV50 } from "./classroomCinematicPaletteCohesionV50.js";
+import { createClassroomVisualHierarchyV51 } from "./classroomVisualHierarchyV51.js";
 
 
 
@@ -1119,6 +1120,11 @@ const classroomInteractionAuthorityV11 =
     resizeObserver.observe(host);
     resizeCamera();
 
+    const classroomVisualHierarchyV51 =
+      createClassroomVisualHierarchyV51({
+        scene
+      });
+
     const animate = (timestamp) => {
       animationFrame =
         requestAnimationFrame(animate);
@@ -1396,6 +1402,8 @@ const classroomInteractionAuthorityV11 =
       classroomRuntimeObservabilityV7.dispose();
       classroomPixelArtGradeV23.dispose();
       classroomRetroFpsPipeline.dispose();
+      classroomVisualHierarchyV51.dispose();
+
       classroomInteractionAuthorityV11.dispose();
       classroomInputStateTimelineV13.dispose();
 
