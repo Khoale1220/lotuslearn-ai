@@ -462,12 +462,6 @@ function createClassroomRetroFpsPipeline({
       renderer.shadowMap
         ?.type,
 
-    toneMapping:
-      renderer.toneMapping,
-
-    toneMappingExposure:
-      renderer.toneMappingExposure,
-
     canvasImageRendering:
       canvas.style
         .imageRendering,
@@ -511,11 +505,11 @@ function createClassroomRetroFpsPipeline({
       THREE.BasicShadowMap;
   }
 
-  renderer.toneMapping =
-    THREE.NoToneMapping;
-
-  renderer.toneMappingExposure =
-    1;
+  /*
+   * CW08.3B:
+   * Retro FPS owns presentation scaling,
+   * not global renderer tone mapping.
+   */
 
   canvas.style.imageRendering =
     "pixelated";
@@ -1274,13 +1268,11 @@ function createClassroomRetroFpsPipeline({
             .shadowType;
       }
 
-      renderer.toneMapping =
-        rendererState
-          .toneMapping;
-
-      renderer.toneMappingExposure =
-        rendererState
-          .toneMappingExposure;
+      /*
+       * CW08.3B:
+       * No tone-mapping authority was acquired,
+       * therefore nothing is restored here.
+       */
 
       canvas.style.imageRendering =
         rendererState

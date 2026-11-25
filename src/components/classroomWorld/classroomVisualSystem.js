@@ -149,12 +149,6 @@ function createClassroomVisualSystem({
   }
 
   const previousState = {
-    background:
-      scene.background,
-
-    fog:
-      scene.fog,
-
     outputColorSpace:
       renderer.outputColorSpace,
 
@@ -183,17 +177,11 @@ function createClassroomVisualSystem({
       "pixelated";
   }
 
-  scene.background =
-    new THREE.Color(
-      CLASSROOM_32BIT_PALETTE.sky
-    );
-
-  scene.fog =
-    new THREE.Fog(
-      CLASSROOM_32BIT_PALETTE.haze,
-      17,
-      34
-    );
+  /*
+   * CW08.3B:
+   * ClassroomWorld bootstraps Color/Fog objects.
+   * V35 owns their final atmosphere calibration.
+   */
 
   const materials =
     createClassroomMaterialLibrary();
@@ -213,12 +201,6 @@ function createClassroomVisualSystem({
       disposeMaterialLibrary(
         materials
       );
-
-      scene.background =
-        previousState.background;
-
-      scene.fog =
-        previousState.fog;
 
       renderer.outputColorSpace =
         previousState.outputColorSpace;

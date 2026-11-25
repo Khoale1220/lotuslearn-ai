@@ -154,7 +154,7 @@ test(
 );
 
 test(
-  "V24 runtime styling restores mutated state",
+  "V24 mutates owned styling while preserving global atmosphere",
   () => {
     const scene =
       new THREE.Scene();
@@ -200,6 +200,15 @@ test(
 
     const originalBackground =
       scene.background.clone();
+
+    const originalFogColor =
+      scene.fog.color.clone();
+
+    const originalFogNear =
+      scene.fog.near;
+
+    const originalFogFar =
+      scene.fog.far;
 
     const desk =
       new THREE.Mesh(
@@ -248,7 +257,24 @@ test(
       scene.background.equals(
         originalBackground
       ),
-      false
+      true
+    );
+
+    assert.equal(
+      scene.fog.color.equals(
+        originalFogColor
+      ),
+      true
+    );
+
+    assert.equal(
+      scene.fog.near,
+      originalFogNear
+    );
+
+    assert.equal(
+      scene.fog.far,
+      originalFogFar
     );
 
     runtime.dispose();
@@ -265,6 +291,23 @@ test(
         originalBackground
       ),
       true
+    );
+
+    assert.equal(
+      scene.fog.color.equals(
+        originalFogColor
+      ),
+      true
+    );
+
+    assert.equal(
+      scene.fog.near,
+      originalFogNear
+    );
+
+    assert.equal(
+      scene.fog.far,
+      originalFogFar
     );
 
     geometry.dispose();

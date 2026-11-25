@@ -397,32 +397,11 @@ function createClassroomReferenceWorldArtV24({
   const lightStates =
     [];
 
-  const previousBackground =
-    scene.background?.isColor
-      ? scene.background.clone()
-      : null;
-
-  const previousFog =
-    scene.fog?.color?.isColor
-      ? scene.fog.color.clone()
-      : null;
-
-  if (
-    scene.background?.isColor
-  ) {
-    scene.background.setHex(
-      palette.sky
-    );
-  }
-
-  if (
-    scene.fog?.color?.isColor
-  ) {
-    scene.fog.color.setHex(
-      palette.haze
-    );
-  }
-
+  /*
+   * CW08.3B:
+   * V35 owns global background/fog calibration.
+   * V24 remains world-art/material authority only.
+   */
   const target =
     new THREE.Color();
 
@@ -1047,24 +1026,11 @@ function createClassroomReferenceWorldArtV24({
       }
     }
 
-    if (
-      previousBackground &&
-      scene.background?.isColor
-    ) {
-      scene.background.copy(
-        previousBackground
-      );
-    }
-
-    if (
-      previousFog &&
-      scene.fog?.color?.isColor
-    ) {
-      scene.fog.color.copy(
-        previousFog
-      );
-    }
-
+    /*
+     * CW08.3B:
+     * V24 never acquired atmosphere authority,
+     * therefore disposal does not restore it.
+     */
     box.dispose();
     inkMaterial.dispose();
     warmMaterial.dispose();

@@ -483,7 +483,10 @@ function ClassroomWorld({
       false
     );
 
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    /*
+     * CW08.3B:
+     * classroomVisualSystem owns renderer output color space.
+     */
     renderer.domElement.className = "cw-world__canvas";
     host.appendChild(renderer.domElement);
 

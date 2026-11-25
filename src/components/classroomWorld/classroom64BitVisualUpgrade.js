@@ -948,10 +948,7 @@ function createClassroom64BitVisualUpgrade({
 
     shadowType:
       renderer.shadowMap
-        ?.type,
-
-    toneMappingExposure:
-      renderer.toneMappingExposure
+        ?.type
   };
 
   renderer.domElement
@@ -964,8 +961,10 @@ function createClassroom64BitVisualUpgrade({
       THREE.PCFSoftShadowMap;
   }
 
-  renderer.toneMappingExposure =
-    1.08;
+  /*
+   * CW08.3B:
+   * Renderer exposure belongs to classroomVisualSystem.
+   */
 
   const reportedMax =
     renderer.capabilities
@@ -1568,9 +1567,10 @@ function createClassroom64BitVisualUpgrade({
           rendererState.shadowType;
       }
 
-      renderer.toneMappingExposure =
-        rendererState
-          .toneMappingExposure;
+      /*
+       * CW08.3B:
+       * No renderer exposure authority to restore.
+       */
 
       if (
         sunlight?.shadow &&
