@@ -134,6 +134,35 @@ function scoreDeskTopCandidateV47(
     return Number.NEGATIVE_INFINITY;
   }
 
+  /*
+   * Production RetroCompositionV4 uses unit-cube
+   * geometry and encodes desk dimensions through
+   * per-instance matrices.
+   *
+   * Therefore raw geometry proportions are not a
+   * valid way to identify its canonical desk surface.
+   */
+  if (
+    object.userData
+      ?.classroomCanonicalDeskSurface ===
+      true
+  ) {
+    const capacity =
+      Math.max(
+        1,
+        Number(
+          object.instanceMatrix?.count ??
+          object.count ??
+          1
+        )
+      );
+
+    return (
+      1_000_000_000 +
+      Math.sqrt(capacity)
+    );
+  }
+
   const dimensions =
     readGeometryV47(
       object.geometry

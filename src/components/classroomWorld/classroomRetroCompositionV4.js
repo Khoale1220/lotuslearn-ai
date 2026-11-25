@@ -1481,6 +1481,16 @@ function createClassroomRetroCompositionV4({
     .environmentDetailV2 =
       true;
 
+  /*
+   * CW06 semantic anchor contract.
+   *
+   * Downstream visual systems must not infer
+   * canonical ownership from raw geometry shape.
+   */
+  boardArt.userData
+    .classroomCanonicalBlackboard =
+      true;
+
   root.add(
     boardArt
   );
@@ -1570,6 +1580,16 @@ function createClassroomRetroCompositionV4({
 
   chairBacks.name =
     "retro-student-chair-backs-v4";
+
+  /*
+   * Geometry is intentionally a unit cube.
+   * Desk dimensions live in each instance matrix,
+   * so geometry-shape heuristics are not a valid
+   * production ownership contract.
+   */
+  deskTops.userData
+    .classroomCanonicalDeskSurface =
+      true;
 
   for (
     const mesh

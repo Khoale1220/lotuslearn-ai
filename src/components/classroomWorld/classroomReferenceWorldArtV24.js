@@ -6,7 +6,7 @@ const CLASSROOM_REFERENCE_WORLD_ART_V24_PROFILE =
       "cw06-reference-world-art-v24",
 
     artDirection:
-      "high-detail-cinematic-vga",
+      "bright-warm-readable-64-bit-classroom",
 
     visualOnly:
       true,
@@ -17,71 +17,71 @@ const CLASSROOM_REFERENCE_WORLD_ART_V24_PROFILE =
     referenceLanguage:
       Object.freeze({
         shadows:
-          "deep-plum-black",
+          "soft-neutral-charcoal",
 
         exterior:
-          "bright-cyan-blue",
+          "soft-daylight-blue",
 
         highlights:
           "orange-cream",
 
         silhouettes:
-          "near-black-ink"
+          "charcoal-readable-outline"
       })
   });
 
 const CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE =
   Object.freeze({
     ink:
-      0x080615,
+      0x30343a,
 
     deepPlum:
-      0x24152d,
+      0x5a5560,
 
     plum:
-      0x56374d,
+      0x766b77,
 
     wallShadow:
-      0x704758,
+      0x9a8f86,
 
     warmWall:
-      0xd69a79,
+      0xd7c2a6,
 
     cream:
-      0xffe7b0,
+      0xffefcf,
 
     sunOrange:
-      0xf19a55,
+      0xe3ad69,
 
     wood:
-      0x98513d,
+      0x9a6d4f,
 
     woodHighlight:
-      0xd1845d,
+      0xc89a70,
 
     chalkboard:
-      0x174b42,
+      0x315c50,
 
     frameBlue:
-      0x202c42,
+      0x526273,
 
     coolBlue:
-      0x376b87,
+      0x7093a7,
 
     cyan:
-      0x43a8ce,
+      0x75b7cc,
 
     sky:
-      0x66c1df,
+      0xbddfed,
 
     ocean:
-      0x277c9f,
+      0x6f9fb4,
 
     shipRust:
-      0xa44747,
+      0x9b6658,
 
     haze:
-      0x607c9b
+      0xb8c7d0
   });
 
 function normalizeTokenV24(

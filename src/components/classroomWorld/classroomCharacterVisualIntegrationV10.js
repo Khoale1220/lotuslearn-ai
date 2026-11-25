@@ -1008,6 +1008,202 @@ function isLayerEnabled(
   );
 }
 
+function readExplicitCharacterVisualContract(
+  legacyCharacterSystem
+) {
+  if (
+    typeof legacyCharacterSystem
+      ?.getVisualMeshes !==
+      "function"
+  ) {
+    throw new TypeError(
+      "legacyCharacterSystem.getVisualMeshes is required"
+    );
+  }
+
+  if (
+    typeof legacyCharacterSystem
+      ?.getStudentCount !==
+      "function"
+  ) {
+    throw new TypeError(
+      "legacyCharacterSystem.getStudentCount is required"
+    );
+  }
+
+  const parts =
+    legacyCharacterSystem
+      .getVisualMeshes();
+
+  if (
+    !Array.isArray(parts) ||
+    parts.length ===
+      0
+  ) {
+    throw new TypeError(
+      "legacyCharacterSystem.getVisualMeshes() must return a non-empty array"
+    );
+  }
+
+  const descriptors =
+    parts.map(
+      (
+        part,
+        index
+      ) => {
+        if (
+          !part ||
+          typeof part !==
+            "object" ||
+          !part.mesh
+            ?.isInstancedMesh
+        ) {
+          throw new TypeError(
+            `visual part ${index} must expose an InstancedMesh`
+          );
+        }
+
+        if (
+          !Number.isInteger(
+            part.instancesPerStudent
+          ) ||
+          part.instancesPerStudent <
+            1
+        ) {
+          throw new TypeError(
+            `visual part ${index} must define a positive instancesPerStudent`
+          );
+        }
+
+        const role =
+          typeof part.role ===
+            "string" &&
+          part.role.length >
+            0
+            ? part.role
+            : classifyLegacyCharacterRole(
+                descriptorText({
+                  object:
+                    part.mesh
+                })
+              );
+
+        return {
+          mesh:
+            part.mesh,
+
+          hints: [
+            "legacyCharacterSystem.getVisualMeshes"
+          ],
+
+          text:
+            descriptorText({
+              object:
+                part.mesh,
+
+              hints: [
+                role
+              ]
+            }),
+
+          role,
+
+          fromLegacySystem:
+            true,
+
+          instancesPerStudent:
+            part.instancesPerStudent,
+
+          canonicalAnchor:
+            part.canonicalAnchor ===
+            true
+        };
+      }
+    );
+
+  const anchors =
+    descriptors.filter(
+      (descriptor) =>
+        descriptor
+          .canonicalAnchor
+    );
+
+  if (
+    anchors.length !==
+      1
+  ) {
+    throw new Error(
+      "Character V3 visual contract must define exactly one canonical anchor"
+    );
+  }
+
+  if (
+    anchors[0]
+      .instancesPerStudent !==
+      1
+  ) {
+    throw new Error(
+      "Character V3 canonical anchor must map one instance per student"
+    );
+  }
+
+  return {
+    descriptors,
+
+    anchorDescriptor:
+      anchors[0]
+  };
+}
+
+function readSemanticStudentCount(
+  legacyCharacterSystem
+) {
+  const studentCount =
+    legacyCharacterSystem
+      .getStudentCount();
+
+  if (
+    !Number.isInteger(
+      studentCount
+    ) ||
+    studentCount <
+      0 ||
+    studentCount >
+      CLASSROOM_CHARACTER_VISUAL_V10_PROFILE
+        .maximumStudents
+  ) {
+    throw new Error(
+      `invalid semantic student count: ${studentCount}`
+    );
+  }
+
+  return studentCount;
+}
+
+function assertSemanticVisualCardinality({
+  descriptors,
+  studentCount
+}) {
+  for (
+    const descriptor
+    of descriptors
+  ) {
+    const expectedCount =
+      studentCount *
+      descriptor
+        .instancesPerStudent;
+
+    if (
+      descriptor.mesh.count !==
+      expectedCount
+    ) {
+      throw new Error(
+        `Character V3 visual cardinality mismatch for ${descriptor.role}: expected ${expectedCount}, received ${descriptor.mesh.count}`
+      );
+    }
+  }
+}
+
 function createClassroomCharacterVisualIntegrationV10({
   scene,
   camera,
@@ -1042,53 +1238,16 @@ function createClassroomCharacterVisualIntegrationV10({
     );
   }
 
-  const descriptors =
-    collectLegacyCharacterVisualMeshes({
-      scene,
-      legacyCharacterSystem
-    });
-
-  if (
-    descriptors.length ===
-      0
-  ) {
-    throw new Error(
-      "V10 could not discover Character V3 visual meshes"
-    );
-  }
-
   const {
-    descriptor:
-      anchorDescriptor,
-
-    dominantCount
+    descriptors,
+    anchorDescriptor
   } =
-    selectLegacyCharacterAnchor(
-      descriptors
+    readExplicitCharacterVisualContract(
+      legacyCharacterSystem
     );
-
-  if (
-    dominantCount <=
-      0 ||
-    dominantCount >
-      CLASSROOM_CHARACTER_VISUAL_V10_PROFILE
-        .maximumStudents
-  ) {
-    throw new Error(
-      `invalid discovered student count: ${dominantCount}`
-    );
-  }
 
   const anchorMesh =
     anchorDescriptor.mesh;
-
-  const identity =
-    resolveStudentKeys({
-      legacyCharacterSystem,
-      anchorMesh,
-      studentCount:
-        dominantCount
-    });
 
   const originalVisibility =
     new Map();
@@ -1101,6 +1260,9 @@ function createClassroomCharacterVisualIntegrationV10({
       descriptor.mesh,
       descriptor.mesh.visible
     );
+
+    descriptor.mesh.visible =
+      false;
   }
 
   const visualLayer =
@@ -1119,77 +1281,194 @@ function createClassroomCharacterVisualIntegrationV10({
 
   const controllers = [];
 
-  try {
+  let identity = {
+    keys: [],
+
+    source:
+      "waiting-for-population",
+
+    synthetic:
+      true
+  };
+
+  let semanticStudentCount =
+    -1;
+
+  let disposed =
+    false;
+
+  function disposeControllers(
+    targetControllers
+  ) {
     for (
-      let index = 0;
-      index <
-        dominantCount;
-      index += 1
+      const controller
+      of targetControllers
     ) {
-      const studentKey =
-        identity.keys[
-          index
-        ];
+      controller.dispose();
+    }
+  }
 
-      const position =
-        getLegacyCharacterPosition({
-          mesh:
-            anchorMesh,
+  function materializePopulation(
+    studentCount
+  ) {
+    assertSemanticVisualCardinality({
+      descriptors,
+      studentCount
+    });
 
-          index,
+    if (
+      studentCount ===
+        semanticStudentCount &&
+      controllers.length ===
+        studentCount
+    ) {
+      return false;
+    }
 
-          role:
-            anchorDescriptor.role
-        });
-
-      const controller =
-        createStudentCharacterSpriteV9({
-          scene,
-
-          studentKey,
-
-          position,
-
-          documentObject
-        });
-
-      controller.sprite.layers.set(
-        visualLayer
+    if (
+      studentCount ===
+        0
+    ) {
+      disposeControllers(
+        controllers
       );
 
-      controller.sprite.userData = {
-        ...controller.sprite
-          .userData,
+      controllers.splice(
+        0,
+        controllers.length
+      );
 
-        visualIntegrationAuthority:
-          CLASSROOM_CHARACTER_VISUAL_V10_PROFILE
-            .authority,
+      semanticStudentCount =
+        0;
 
-        legacyVisualIndex:
-          index,
+      identity = {
+        keys: [],
 
-        legacyAnchorName:
-          anchorMesh.name ||
-          "unnamed-anchor",
+        source:
+          "waiting-for-population",
 
-        identitySource:
-          identity.source,
-
-        syntheticIdentity:
-          identity.synthetic
+        synthetic:
+          true
       };
 
-      controllers.push(
-        controller
-      );
+      return true;
     }
+
+    const nextIdentity =
+      resolveStudentKeys({
+        legacyCharacterSystem,
+        anchorMesh,
+        studentCount
+      });
+
+    const nextControllers =
+      [];
+
+    try {
+      for (
+        let index = 0;
+        index <
+          studentCount;
+        index += 1
+      ) {
+        const studentKey =
+          nextIdentity.keys[
+            index
+          ];
+
+        const position =
+          getLegacyCharacterPosition({
+            mesh:
+              anchorMesh,
+
+            index,
+
+            role:
+              anchorDescriptor.role
+          });
+
+        const controller =
+          createStudentCharacterSpriteV9({
+            scene,
+            studentKey,
+            position,
+            documentObject
+          });
+
+        controller.sprite.layers.set(
+          visualLayer
+        );
+
+        controller.sprite.userData = {
+          ...controller.sprite
+            .userData,
+
+          visualIntegrationAuthority:
+            CLASSROOM_CHARACTER_VISUAL_V10_PROFILE
+              .authority,
+
+          legacyVisualIndex:
+            index,
+
+          legacyAnchorName:
+            anchorMesh.name ||
+            "unnamed-anchor",
+
+          identitySource:
+            nextIdentity.source,
+
+          syntheticIdentity:
+            nextIdentity.synthetic
+        };
+
+        nextControllers.push(
+          controller
+        );
+      }
+    }
+    catch (error) {
+      disposeControllers(
+        nextControllers
+      );
+
+      throw error;
+    }
+
+    disposeControllers(
+      controllers
+    );
+
+    controllers.splice(
+      0,
+      controllers.length,
+      ...nextControllers
+    );
+
+    identity =
+      nextIdentity;
+
+    semanticStudentCount =
+      studentCount;
+
+    return true;
+  }
+
+  try {
+    materializePopulation(
+      readSemanticStudentCount(
+        legacyCharacterSystem
+      )
+    );
   }
   catch (error) {
     for (
-      const controller
-      of controllers
+      const descriptor
+      of descriptors
     ) {
-      controller.dispose();
+      descriptor.mesh.visible =
+        originalVisibility.get(
+          descriptor.mesh
+        );
     }
 
     if (
@@ -1203,31 +1482,9 @@ function createClassroomCharacterVisualIntegrationV10({
     throw error;
   }
 
-  /*
-   * Rendering migration:
-   *
-   * Character V3 meshes remain in the scene and retain
-   * their original raycast/collision authority.
-   *
-   * They are hidden from rendering only.
-   *
-   * Three.js raycasting intentionally honors invisible
-   * Object3D instances, therefore V3 hit proxies remain
-   * valid while V9 sprites become the presentation layer.
-   */
-  for (
-    const descriptor
-    of descriptors
-  ) {
-    descriptor.mesh.visible =
-      false;
-  }
-
-  let disposed =
-    false;
-
   function tick({
     timestamp = 0,
+
     camera:
       tickCamera =
         camera
@@ -1235,6 +1492,12 @@ function createClassroomCharacterVisualIntegrationV10({
     if (disposed) {
       return 0;
     }
+
+    materializePopulation(
+      readSemanticStudentCount(
+        legacyCharacterSystem
+      )
+    );
 
     let changedCount =
       0;
@@ -1246,6 +1509,7 @@ function createClassroomCharacterVisualIntegrationV10({
       if (
         controller.tick({
           timestamp,
+
           camera:
             tickCamera
         })
@@ -1268,6 +1532,18 @@ function createClassroomCharacterVisualIntegrationV10({
 
       studentCount:
         controllers.length,
+
+      semanticStudentCount:
+        Math.max(
+          semanticStudentCount,
+          0
+        ),
+
+      populationState:
+        semanticStudentCount >
+          0
+          ? "active"
+          : "waiting-for-population",
 
       legacyMeshCount:
         descriptors.length,
@@ -1308,12 +1584,14 @@ function createClassroomCharacterVisualIntegrationV10({
     disposed =
       true;
 
-    for (
-      const controller
-      of controllers
-    ) {
-      controller.dispose();
-    }
+    disposeControllers(
+      controllers
+    );
+
+    controllers.splice(
+      0,
+      controllers.length
+    );
 
     for (
       const descriptor

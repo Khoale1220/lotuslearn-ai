@@ -408,7 +408,7 @@ function ClassroomWorld({
       z: 0,
     });
 
-    const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 50);
+    const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 50);
     camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
     camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
     scene.add(camera);
@@ -701,37 +701,75 @@ function ClassroomWorld({
           classroomOceanSkyWorldV15
       });
 
-const classroomCharacterSceneCohesionV42 =
+    let classroomCharacterSceneCohesionV42 = null;
+    let classroomCharacterAtlasFidelityV43 = null;
+    let classroomCharacterBodyClothingFidelityV44 = null;
+    let classroomCharacterCastVarietyV45 = null;
+    let classroomCharacterFirstPersonStagingV46 = null;
 
+    function ensureCharacterVisualPolishV42ToV46() {
+      if (classroomCharacterSceneCohesionV42) {
+        return false;
+      }
 
-  createClassroomCharacterSceneCohesionV42({
+      const snapshot =
+        classroomCharacterVisualIntegrationV10
+          .getSnapshot();
 
+      if (
+        snapshot.spriteCount <= 0
+      ) {
+        return false;
+      }
 
-    scene
+      classroomCharacterSceneCohesionV42 =
+        createClassroomCharacterSceneCohesionV42({
+          scene
+        });
 
+      try {
+        classroomCharacterAtlasFidelityV43 =
+          createClassroomCharacterAtlasFidelityV43({
+            scene
+          });
 
-  });
+        classroomCharacterBodyClothingFidelityV44 =
+          createClassroomCharacterBodyClothingFidelityV44({
+            scene
+          });
 
-    const classroomCharacterAtlasFidelityV43 =
-      createClassroomCharacterAtlasFidelityV43({
-        scene
-      });
+        classroomCharacterCastVarietyV45 =
+          createClassroomCharacterCastVarietyV45({
+            scene
+          });
 
-    const classroomCharacterBodyClothingFidelityV44 =
-      createClassroomCharacterBodyClothingFidelityV44({
-        scene
-      });
+        classroomCharacterFirstPersonStagingV46 =
+          createClassroomCharacterFirstPersonStagingV46({
+            scene,
+            camera
+          });
+      }
+      catch (error) {
+        classroomCharacterFirstPersonStagingV46?.dispose();
+        classroomCharacterFirstPersonStagingV46 = null;
 
-    const classroomCharacterCastVarietyV45 =
-      createClassroomCharacterCastVarietyV45({
-        scene
-      });
+        classroomCharacterCastVarietyV45?.dispose();
+        classroomCharacterCastVarietyV45 = null;
 
-    const classroomCharacterFirstPersonStagingV46 =
-      createClassroomCharacterFirstPersonStagingV46({
-        scene,
-        camera
-      });
+        classroomCharacterBodyClothingFidelityV44?.dispose();
+        classroomCharacterBodyClothingFidelityV44 = null;
+
+        classroomCharacterAtlasFidelityV43?.dispose();
+        classroomCharacterAtlasFidelityV43 = null;
+
+        classroomCharacterSceneCohesionV42?.dispose();
+        classroomCharacterSceneCohesionV42 = null;
+
+        throw error;
+      }
+
+      return true;
+    }
 
     const classroomDeskSurfacePropsV47 =
       createClassroomDeskSurfacePropsV47({
@@ -1000,6 +1038,17 @@ const classroomInteractionAuthorityV11 =
       initialRoster
     );
 
+    classroomStudentVisualV2.refresh();
+
+    classroomCharacterV3.sync();
+
+    classroomCharacterVisualIntegrationV10.tick({
+      timestamp: 0,
+      camera
+    });
+
+    ensureCharacterVisualPolishV42ToV46();
+
     collisionObstaclesRef.current =
       initialCollisionObstacles;
     const raycaster = new THREE.Raycaster();
@@ -1085,6 +1134,7 @@ const classroomInteractionAuthorityV11 =
       classroomDeskSurfacePropsV47.tick();
       classroomBackpackWallStorytellingV48.tick();
       classroomEnvironmentalStoryDensityV49.tick();
+      classroomCinematicPaletteCohesionV50.tick();
 
       classroomFinalContentV6.tick({
         timestamp,
@@ -1231,14 +1281,12 @@ const classroomInteractionAuthorityV11 =
         camera
       });
 
+      ensureCharacterVisualPolishV42ToV46();
+
       classroomCharacterDepthOcclusionPolishV37.tick();
 
-      classroomCharacterSceneCohesionV42.tick({
-
-
+      classroomCharacterSceneCohesionV42?.tick({
         timestamp
-
-
       });
 
 
@@ -1363,23 +1411,23 @@ const classroomInteractionAuthorityV11 =
 
       classroomDeskSurfacePropsV47.dispose();
 
-      classroomCharacterFirstPersonStagingV46.dispose();
+      classroomCharacterFirstPersonStagingV46?.dispose();
 
 
 
-      classroomCharacterCastVarietyV45.dispose();
+      classroomCharacterCastVarietyV45?.dispose();
 
 
 
-      classroomCharacterBodyClothingFidelityV44.dispose();
+      classroomCharacterBodyClothingFidelityV44?.dispose();
 
 
 
-      classroomCharacterAtlasFidelityV43.dispose();
+      classroomCharacterAtlasFidelityV43?.dispose();
 
 
 
-      classroomCharacterSceneCohesionV42.dispose();
+      classroomCharacterSceneCohesionV42?.dispose();
 
 
 

@@ -12,25 +12,25 @@
     palette:
       Object.freeze({
         fog:
-          0x252338,
+          0xb7c4cc,
 
         hemisphereSky:
-          0x92c8cf,
+          0xddebf0,
 
         hemisphereGround:
-          0x2b2138,
+          0x8a8177,
 
         directionalKey:
-          0xffc085
+          0xffddb0
       }),
 
     depth:
       Object.freeze({
         foregroundClearUntil:
-          10,
+          14,
 
         atmosphericFar:
-          25.5,
+          32,
 
         model:
           "linear"
@@ -39,10 +39,10 @@
     lighting:
       Object.freeze({
         hemisphereIntensityMultiplier:
-          0.92,
+          1.12,
 
         directionalIntensityMultiplier:
-          1.08
+          0.96
       }),
 
     addedMeshes:
@@ -289,10 +289,12 @@ function applyDepthAtmospherePixelLightingV35({
   }
 
   /*
-   * Cool cyan sky ambient + deep plum ground ambient.
+   * Friendly daylight hemisphere + warm neutral ground ambient.
    *
-   * Ambient contribution is deliberately reduced slightly so
-   * silhouettes and directional key lighting read more clearly.
+   * P0.6 deliberately raises broad ambient illumination so the
+   * classroom reads as an educational space rather than a dark
+   * cinematic environment. The existing light authority is
+   * preserved; only color and intensity are calibrated.
    */
 
   hemisphereLight.color.setHex(
@@ -317,7 +319,11 @@ function applyDepthAtmospherePixelLightingV35({
     );
 
   /*
-   * Warm VGA key.
+   * Warm classroom directional key.
+   *
+   * The key is slightly softened relative to the original scene
+   * because the friendly baseline relies more on readable ambient
+   * illumination than on high-contrast cinematic key lighting.
    *
    * Preserve:
    * position

@@ -242,7 +242,7 @@ function drawTeacherClipboard({
    * Clipboard outline.
    */
   context.fillStyle =
-    "#17150f";
+    "#3a3328";
 
   context.fillRect(
     66,
@@ -325,7 +325,7 @@ function drawTeacherClipboard({
    * Deliberately chunky: no curves, no smoothing.
    */
   context.fillStyle =
-    "#17120f";
+    "#594236";
 
   context.fillRect(
     24,
@@ -978,10 +978,10 @@ function createClassroomRetroFpsPipeline({
 
   teacherCanvas.style.cssText = [
     "position:absolute",
-    "right:12px",
-    "bottom:48px",
-    "width:320px",
-    "height:192px",
+    "right:14px",
+    "bottom:46px",
+    "width:176px",
+    "height:106px",
     "image-rendering:pixelated",
     "pointer-events:none"
   ].join(";");

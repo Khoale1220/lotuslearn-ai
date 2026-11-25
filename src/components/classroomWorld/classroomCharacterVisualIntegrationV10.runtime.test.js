@@ -66,24 +66,40 @@ test(
     await t.test(
       "ticks sprites before rendering",
       () => {
-        const tickIndex =
+        const animateIndex =
           worldSource.indexOf(
-            "classroomCharacterVisualIntegrationV10.tick({"
+            "const animate = (timestamp) => {"
           );
+
+        const tickIndex =
+          animateIndex >= 0
+            ? worldSource.indexOf(
+                "classroomCharacterVisualIntegrationV10.tick({",
+                animateIndex
+              )
+            : -1;
 
         const renderIndex =
-          worldSource.indexOf(
-            "renderer.render(scene, camera);"
-          );
+          tickIndex >= 0
+            ? worldSource.indexOf(
+                "renderer.render(scene, camera);",
+                tickIndex
+              )
+            : -1;
 
         assert.ok(
-          tickIndex >=
-          0
+          animateIndex >=
+            0
+        );
+
+        assert.ok(
+          tickIndex >
+            animateIndex
         );
 
         assert.ok(
           renderIndex >
-          tickIndex
+            tickIndex
         );
       }
     );

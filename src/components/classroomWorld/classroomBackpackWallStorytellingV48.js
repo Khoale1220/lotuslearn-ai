@@ -161,6 +161,14 @@ function scoreBoardCandidateV48(
     return Number.NEGATIVE_INFINITY;
   }
 
+  if (
+    object.userData
+      ?.classroomCanonicalBlackboard ===
+      true
+  ) {
+    return 1_000_000_000;
+  }
+
   const geometry =
     readGeometryBoundsV48(
       object.geometry

@@ -191,7 +191,40 @@ function createFixture() {
       "student-alpha",
       "student-bravo",
       "student-charlie"
-    ]
+    ],
+
+    getVisualMeshes() {
+      return [
+        {
+          role: "shoes",
+          mesh: shoes,
+          instancesPerStudent: 1,
+          canonicalAnchor: true
+        },
+        {
+          role: "legs",
+          mesh: legs,
+          instancesPerStudent: 1,
+          canonicalAnchor: false
+        },
+        {
+          role: "torso",
+          mesh: torso,
+          instancesPerStudent: 1,
+          canonicalAnchor: false
+        },
+        {
+          role: "head",
+          mesh: heads,
+          instancesPerStudent: 1,
+          canonicalAnchor: false
+        }
+      ];
+    },
+
+    getStudentCount() {
+      return 3;
+    }
   };
 
   return {

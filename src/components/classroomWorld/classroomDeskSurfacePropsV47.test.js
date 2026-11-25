@@ -447,7 +447,7 @@ test(
 );
 
 test(
-  "V47 world construction order is Retro then V46 then V47",
+  "V47 world lifecycle keeps Retro before V47 while V46 hydrates lazily",
   () => {
     const source =
       fs.readFileSync(
@@ -463,11 +463,6 @@ test(
         "const classroomRetroCompositionV4"
       );
 
-    const v46 =
-      source.indexOf(
-        "const classroomCharacterFirstPersonStagingV46"
-      );
-
     const v47 =
       source.indexOf(
         "const classroomDeskSurfacePropsV47"
@@ -477,12 +472,30 @@ test(
       retro >= 0
     );
 
+    /*
+     * V47 owns desk-surface enhancement and depends
+     * on RetroCompositionV4's semantic desk anchor.
+     *
+     * It no longer depends on eager V46 creation.
+     */
     assert.ok(
-      v46 > retro
+      v47 > retro
+    );
+
+    /*
+     * V42-V46 are intentionally zero-population-safe
+     * and hydrate only after V10 exposes sprites.
+     */
+    assert.ok(
+      source.includes(
+        "let classroomCharacterFirstPersonStagingV46 = null"
+      )
     );
 
     assert.ok(
-      v47 > v46
+      source.includes(
+        "function ensureCharacterVisualPolishV42ToV46()"
+      )
     );
 
     const retroTick =
@@ -495,26 +508,32 @@ test(
         "classroomDeskSurfacePropsV47.tick();"
       );
 
+    /*
+     * Retro owner updates its instance matrices before
+     * V47 consumes the canonical desk surface.
+     */
+    assert.ok(
+      retroTick >= 0
+    );
+
     assert.ok(
       v47Tick > retroTick
     );
 
-    const v47Dispose =
-      source.indexOf(
-        "classroomDeskSurfacePropsV47.dispose();"
-      );
-
-    const v46Dispose =
-      source.indexOf(
-        "classroomCharacterFirstPersonStagingV46.dispose();"
-      );
-
     assert.ok(
-      v47Dispose >= 0
+      source.includes(
+        "classroomDeskSurfacePropsV47.dispose();"
+      )
     );
 
+    /*
+     * V46 may never materialize for an empty roster,
+     * so cleanup must remain optional.
+     */
     assert.ok(
-      v46Dispose > v47Dispose
+      source.includes(
+        "classroomCharacterFirstPersonStagingV46?.dispose();"
+      )
     );
   }
 );

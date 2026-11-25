@@ -1,4 +1,4 @@
-﻿import * as THREE from "three";
+import * as THREE from "three";
 
 const CLASSROOM_PIXEL_ART_GRADE_V23_PROFILE =
   Object.freeze({
@@ -9,7 +9,7 @@ const CLASSROOM_PIXEL_ART_GRADE_V23_PROFILE =
       "high-detail-1990s-vga-cinematic-pixel-art",
 
     referenceIntent:
-      "deep-plum-cyan-warm-cream",
+      "friendly-warm-readable-64-bit-classroom",
 
     visualOnly:
       true,
@@ -20,26 +20,26 @@ const CLASSROOM_PIXEL_ART_GRADE_V23_PROFILE =
     posterizeLevels:
       Object.freeze({
         red:
-          7,
+          18,
 
         green:
-          7,
+          18,
 
         blue:
-          6
+          16
       }),
 
     saturation:
-      1.28,
+      1.00,
 
     contrast:
-      1.14,
+      1.00,
 
     edgeStrength:
-      0.82,
+      0.08,
 
     ditherStrength:
-      0.030
+      0.0015
   });
 
 const CLASSROOM_PIXEL_ART_GRADE_V23_PALETTE =
@@ -179,7 +179,7 @@ function createPixelArtGradeShaderV23() {
 
         varying vec2 vUv;
 
-        float luminance(
+        float cw06LuminanceV23(
           vec3 color
         ) {
           return dot(
@@ -340,7 +340,7 @@ function createPixelArtGradeShaderV23() {
           float saturationValue
         ) {
           float luma =
-            luminance(
+            cw06LuminanceV23(
               color
             );
 
@@ -361,7 +361,7 @@ function createPixelArtGradeShaderV23() {
           vec3 color
         ) {
           float luma =
-            luminance(
+            cw06LuminanceV23(
               color
             );
 
@@ -434,44 +434,44 @@ function createPixelArtGradeShaderV23() {
             mix(
               color,
               color *
-                0.74 +
+                0.96 +
                 deepPlum *
-                0.26,
+                0.04,
               shadowMask *
-                0.62
+                0.14
             );
 
           color =
             mix(
               color,
               color *
-                0.88 +
+                0.98 +
                 cyan *
-                0.12,
+                0.02,
               coolMask *
-                0.58
+                0.10
             );
 
           color =
             mix(
               color,
               color *
-                0.84 +
+                0.96 +
                 warmClay *
-                0.16,
+                0.04,
               warmMask *
-                0.70
+                0.18
             );
 
           color =
             mix(
               color,
               color *
-                0.82 +
+                0.96 +
                 cream *
-                0.18,
+                0.04,
               highlightMask *
-                0.82
+                0.20
             );
 
           return clamp(
@@ -487,9 +487,9 @@ function createPixelArtGradeShaderV23() {
         ) {
           vec3 levels =
             vec3(
-              7.0,
-              7.0,
-              6.0
+              18.0,
+              18.0,
+              16.0
             );
 
           vec3 adjusted =
@@ -578,36 +578,36 @@ function createPixelArtGradeShaderV23() {
             max(
               max(
                 abs(
-                  luminance(
+                  cw06LuminanceV23(
                     center
                   ) -
-                  luminance(
+                  cw06LuminanceV23(
                     left
                   )
                 ),
                 abs(
-                  luminance(
+                  cw06LuminanceV23(
                     center
                   ) -
-                  luminance(
+                  cw06LuminanceV23(
                     right
                   )
                 )
               ),
               max(
                 abs(
-                  luminance(
+                  cw06LuminanceV23(
                     center
                   ) -
-                  luminance(
+                  cw06LuminanceV23(
                     up
                   )
                 ),
                 abs(
-                  luminance(
+                  cw06LuminanceV23(
                     center
                   ) -
-                  luminance(
+                  cw06LuminanceV23(
                     down
                   )
                 )
@@ -617,14 +617,14 @@ function createPixelArtGradeShaderV23() {
           edge =
             max(
               edge *
-                0.72,
+                0.55,
               lumaEdge *
-                1.45
+                0.95
             );
 
           return smoothstep(
-            0.105,
-            0.31,
+            0.18,
+            0.50,
             edge
           );
         }
@@ -683,9 +683,9 @@ function createPixelArtGradeShaderV23() {
 
           vec3 ink =
             vec3(
-              0.026,
-              0.015,
-              0.045
+              0.11,
+              0.12,
+              0.13
             );
 
           color =
@@ -711,9 +711,9 @@ function createPixelArtGradeShaderV23() {
             1.0 -
             clamp(
               vignette *
-                0.055,
+                0.015,
               0.0,
-              0.10
+              0.03
             );
 
           gl_FragColor =

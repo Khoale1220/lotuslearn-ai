@@ -55,31 +55,31 @@ test(
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PROFILE
         .artDirection,
-      "high-detail-cinematic-vga"
+      "bright-warm-readable-64-bit-classroom"
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .ink,
-      0x080615
+      0x30343a
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .cyan,
-      0x43a8ce
+      0x75b7cc
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .sunOrange,
-      0xf19a55
+      0xe3ad69
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .cream,
-      0xffe7b0
+      0xffefcf
     );
   }
 );
