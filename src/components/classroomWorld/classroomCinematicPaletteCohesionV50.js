@@ -377,7 +377,11 @@ function discoverCohesionTargetsV50(
 
 function assertOwnedPixelMeshV50(
   mesh,
-  label
+  label,
+  {
+    allowDeferredInstanceColor =
+      false
+  } = {}
 ) {
   if (
     !mesh ||
@@ -388,8 +392,14 @@ function assertOwnedPixelMeshV50(
     );
   }
 
+  const deferredColorIsValid =
+    allowDeferredInstanceColor &&
+    mesh.count === 0 &&
+    !mesh.instanceColor;
+
   if (
-    !mesh.instanceColor
+    !mesh.instanceColor &&
+    !deferredColorIsValid
   ) {
     throw new Error(
       `V50_${label}_INSTANCE_COLOR_MISSING`
@@ -414,6 +424,15 @@ function assertOwnedPixelMeshV50(
       `V50_${label}_TONEMAP_POLICY_DRIFT`
     );
   }
+}
+
+function readInstanceColorSignatureV50(
+  mesh
+) {
+  return [
+    mesh.count,
+    mesh.instanceColor?.version ?? -1
+  ].join(":");
 }
 
 function captureInstanceColorsV50(
@@ -591,11 +610,23 @@ function createClassroomCinematicPaletteCohesionV50({
       scene
     );
 
+  /*
+   * Desk color ownership is allowed to be dormant
+   * while V49 has zero active desk instances.
+   */
   assertOwnedPixelMeshV50(
     discovery.deskPixelMesh,
-    "DESK"
+    "DESK",
+    {
+      allowDeferredInstanceColor:
+        true
+    }
   );
 
+  /*
+   * The noticeboard is built eagerly by V49 and
+   * therefore remains strict.
+   */
   assertOwnedPixelMeshV50(
     discovery.noticeboardPixelMesh,
     "NOTICEBOARD"
@@ -620,31 +651,13 @@ function createClassroomCinematicPaletteCohesionV50({
     createPaletteV50();
 
   /*
-   * Capture exact linear-space instance colors.
-   *
-   * V50 can therefore restore V49 bit-for-bit in
-   * floating point color components on dispose.
+   * Noticeboard colors already exist at V50
+   * construction time.
    */
-  const deskOriginalColors =
-    captureInstanceColorsV50(
-      deskPixelMesh
-    );
-
   const boardOriginalColors =
     captureInstanceColorsV50(
       noticeboardPixelMesh
     );
-
-  const deskColorMutationCount =
-    harmonizeInstancedColorsV50({
-      mesh:
-        deskPixelMesh,
-
-      role:
-        "desk",
-
-      paletteSet
-    });
 
   const boardColorMutationCount =
     harmonizeInstancedColorsV50({
@@ -657,8 +670,124 @@ function createClassroomCinematicPaletteCohesionV50({
       paletteSet
     });
 
+  /*
+   * Desk colors are lifecycle-driven by V49.
+   */
+  let deskOriginalColors =
+    new Float32Array(0);
+
+  let deskColorMutationCount =
+    0;
+
+  let deskPaletteState =
+    "waiting-for-instance-color";
+
+  let lastDeskColorSignature =
+    null;
+
   let disposed =
     false;
+
+  function syncDeskPalette() {
+    const incomingSignature =
+      readInstanceColorSignatureV50(
+        deskPixelMesh
+      );
+
+    /*
+     * Do not respond to our own color write.
+     */
+    if (
+      incomingSignature ===
+        lastDeskColorSignature
+    ) {
+      return false;
+    }
+
+    /*
+     * Valid startup state:
+     *
+     * desk exists
+     * population is still zero
+     * instanceColor may still be null
+     */
+    if (
+      deskPixelMesh.count ===
+        0
+    ) {
+      deskOriginalColors =
+        new Float32Array(0);
+
+      deskColorMutationCount =
+        0;
+
+      deskPaletteState =
+        "waiting-for-instance-color";
+
+      lastDeskColorSignature =
+        incomingSignature;
+
+      return false;
+    }
+
+    /*
+     * After population exists, missing instanceColor
+     * is a genuine invariant violation.
+     */
+    if (
+      !deskPixelMesh.instanceColor
+    ) {
+      throw new Error(
+        "V50_DESK_INSTANCE_COLOR_MISSING_AFTER_POPULATION"
+      );
+    }
+
+    /*
+     * Capture current V49-owned colors before
+     * applying V50 cohesion.
+     */
+    deskOriginalColors =
+      captureInstanceColorsV50(
+        deskPixelMesh
+      );
+
+    deskColorMutationCount =
+      harmonizeInstancedColorsV50({
+        mesh:
+          deskPixelMesh,
+
+        role:
+          "desk",
+
+        paletteSet
+      });
+
+    deskPaletteState =
+      "active";
+
+    /*
+     * Store signature AFTER our own write.
+     */
+    lastDeskColorSignature =
+      readInstanceColorSignatureV50(
+        deskPixelMesh
+      );
+
+    return true;
+  }
+
+  /*
+   * Initial call is zero-population-safe.
+   */
+  syncDeskPalette();
+
+  function tick() {
+    if (disposed) {
+      return false;
+    }
+
+    return syncDeskPalette();
+  }
 
   function getSnapshot() {
     return Object.freeze({
@@ -676,6 +805,8 @@ function createClassroomCinematicPaletteCohesionV50({
 
       boardInstanceCount:
         noticeboardPixelMesh.count,
+
+      deskPaletteState,
 
       deskColorMutationCount,
 
@@ -754,10 +885,16 @@ function createClassroomCinematicPaletteCohesionV50({
     disposed =
       true;
 
-    restoreInstanceColorsV50(
-      deskPixelMesh,
-      deskOriginalColors
-    );
+    if (
+      deskPixelMesh.instanceColor &&
+      deskOriginalColors.length >
+        0
+    ) {
+      restoreInstanceColorsV50(
+        deskPixelMesh,
+        deskOriginalColors
+      );
+    }
 
     restoreInstanceColorsV50(
       noticeboardPixelMesh,
@@ -766,6 +903,7 @@ function createClassroomCinematicPaletteCohesionV50({
   }
 
   return Object.freeze({
+    tick,
     getSnapshot,
     dispose
   });

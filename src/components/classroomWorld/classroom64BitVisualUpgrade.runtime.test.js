@@ -109,10 +109,10 @@ test(
     await t.test(
       "uses soft shadow upgrade and textured floor",
       () => {
-        assert.match(
-          upgradeSource,
-          /THREE\.PCFSoftShadowMap/u
-        );
+        assert.doesNotMatch(
+  upgradeSource,
+  /renderer\.shadowMap\.type\s*=/u
+);
 
         assert.match(
           upgradeSource,

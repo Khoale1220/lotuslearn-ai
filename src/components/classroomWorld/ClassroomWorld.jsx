@@ -61,6 +61,7 @@ import { createClassroomDeskSurfacePropsV47 } from "./classroomDeskSurfacePropsV
 import { createClassroomBackpackWallStorytellingV48 } from "./classroomBackpackWallStorytellingV48.js";
 import { createClassroomEnvironmentalStoryDensityV49 } from "./classroomEnvironmentalStoryDensityV49.js";
 import { createClassroomCinematicPaletteCohesionV50 } from "./classroomCinematicPaletteCohesionV50.js";
+import { createClassroomVisualHierarchyV51 } from "./classroomVisualHierarchyV51.js";
 
 
 
@@ -120,12 +121,25 @@ import {
 } from "./classroomRuntimeObservabilityV7.js";
 
 import {
+  createClassroomRuntimeAcceptanceBridgeV56
+} from "./classroomRuntimeAcceptanceBridgeV56.js";
+
+import {
   createClassroomCharacterVisualIntegrationV10
 } from "./classroomCharacterVisualIntegrationV10.js";
 
 import {
   createClassroomInteractionAuthorityV11
 } from "./classroomInteractionAuthorityV11.js";
+
+import {
+  captureTeacherInterventionFeedbackTargetV53,
+  createClassroomInterventionFeedbackV53
+} from "./classroomInterventionFeedbackV53.js";
+
+import {
+  deriveClassroomInteractionStateV54
+} from "./classroomInteractionStateV54.js";
 
 import {
   createClassroomInteractionReplayAuditV12
@@ -303,6 +317,32 @@ function ClassroomWorld({
   const [hasEntered, setHasEntered] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [
+    interventionFeedbackTarget,
+    setInterventionFeedbackTarget
+  ] = useState(null);
+
+  const interventionFeedback =
+    createClassroomInterventionFeedbackV53({
+      status:
+        teacherInterventionStatus,
+
+      selectedStudent,
+
+      target:
+        interventionFeedbackTarget
+    });
+
+  const interactionStateV54 =
+    deriveClassroomInteractionStateV54({
+      hasEntered,
+
+      isLocked,
+
+      selectedStudent,
+
+      interventionFeedback
+    });
 
   const emitTeacherInterventionCommand = (input) => {
     if (
@@ -386,6 +426,18 @@ function ClassroomWorld({
           : {})
       });
 
+    setInterventionFeedbackTarget(
+      captureTeacherInterventionFeedbackTargetV53(
+        selectedStudent?.studentKey ===
+          input.studentKey
+          ? selectedStudent
+          : {
+              studentKey:
+                input.studentKey
+            }
+      )
+    );
+
     return onTeacherIntervention(
       command
     );
@@ -408,7 +460,7 @@ function ClassroomWorld({
       z: 0,
     });
 
-    const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 50);
+    const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 50);
     camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
     camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
     scene.add(camera);
@@ -431,7 +483,10 @@ function ClassroomWorld({
       false
     );
 
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    /*
+     * CW08.3B:
+     * classroomVisualSystem owns renderer output color space.
+     */
     renderer.domElement.className = "cw-world__canvas";
     host.appendChild(renderer.domElement);
 
@@ -642,12 +697,25 @@ function ClassroomWorld({
     const classroomInteractionReplayAuditV12 =
       createClassroomInteractionReplayAuditV12();
 
+    const keys = new Set();
+
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
 
-    const onLock = () => setIsLocked(true);
-    const onUnlock = () => setIsLocked(false);
+    const onLock = () =>
+      setIsLocked(true);
+
+    const onUnlock = () => {
+      /*
+       * Pointer-lock loss is an input boundary.
+       * Never allow held movement state to leak
+       * into the next lock session.
+       */
+      keys.clear();
+
+      setIsLocked(false);
+    };
 
     controls.addEventListener("lock", onLock);
     controls.addEventListener("unlock", onUnlock);
@@ -701,37 +769,75 @@ function ClassroomWorld({
           classroomOceanSkyWorldV15
       });
 
-const classroomCharacterSceneCohesionV42 =
+    let classroomCharacterSceneCohesionV42 = null;
+    let classroomCharacterAtlasFidelityV43 = null;
+    let classroomCharacterBodyClothingFidelityV44 = null;
+    let classroomCharacterCastVarietyV45 = null;
+    let classroomCharacterFirstPersonStagingV46 = null;
 
+    function ensureCharacterVisualPolishV42ToV46() {
+      if (classroomCharacterSceneCohesionV42) {
+        return false;
+      }
 
-  createClassroomCharacterSceneCohesionV42({
+      const snapshot =
+        classroomCharacterVisualIntegrationV10
+          .getSnapshot();
 
+      if (
+        snapshot.spriteCount <= 0
+      ) {
+        return false;
+      }
 
-    scene
+      classroomCharacterSceneCohesionV42 =
+        createClassroomCharacterSceneCohesionV42({
+          scene
+        });
 
+      try {
+        classroomCharacterAtlasFidelityV43 =
+          createClassroomCharacterAtlasFidelityV43({
+            scene
+          });
 
-  });
+        classroomCharacterBodyClothingFidelityV44 =
+          createClassroomCharacterBodyClothingFidelityV44({
+            scene
+          });
 
-    const classroomCharacterAtlasFidelityV43 =
-      createClassroomCharacterAtlasFidelityV43({
-        scene
-      });
+        classroomCharacterCastVarietyV45 =
+          createClassroomCharacterCastVarietyV45({
+            scene
+          });
 
-    const classroomCharacterBodyClothingFidelityV44 =
-      createClassroomCharacterBodyClothingFidelityV44({
-        scene
-      });
+        classroomCharacterFirstPersonStagingV46 =
+          createClassroomCharacterFirstPersonStagingV46({
+            scene,
+            camera
+          });
+      }
+      catch (error) {
+        classroomCharacterFirstPersonStagingV46?.dispose();
+        classroomCharacterFirstPersonStagingV46 = null;
 
-    const classroomCharacterCastVarietyV45 =
-      createClassroomCharacterCastVarietyV45({
-        scene
-      });
+        classroomCharacterCastVarietyV45?.dispose();
+        classroomCharacterCastVarietyV45 = null;
 
-    const classroomCharacterFirstPersonStagingV46 =
-      createClassroomCharacterFirstPersonStagingV46({
-        scene,
-        camera
-      });
+        classroomCharacterBodyClothingFidelityV44?.dispose();
+        classroomCharacterBodyClothingFidelityV44 = null;
+
+        classroomCharacterAtlasFidelityV43?.dispose();
+        classroomCharacterAtlasFidelityV43 = null;
+
+        classroomCharacterSceneCohesionV42?.dispose();
+        classroomCharacterSceneCohesionV42 = null;
+
+        throw error;
+      }
+
+      return true;
+    }
 
     const classroomDeskSurfacePropsV47 =
       createClassroomDeskSurfacePropsV47({
@@ -825,14 +931,61 @@ const classroomInteractionAuthorityV11 =
         host
       });
 
+    const classroomRuntimeAcceptanceBridgeV56 =
+      createClassroomRuntimeAcceptanceBridgeV56({
+        target:
+          host,
+
+        readRuntimeSnapshot:
+          () =>
+            classroomRuntimeObservabilityV7
+              .getSnapshot(),
+
+        readInteractionSnapshot:
+          () => {
+            const root =
+              host.closest?.(
+                ".cw-world"
+              );
+
+            return {
+              mode:
+                root?.dataset
+                  ?.interactionMode ??
+                null,
+
+              gameplayActive:
+                root?.dataset
+                  ?.gameplayActive ===
+                "true",
+
+              pointerLocked:
+                controls.isLocked ===
+                true
+            };
+          },
+
+        createEvent:
+          (
+            type,
+            detail
+          ) =>
+            new CustomEvent(
+              type,
+              {
+                detail
+              }
+            )
+      });
 
 
 
-    scene.add(new THREE.HemisphereLight(0xe7efff, 0x2c2436, 2.4));
 
-    const keyLight = new THREE.DirectionalLight(0xfff0d8, 2.2);
-    keyLight.position.set(4, 7, 5);
-    scene.add(keyLight);
+    /*
+     * CW08.3C-C:
+     * createClassroomLightingV2 owns the canonical classroom light rig.
+     * Do not create a second anonymous Hemisphere/Directional pair here.
+     */
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(16, 18),
@@ -1000,13 +1153,23 @@ const classroomInteractionAuthorityV11 =
       initialRoster
     );
 
+    classroomStudentVisualV2.refresh();
+
+    classroomCharacterV3.sync();
+
+    classroomCharacterVisualIntegrationV10.tick({
+      timestamp: 0,
+      camera
+    });
+
+    ensureCharacterVisualPolishV42ToV46();
+
     collisionObstaclesRef.current =
       initialCollisionObstacles;
     const raycaster = new THREE.Raycaster();
     raycaster.far = INTERACTION_DISTANCE;
 
     const center = new THREE.Vector2(0, 0);
-    const keys = new Set();
     const timer = new THREE.Timer();
     timer.connect(document);
 
@@ -1020,7 +1183,14 @@ const classroomInteractionAuthorityV11 =
 
     const onKeyDown = (event) => {
       if (event.code === "Escape") {
-        setSelectedStudent(null);
+        setInterventionFeedbackTarget(
+          null
+        );
+
+        setSelectedStudent(
+          null
+        );
+
         return;
       }
       keys.add(event.code);
@@ -1045,6 +1215,10 @@ const classroomInteractionAuthorityV11 =
         controls.unlock();
       keys.clear();
 
+      setInterventionFeedbackTarget(
+        null
+      );
+
       setSelectedStudent(
         store.requireStudent(activeStudent.studentKey)
       );
@@ -1055,8 +1229,18 @@ const classroomInteractionAuthorityV11 =
       keys.delete(event.code);
     };
 
+    const onWindowBlur = () => {
+      /*
+       * Browsers may not deliver keyup after the
+       * window loses focus. Drop all movement intent
+       * at that boundary to prevent sticky keys.
+       */
+      keys.clear();
+    };
+
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onWindowBlur);
 
     const resizeCamera = () => {
       const width = host.clientWidth || 16;
@@ -1069,6 +1253,11 @@ const classroomInteractionAuthorityV11 =
     const resizeObserver = new ResizeObserver(resizeCamera);
     resizeObserver.observe(host);
     resizeCamera();
+
+    const classroomVisualHierarchyV51 =
+      createClassroomVisualHierarchyV51({
+        scene
+      });
 
     const animate = (timestamp) => {
       animationFrame =
@@ -1085,6 +1274,7 @@ const classroomInteractionAuthorityV11 =
       classroomDeskSurfacePropsV47.tick();
       classroomBackpackWallStorytellingV48.tick();
       classroomEnvironmentalStoryDensityV49.tick();
+      classroomCinematicPaletteCohesionV50.tick();
 
       classroomFinalContentV6.tick({
         timestamp,
@@ -1231,14 +1421,12 @@ const classroomInteractionAuthorityV11 =
         camera
       });
 
+      ensureCharacterVisualPolishV42ToV46();
+
       classroomCharacterDepthOcclusionPolishV37.tick();
 
-      classroomCharacterSceneCohesionV42.tick({
-
-
+      classroomCharacterSceneCohesionV42?.tick({
         timestamp
-
-
       });
 
 
@@ -1288,6 +1476,7 @@ const classroomInteractionAuthorityV11 =
 
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onWindowBlur);
 
       controls.removeEventListener("lock", onLock);
       controls.removeEventListener("unlock", onUnlock);
@@ -1345,9 +1534,12 @@ const classroomInteractionAuthorityV11 =
 
       classroomFinalContentV6.dispose();
 
+      classroomRuntimeAcceptanceBridgeV56.dispose();
       classroomRuntimeObservabilityV7.dispose();
       classroomPixelArtGradeV23.dispose();
       classroomRetroFpsPipeline.dispose();
+      classroomVisualHierarchyV51.dispose();
+
       classroomInteractionAuthorityV11.dispose();
       classroomInputStateTimelineV13.dispose();
 
@@ -1363,23 +1555,23 @@ const classroomInteractionAuthorityV11 =
 
       classroomDeskSurfacePropsV47.dispose();
 
-      classroomCharacterFirstPersonStagingV46.dispose();
+      classroomCharacterFirstPersonStagingV46?.dispose();
 
 
 
-      classroomCharacterCastVarietyV45.dispose();
+      classroomCharacterCastVarietyV45?.dispose();
 
 
 
-      classroomCharacterBodyClothingFidelityV44.dispose();
+      classroomCharacterBodyClothingFidelityV44?.dispose();
 
 
 
-      classroomCharacterAtlasFidelityV43.dispose();
+      classroomCharacterAtlasFidelityV43?.dispose();
 
 
 
-      classroomCharacterSceneCohesionV42.dispose();
+      classroomCharacterSceneCohesionV42?.dispose();
 
 
 
@@ -1423,35 +1615,70 @@ const classroomInteractionAuthorityV11 =
   }, []);
 
   return (
-    <section className="cw-world">
+    <section
+      className="cw-world"
+      data-interaction-mode={
+        interactionStateV54.mode
+      }
+      data-gameplay-active={
+        interactionStateV54.canMove
+          ? "true"
+          : "false"
+      }
+    >
       <div
         ref={hostRef}
         className="cw-world__viewport"
         onClick={() => {
           if (
-            hasEntered &&
-            !selectedStudent &&
-            !isLocked
+            interactionStateV54
+              .canAcquirePointerLock
           ) {
             controlsRef.current?.lock();
           }
         }}
       />
 
-      <div className="cw-world__hud">
+      {/* CW07_V55_HUD_GUARD */ (
+        interactionStateV54.canMove ||
+        interactionStateV54.canAcquirePointerLock
+      ) ? (
+        <div
+          className="cw-world__hud"
+          aria-hidden="true"
+        >
         <strong>CLASSROOM WORLD // CW03</strong>
         <span>WASD MOVE · MOUSE LOOK · ESC RELEASE</span>
       </div>
+      ) : null}
 
-      <div className="cw-world__crosshair">+</div>
+      {interactionStateV54.canAcquirePointerLock ? (
+        <div
+          className="cw-world__resume-hint"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          CLICK VIEW TO RESUME
+        </div>
+      ) : null}
 
-      {targetLabel && isLocked && (
+      {interactionStateV54.canMove ? (
+        <div
+          className="cw-world__crosshair"
+          aria-hidden="true"
+        >
+          +
+        </div>
+      ) : null}
+
+      {targetLabel && interactionStateV54.canMove && (
         <div className="cw-world__prompt">
           [E] VIEW {targetLabel.toUpperCase()}
         </div>
       )}
 
-      {!hasEntered && (
+      {interactionStateV54.showEntryGate && (
         <div className="cw-world__entry">
           <div className="cw-world__entry-card">
             <small>CW03 RENDERING SPIKE</small>
@@ -1464,7 +1691,18 @@ const classroomInteractionAuthorityV11 =
             <button
               type="button"
               onClick={() => {
-                setHasEntered(true);
+                setInterventionFeedbackTarget(
+                  null
+                );
+
+                setSelectedStudent(
+                  null
+                );
+
+                setHasEntered(
+                  true
+                );
+
                 controlsRef.current?.lock();
               }}
             >
@@ -1503,7 +1741,15 @@ const classroomInteractionAuthorityV11 =
             <button
               type="button"
               className="cw-world__student-hud-close"
-              onClick={() => setSelectedStudent(null)}
+              onClick={() => {
+                setInterventionFeedbackTarget(
+                  null
+                );
+
+                setSelectedStudent(
+                  null
+                );
+              }}
               aria-label="Close student intelligence"
             >
               X
@@ -1562,10 +1808,32 @@ const classroomInteractionAuthorityV11 =
                   );
                 }}
           >
-            {teacherInterventionStatus?.phase === "pending"
-              ? "SAVING..."
-              : "APPLY INTERVENTION"}
+            {interventionFeedback?.buttonLabel ??
+              (teacherInterventionStatus?.phase === "pending"
+                ? "SAVING..."
+                : "APPLY INTERVENTION")}
           </button>
+
+          {interventionFeedback ? (
+            <div
+              className="cw-world__intervention-feedback"
+              role={interventionFeedback.role}
+              aria-live={interventionFeedback.ariaLive}
+              aria-atomic="true"
+              data-phase={interventionFeedback.phase}
+              data-student-key={interventionFeedback.studentKey}
+            >
+              <strong>
+                {interventionFeedback.title}
+              </strong>
+
+              <span>
+                {interventionFeedback.studentLabel}
+                {" // "}
+                {interventionFeedback.detail}
+              </span>
+            </div>
+          ) : null}
 
           {teacherInterventionStatus?.phase &&
           teacherInterventionStatus.phase !== "idle" ? (

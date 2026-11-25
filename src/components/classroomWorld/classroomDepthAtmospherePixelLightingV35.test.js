@@ -192,7 +192,7 @@ test(
 );
 
 test(
-  "V35 builds foreground midground background depth separation",
+  "V35 applies profile-driven friendly depth and lighting balance",
   () => {
     const {
       scene,
@@ -200,6 +200,9 @@ test(
       directional
     } =
       createFixture();
+
+    const profile =
+      CLASSROOM_DEPTH_ATMOSPHERE_PIXEL_LIGHTING_V35_PROFILE;
 
     const fogIdentity =
       scene.fog;
@@ -219,8 +222,49 @@ test(
     const originalDirectional =
       directional.intensity;
 
+    const originalRatio =
+      originalDirectional /
+      originalHemisphere;
+
     const childrenBefore =
       scene.children.length;
+
+    const expectedFogNear =
+      Math.min(
+        originalFogNear,
+        profile.depth
+          .foregroundClearUntil
+      );
+
+    const expectedFogFar =
+      Math.max(
+        originalFogFar,
+        profile.depth
+          .atmosphericFar,
+        expectedFogNear + 4
+      );
+
+    const expectedHemisphere =
+      Math.min(
+        10,
+        Math.max(
+          0.1,
+          originalHemisphere *
+            profile.lighting
+              .hemisphereIntensityMultiplier
+        )
+      );
+
+    const expectedDirectional =
+      Math.min(
+        10,
+        Math.max(
+          0.1,
+          originalDirectional *
+            profile.lighting
+              .directionalIntensityMultiplier
+        )
+      );
 
     const runtime =
       createClassroomDepthAtmospherePixelLightingV35({
@@ -229,6 +273,11 @@ test(
 
     const snapshot =
       runtime.getSnapshot();
+
+    /*
+     * V35 calibrates existing authorities.
+     * It must not introduce another rendering system.
+     */
 
     assert.equal(
       scene.children.length,
@@ -245,14 +294,32 @@ test(
       backgroundIdentity
     );
 
-    assert.ok(
-      scene.fog.near <
-        originalFogNear
+    /*
+     * Fog behavior is profile-driven.
+     *
+     * With the friendly baseline the fixture's original
+     * near=12 is already inside the requested clear zone
+     * foregroundClearUntil=14, therefore near remains 12.
+     */
+
+    assert.equal(
+      scene.fog.near,
+      expectedFogNear
     );
 
-    assert.ok(
-      scene.fog.far >
-        originalFogFar
+    assert.equal(
+      scene.fog.far,
+      expectedFogFar
+    );
+
+    assert.equal(
+      snapshot.foregroundClearUntil,
+      expectedFogNear
+    );
+
+    assert.equal(
+      snapshot.atmosphericFar,
+      expectedFogFar
     );
 
     assert.equal(
@@ -260,6 +327,35 @@ test(
       true
     );
 
+    /*
+     * Friendly classroom baseline:
+     *
+     * broader ambient illumination
+     * softer directional key
+     * lower directional/ambient contrast ratio
+     */
+
+    assert.equal(
+      hemisphere.intensity,
+      expectedHemisphere
+    );
+
+    assert.equal(
+      directional.intensity,
+      expectedDirectional
+    );
+
+    /*
+     * CW08 P3B:
+     *
+     * Friendly visual balance now uses stronger directional
+     * modeling and lower ambient hemisphere fill.
+     *
+     * The exact intensities above are already verified against
+     * the profile. These relational assertions therefore test
+     * the intended visual semantics rather than the retired
+     * flat-lighting direction.
+     */
     assert.ok(
       hemisphere.intensity <
         originalHemisphere
@@ -271,9 +367,52 @@ test(
     );
 
     assert.ok(
+      directional.intensity >
+        hemisphere.intensity
+    );
+
+    assert.ok(
+      CLASSROOM_DEPTH_ATMOSPHERE_PIXEL_LIGHTING_V35_PROFILE
+        .lighting
+        .hemisphereIntensityMultiplier <
+        1
+    );
+
+    assert.ok(
+      CLASSROOM_DEPTH_ATMOSPHERE_PIXEL_LIGHTING_V35_PROFILE
+        .lighting
+        .directionalIntensityMultiplier >
+        1
+    );
+
+    assert.equal(
+      snapshot.hemisphereIntensity,
+      expectedHemisphere
+    );
+
+    assert.equal(
+      snapshot.directionalIntensity,
+      expectedDirectional
+    );
+
+    assert.equal(
+      snapshot.directionalToHemisphereRatio,
+      expectedDirectional /
+        expectedHemisphere
+    );
+
+    /*
+     * CW08 P3B:
+     *
+     * Ambient hemisphere fill is intentionally reduced while
+     * directional key modeling is intentionally strengthened.
+     *
+     * Therefore key-to-fill ratio must increase relative to
+     * the previous visual baseline.
+     */
+    assert.ok(
       snapshot.directionalToHemisphereRatio >
-        originalDirectional /
-          originalHemisphere
+        originalRatio
     );
 
     runtime.dispose();

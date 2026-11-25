@@ -65,4 +65,35 @@ describe("CW06 velocity runtime integration contract", () => {
     assert.ok(collisionIndex > movementIndex);
     assert.ok(velocityIndex > collisionIndex);
   });
+
+  it(
+    "clears movement intent when pointer lock is released",
+    () => {
+      assert.match(
+        source,
+        /const onUnlock = \(\) => \{[\s\S]*?keys\.clear\(\)[\s\S]*?setIsLocked\(false\)/
+      );
+    }
+  );
+
+  it(
+    "clears movement intent when the browser window loses focus",
+    () => {
+      assert.match(
+        source,
+        /const onWindowBlur = \(\) => \{[\s\S]*?keys\.clear\(\)/
+      );
+
+      assert.match(
+        source,
+        /window\.addEventListener\("blur", onWindowBlur\)/
+      );
+
+      assert.match(
+        source,
+        /window\.removeEventListener\("blur", onWindowBlur\)/
+      );
+    }
+  );
+
 });

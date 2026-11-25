@@ -496,13 +496,67 @@ test(
       false
     );
 
-    assert.equal(
+    const cw06V10TickCount =
       world
         .split(
           "classroomCharacterVisualIntegrationV10.tick({"
         )
-        .length - 1,
-      1
+        .length - 1;
+
+    assert.equal(
+      cw06V10TickCount,
+      2
+    );
+
+    const cw06InitialRosterSync =
+      world.indexOf(
+        "sceneRoster.sync(\n      initialRoster"
+      );
+
+    const cw06Animate =
+      world.indexOf(
+        "const animate = (timestamp) => {"
+      );
+
+    const cw06InitialV10Tick =
+      cw06InitialRosterSync >= 0
+        ? world.indexOf(
+            "classroomCharacterVisualIntegrationV10.tick({",
+            cw06InitialRosterSync
+          )
+        : -1;
+
+    const cw06RuntimeV10Tick =
+      cw06Animate >= 0
+        ? world.indexOf(
+            "classroomCharacterVisualIntegrationV10.tick({",
+            cw06Animate
+          )
+        : -1;
+
+    assert.ok(
+      cw06InitialRosterSync >=
+        0
+    );
+
+    assert.ok(
+      cw06InitialV10Tick >
+        cw06InitialRosterSync
+    );
+
+    assert.ok(
+      cw06Animate >=
+        0
+    );
+
+    assert.ok(
+      cw06RuntimeV10Tick >
+        cw06Animate
+    );
+
+    assert.notEqual(
+      cw06InitialV10Tick,
+      cw06RuntimeV10Tick
     );
   }
 );

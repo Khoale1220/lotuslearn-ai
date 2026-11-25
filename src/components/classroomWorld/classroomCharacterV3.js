@@ -786,6 +786,41 @@ function createClassroomCharacterV3({
 
     sync,
 
+    getVisualMeshes() {
+      return [
+        {
+          role: "head",
+          mesh: heads,
+          instancesPerStudent: 1,
+          canonicalAnchor: true
+        },
+        {
+          role: "torso",
+          mesh: torsos,
+          instancesPerStudent: 1,
+          canonicalAnchor: false
+        },
+        {
+          role: "arms",
+          mesh: arms,
+          instancesPerStudent: 2,
+          canonicalAnchor: false
+        },
+        {
+          role: "legs",
+          mesh: legs,
+          instancesPerStudent: 2,
+          canonicalAnchor: false
+        },
+        {
+          role: "shoes",
+          mesh: shoes,
+          instancesPerStudent: 2,
+          canonicalAnchor: false
+        }
+      ];
+    },
+
     getStudentCount() {
       return studentCount;
     },

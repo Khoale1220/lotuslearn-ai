@@ -1,16 +1,17 @@
 /*
- * Three.js cameras look down local -Z by default.
- *
- * The existing deterministic locomotion primitive uses
- * the opposite local longitudinal sign. This adapter is
- * the explicit coordinate-system boundary between browser
- * keyboard semantics and the pure locomotion module.
+ * Three.js first-person movement input boundary.
  *
  * User-visible contract:
+ *
  *   W = move toward camera look direction
  *   S = move away from camera look direction
  *   A = strafe left
  *   D = strafe right
+ *
+ * playerLocomotion.js already converts forward/right
+ * intent into world-space movement using camera yaw.
+ * No additional longitudinal sign inversion belongs
+ * in this keyboard adapter.
  */
 
 function createThreeCameraMovementInput(
@@ -25,15 +26,9 @@ function createThreeCameraMovementInput(
     );
   }
 
-  /*
-   * W must become negative longitudinal input because
-   * Three.js camera-forward is local -Z.
-   *
-   * S becomes positive longitudinal input.
-   */
   const longitudinalAxis =
-    (keys.has("KeyS") ? 1 : 0) -
-    (keys.has("KeyW") ? 1 : 0);
+    (keys.has("KeyW") ? 1 : 0) -
+    (keys.has("KeyS") ? 1 : 0);
 
   const lateralAxis =
     (keys.has("KeyD") ? 1 : 0) -

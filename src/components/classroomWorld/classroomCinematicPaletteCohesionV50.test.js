@@ -858,7 +858,7 @@ test(
 );
 
 test(
-  "V50 integrates after V49 without adding runtime tick",
+  "V50 integrates after V49 and synchronizes after the V49 runtime tick",
   () => {
     const source =
       fs.readFileSync(
@@ -888,11 +888,35 @@ test(
       v49Construction
     );
 
-    assert.equal(
-      source.includes(
-        "classroomCinematicPaletteCohesionV50.tick();"
-      ),
-      false
+    const animate =
+      source.indexOf(
+        "const animate = (timestamp) => {"
+      );
+
+    const v49Tick =
+      source.indexOf(
+        "classroomEnvironmentalStoryDensityV49.tick();",
+        animate
+      );
+
+    const v50Tick =
+      source.indexOf(
+        "classroomCinematicPaletteCohesionV50.tick();",
+        v49Tick
+      );
+
+    assert.ok(
+      animate >= 0
+    );
+
+    assert.ok(
+      v49Tick >
+      animate
+    );
+
+    assert.ok(
+      v50Tick >
+      v49Tick
     );
 
     const v50Dispose =

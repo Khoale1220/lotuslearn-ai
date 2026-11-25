@@ -888,19 +888,35 @@ test(
       1
     );
 
-    const v10Tick =
+    const animate =
       world.indexOf(
-        "classroomCharacterVisualIntegrationV10.tick({"
+        "const animate = (timestamp) => {"
       );
+
+    const v10Tick =
+      animate >= 0
+        ? world.indexOf(
+            "classroomCharacterVisualIntegrationV10.tick({",
+            animate
+          )
+        : -1;
 
     const v37Tick =
-      world.indexOf(
-        "classroomCharacterDepthOcclusionPolishV37.tick();"
-      );
+      v10Tick >= 0
+        ? world.indexOf(
+            "classroomCharacterDepthOcclusionPolishV37.tick();",
+            v10Tick
+          )
+        : -1;
 
     assert.ok(
-      v10Tick >=
+      animate >=
         0
+    );
+
+    assert.ok(
+      v10Tick >
+        animate
     );
 
     assert.ok(

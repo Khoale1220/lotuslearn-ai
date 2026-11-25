@@ -55,31 +55,31 @@ test(
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PROFILE
         .artDirection,
-      "high-detail-cinematic-vga"
+      "bright-warm-readable-64-bit-classroom"
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .ink,
-      0x080615
+      0x30343a
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .cyan,
-      0x43a8ce
+      0x75b7cc
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .sunOrange,
-      0xf19a55
+      0xe3ad69
     );
 
     assert.equal(
       CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE
         .cream,
-      0xffe7b0
+      0xffefcf
     );
   }
 );
@@ -154,7 +154,7 @@ test(
 );
 
 test(
-  "V24 runtime styling restores mutated state",
+  "V24 mutates owned styling while preserving global atmosphere",
   () => {
     const scene =
       new THREE.Scene();
@@ -200,6 +200,15 @@ test(
 
     const originalBackground =
       scene.background.clone();
+
+    const originalFogColor =
+      scene.fog.color.clone();
+
+    const originalFogNear =
+      scene.fog.near;
+
+    const originalFogFar =
+      scene.fog.far;
 
     const desk =
       new THREE.Mesh(
@@ -248,7 +257,24 @@ test(
       scene.background.equals(
         originalBackground
       ),
-      false
+      true
+    );
+
+    assert.equal(
+      scene.fog.color.equals(
+        originalFogColor
+      ),
+      true
+    );
+
+    assert.equal(
+      scene.fog.near,
+      originalFogNear
+    );
+
+    assert.equal(
+      scene.fog.far,
+      originalFogFar
     );
 
     runtime.dispose();
@@ -265,6 +291,23 @@ test(
         originalBackground
       ),
       true
+    );
+
+    assert.equal(
+      scene.fog.color.equals(
+        originalFogColor
+      ),
+      true
+    );
+
+    assert.equal(
+      scene.fog.near,
+      originalFogNear
+    );
+
+    assert.equal(
+      scene.fog.far,
+      originalFogFar
     );
 
     geometry.dispose();

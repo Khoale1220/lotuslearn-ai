@@ -242,7 +242,7 @@ function drawTeacherClipboard({
    * Clipboard outline.
    */
   context.fillStyle =
-    "#17150f";
+    "#3a3328";
 
   context.fillRect(
     66,
@@ -325,7 +325,7 @@ function drawTeacherClipboard({
    * Deliberately chunky: no curves, no smoothing.
    */
   context.fillStyle =
-    "#17120f";
+    "#594236";
 
   context.fillRect(
     24,
@@ -458,15 +458,10 @@ function createClassroomRetroFpsPipeline({
         ? renderer.getPixelRatio()
         : 1,
 
-    shadowType:
-      renderer.shadowMap
-        ?.type,
-
-    toneMapping:
-      renderer.toneMapping,
-
-    toneMappingExposure:
-      renderer.toneMappingExposure,
+    /*
+     * CW08.3C-D:
+     * Shadow-map type belongs to classroomLightingV2.
+     */
 
     canvasImageRendering:
       canvas.style
@@ -506,16 +501,17 @@ function createClassroomRetroFpsPipeline({
       renderer
     );
 
-  if (renderer.shadowMap) {
-    renderer.shadowMap.type =
-      THREE.BasicShadowMap;
-  }
+  /*
+   * CW08.3C-D:
+   * Retro FPS owns presentation scaling, not global
+   * shadow-map filtering.
+   */
 
-  renderer.toneMapping =
-    THREE.NoToneMapping;
-
-  renderer.toneMappingExposure =
-    1;
+  /*
+   * CW08.3B:
+   * Retro FPS owns presentation scaling,
+   * not global renderer tone mapping.
+   */
 
   canvas.style.imageRendering =
     "pixelated";
@@ -617,58 +613,11 @@ function createClassroomRetroFpsPipeline({
       );
     }
 
-    if (
-      "flatShading" in
-      material
-    ) {
-      material.flatShading =
-        true;
-    }
-
-    if (
-      typeof material
-        .roughness ===
-      "number"
-    ) {
-      material.roughness =
-        Math.max(
-          0.84,
-          material.roughness
-        );
-    }
-
-    if (
-      typeof material
-        .metalness ===
-      "number"
-    ) {
-      material.metalness =
-        Math.min(
-          0.08,
-          material.metalness
-        );
-    }
-
-    if (
-      typeof material
-        .transmission ===
-      "number"
-    ) {
-      material.transmission =
-        0;
-    }
-
-    if (
-      typeof material
-        .clearcoat ===
-      "number"
-    ) {
-      material.clearcoat =
-        0;
-    }
-
-    material.needsUpdate =
-      true;
+    /*
+     * CW08.3C-E P2B:
+     * Retro FPS owns pixel presentation and sampling only.
+     * Canonical PBR surface response belongs to V64.
+     */
   }
 
   function refreshSceneMaterials() {
@@ -978,10 +927,10 @@ function createClassroomRetroFpsPipeline({
 
   teacherCanvas.style.cssText = [
     "position:absolute",
-    "right:12px",
-    "bottom:48px",
-    "width:320px",
-    "height:192px",
+    "right:14px",
+    "bottom:46px",
+    "width:176px",
+    "height:106px",
     "image-rendering:pixelated",
     "pointer-events:none"
   ].join(";");
@@ -1268,19 +1217,17 @@ function createClassroomRetroFpsPipeline({
         );
       }
 
-      if (renderer.shadowMap) {
-        renderer.shadowMap.type =
-          rendererState
-            .shadowType;
-      }
+      /*
+       * CW08.3C-D:
+       * Retro FPS acquired no shadow-map type authority,
+       * therefore there is nothing to restore.
+       */
 
-      renderer.toneMapping =
-        rendererState
-          .toneMapping;
-
-      renderer.toneMappingExposure =
-        rendererState
-          .toneMappingExposure;
+      /*
+       * CW08.3B:
+       * No tone-mapping authority was acquired,
+       * therefore nothing is restored here.
+       */
 
       canvas.style.imageRendering =
         rendererState
@@ -1314,69 +1261,6 @@ function createClassroomRetroFpsPipeline({
           true;
       }
 
-      for (
-        const state
-        of materialStates.values()
-      ) {
-        const material =
-          state.material;
-
-        if (
-          "flatShading" in
-          material
-        ) {
-          material.flatShading =
-            state.flatShading;
-        }
-
-        if (
-          typeof state
-            .roughness ===
-          "number"
-        ) {
-          material.roughness =
-            state.roughness;
-        }
-
-        if (
-          typeof state
-            .metalness ===
-          "number"
-        ) {
-          material.metalness =
-            state.metalness;
-        }
-
-        if (
-          typeof state
-            .transmission ===
-          "number"
-        ) {
-          material.transmission =
-            state.transmission;
-        }
-
-        if (
-          typeof state
-            .clearcoat ===
-          "number"
-        ) {
-          material.clearcoat =
-            state.clearcoat;
-        }
-
-        if (
-          typeof state
-            .clearcoatRoughness ===
-          "number"
-        ) {
-          material.clearcoatRoughness =
-            state.clearcoatRoughness;
-        }
-
-        material.needsUpdate =
-          true;
-      }
 
       if (
         typeof globalThis

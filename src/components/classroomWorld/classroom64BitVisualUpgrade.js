@@ -946,12 +946,10 @@ function createClassroom64BitVisualUpgrade({
         .style
         .imageRendering,
 
-    shadowType:
-      renderer.shadowMap
-        ?.type,
-
-    toneMappingExposure:
-      renderer.toneMappingExposure
+    /*
+     * CW08.3C-D:
+     * Shadow-map type belongs to classroomLightingV2.
+     */
   };
 
   renderer.domElement
@@ -959,13 +957,15 @@ function createClassroom64BitVisualUpgrade({
     .imageRendering =
       "auto";
 
-  if (renderer.shadowMap) {
-    renderer.shadowMap.type =
-      THREE.PCFSoftShadowMap;
-  }
+  /*
+   * CW08.3C-D:
+   * V64 does not acquire renderer shadow-map authority.
+   */
 
-  renderer.toneMappingExposure =
-    1.08;
+  /*
+   * CW08.3B:
+   * Renderer exposure belongs to classroomVisualSystem.
+   */
 
   const reportedMax =
     renderer.capabilities
@@ -1117,7 +1117,7 @@ function createClassroom64BitVisualUpgrade({
       wallTexture,
 
     roughness:
-      0.86,
+      0.78,
 
     metalness:
       0
@@ -1131,7 +1131,7 @@ function createClassroom64BitVisualUpgrade({
       wallTexture,
 
     roughness:
-      0.91,
+      0.88,
 
     metalness:
       0
@@ -1145,7 +1145,7 @@ function createClassroom64BitVisualUpgrade({
       woodTexture,
 
     roughness:
-      0.65,
+      0.52,
 
     metalness:
       0
@@ -1159,7 +1159,7 @@ function createClassroom64BitVisualUpgrade({
       woodTexture,
 
     roughness:
-      0.7,
+      0.58,
 
     metalness:
       0
@@ -1173,10 +1173,10 @@ function createClassroom64BitVisualUpgrade({
       metalTexture,
 
     roughness:
-      0.42,
+      0.32,
 
     metalness:
-      0.34
+      0.38
   });
 
   upgradeSharedMaterial({
@@ -1187,10 +1187,10 @@ function createClassroom64BitVisualUpgrade({
       metalTexture,
 
     roughness:
-      0.4,
+      0.28,
 
     metalness:
-      0.48
+      0.52
   });
 
   upgradeSharedMaterial({
@@ -1201,7 +1201,7 @@ function createClassroom64BitVisualUpgrade({
       chalkboardTexture,
 
     roughness:
-      0.94,
+      0.90,
 
     metalness:
       0
@@ -1222,7 +1222,7 @@ function createClassroom64BitVisualUpgrade({
         0xffffff,
 
       roughness:
-        0.82,
+        0.68,
 
       metalness:
         0
@@ -1452,38 +1452,14 @@ function createClassroom64BitVisualUpgrade({
       "classroom-window-sun"
     );
 
-  const sunlightState =
-    sunlight?.shadow
-      ? {
-          width:
-            sunlight.shadow
-              .mapSize
-              .width,
-
-          height:
-            sunlight.shadow
-              .mapSize
-              .height
-        }
-      : null;
-
-  if (
-    sunlight?.shadow
-  ) {
-    sunlight.shadow.mapSize.set(
-      VISUAL_64BIT_PROFILE
-        .shadowMapSize,
-
-      VISUAL_64BIT_PROFILE
-        .shadowMapSize
-    );
-
-    sunlight.shadow.bias =
-      -0.00025;
-
-    sunlight.shadow.normalBias =
-      0.015;
-  }
+  /*
+   * CW08.3C-D:
+   * V64 no longer mutates sunlight shadow map size,
+   * bias, or normalBias.
+   *
+   * Canonical shadow infrastructure is established by
+   * classroomLightingV2.
+   */
 
   let disposed =
     false;
@@ -1563,24 +1539,22 @@ function createClassroom64BitVisualUpgrade({
           rendererState
             .imageRendering;
 
-      if (renderer.shadowMap) {
-        renderer.shadowMap.type =
-          rendererState.shadowType;
-      }
+      /*
+       * CW08.3C-D:
+       * V64 acquired no renderer shadow-map authority,
+       * therefore there is nothing to restore.
+       */
 
-      renderer.toneMappingExposure =
-        rendererState
-          .toneMappingExposure;
+      /*
+       * CW08.3B:
+       * No renderer exposure authority to restore.
+       */
 
-      if (
-        sunlight?.shadow &&
-        sunlightState
-      ) {
-        sunlight.shadow.mapSize.set(
-          sunlightState.width,
-          sunlightState.height
-        );
-      }
+      /*
+       * CW08.3C-D:
+       * V64 acquired no sunlight shadow infrastructure,
+       * therefore there is nothing to restore.
+       */
     }
   };
 }

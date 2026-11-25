@@ -1285,49 +1285,13 @@ function createClassroomRetroCompositionV4({
       return;
     }
 
-    sharedMaterialStates.push({
-      material,
-      map:
-        material.map,
-      roughness:
-        material.roughness,
-      metalness:
-        material.metalness,
-      flatShading:
-        material.flatShading
-    });
-
-    material.map =
-      map;
-
-    if (
-      typeof material
-        .roughness ===
-      "number"
-    ) {
-      material.roughness =
-        1;
-    }
-
-    if (
-      typeof material
-        .metalness ===
-      "number"
-    ) {
-      material.metalness =
-        0;
-    }
-
-    if (
-      "flatShading" in
-      material
-    ) {
-      material.flatShading =
-        true;
-    }
-
-    material.needsUpdate =
-      true;
+    /*
+     * CW08.3C-E P2B:
+     * shared classroom materials are canonical V64 surfaces.
+     * Retro Composition must not rewrite their map or PBR state.
+     * Keep the call boundary for compatibility.
+     */
+    void map;
   }
 
   overrideSharedMaterial({
@@ -1481,6 +1445,16 @@ function createClassroomRetroCompositionV4({
     .environmentDetailV2 =
       true;
 
+  /*
+   * CW06 semantic anchor contract.
+   *
+   * Downstream visual systems must not infer
+   * canonical ownership from raw geometry shape.
+   */
+  boardArt.userData
+    .classroomCanonicalBlackboard =
+      true;
+
   root.add(
     boardArt
   );
@@ -1570,6 +1544,16 @@ function createClassroomRetroCompositionV4({
 
   chairBacks.name =
     "retro-student-chair-backs-v4";
+
+  /*
+   * Geometry is intentionally a unit cube.
+   * Desk dimensions live in each instance matrix,
+   * so geometry-shape heuristics are not a valid
+   * production ownership contract.
+   */
+  deskTops.userData
+    .classroomCanonicalDeskSurface =
+      true;
 
   for (
     const mesh
@@ -2303,42 +2287,6 @@ function createClassroomRetroCompositionV4({
           state.visible;
       }
 
-      for (
-        const state
-        of sharedMaterialStates
-      ) {
-        state.material.map =
-          state.map;
-
-        if (
-          typeof state
-            .roughness ===
-          "number"
-        ) {
-          state.material.roughness =
-            state.roughness;
-        }
-
-        if (
-          typeof state
-            .metalness ===
-          "number"
-        ) {
-          state.material.metalness =
-            state.metalness;
-        }
-
-        if (
-          "flatShading" in
-          state.material
-        ) {
-          state.material.flatShading =
-            state.flatShading;
-        }
-
-        state.material.needsUpdate =
-          true;
-      }
 
       scene.remove(
         root

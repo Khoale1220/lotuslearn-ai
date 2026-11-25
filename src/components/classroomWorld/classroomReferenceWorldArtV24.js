@@ -6,7 +6,7 @@ const CLASSROOM_REFERENCE_WORLD_ART_V24_PROFILE =
       "cw06-reference-world-art-v24",
 
     artDirection:
-      "high-detail-cinematic-vga",
+      "bright-warm-readable-64-bit-classroom",
 
     visualOnly:
       true,
@@ -17,71 +17,71 @@ const CLASSROOM_REFERENCE_WORLD_ART_V24_PROFILE =
     referenceLanguage:
       Object.freeze({
         shadows:
-          "deep-plum-black",
+          "soft-neutral-charcoal",
 
         exterior:
-          "bright-cyan-blue",
+          "soft-daylight-blue",
 
         highlights:
           "orange-cream",
 
         silhouettes:
-          "near-black-ink"
+          "charcoal-readable-outline"
       })
   });
 
 const CLASSROOM_REFERENCE_WORLD_ART_V24_PALETTE =
   Object.freeze({
     ink:
-      0x080615,
+      0x30343a,
 
     deepPlum:
-      0x24152d,
+      0x5a5560,
 
     plum:
-      0x56374d,
+      0x766b77,
 
     wallShadow:
-      0x704758,
+      0x9a8f86,
 
     warmWall:
-      0xd69a79,
+      0xd7c2a6,
 
     cream:
-      0xffe7b0,
+      0xffefcf,
 
     sunOrange:
-      0xf19a55,
+      0xe3ad69,
 
     wood:
-      0x98513d,
+      0x9a6d4f,
 
     woodHighlight:
-      0xd1845d,
+      0xc89a70,
 
     chalkboard:
-      0x174b42,
+      0x315c50,
 
     frameBlue:
-      0x202c42,
+      0x526273,
 
     coolBlue:
-      0x376b87,
+      0x7093a7,
 
     cyan:
-      0x43a8ce,
+      0x75b7cc,
 
     sky:
-      0x66c1df,
+      0xbddfed,
 
     ocean:
-      0x277c9f,
+      0x6f9fb4,
 
     shipRust:
-      0xa44747,
+      0x9b6658,
 
     haze:
-      0x607c9b
+      0xb8c7d0
   });
 
 function normalizeTokenV24(
@@ -397,32 +397,11 @@ function createClassroomReferenceWorldArtV24({
   const lightStates =
     [];
 
-  const previousBackground =
-    scene.background?.isColor
-      ? scene.background.clone()
-      : null;
-
-  const previousFog =
-    scene.fog?.color?.isColor
-      ? scene.fog.color.clone()
-      : null;
-
-  if (
-    scene.background?.isColor
-  ) {
-    scene.background.setHex(
-      palette.sky
-    );
-  }
-
-  if (
-    scene.fog?.color?.isColor
-  ) {
-    scene.fog.color.setHex(
-      palette.haze
-    );
-  }
-
+  /*
+   * CW08.3B:
+   * V35 owns global background/fog calibration.
+   * V24 remains world-art/material authority only.
+   */
   const target =
     new THREE.Color();
 
@@ -431,57 +410,14 @@ function createClassroomReferenceWorldArtV24({
       if (
         object.isLight
       ) {
-        lightStates.push({
-          object,
-
-          color:
-            object.color?.isColor
-              ? object.color.clone()
-              : null,
-
-          groundColor:
-            object.groundColor?.isColor
-              ? object.groundColor.clone()
-              : null,
-
-          intensity:
-            Number.isFinite(
-              object.intensity
-            )
-              ? object.intensity
-              : null
-        });
-
-        if (
-          object.isHemisphereLight
-        ) {
-          object.color.setHex(
-            palette.sky
-          );
-
-          object.groundColor.setHex(
-            palette.deepPlum
-          );
-
-          object.intensity *=
-            0.92;
-        }
-        else if (
-          object.isDirectionalLight
-        ) {
-          object.color.setHex(
-            palette.cream
-          );
-
-          if (
-            object.name ===
-            "classroom-window-sun"
-          ) {
-            object.intensity *=
-              1.10;
-          }
-        }
-
+        /*
+         * CW08.3C-C:
+         * V35 owns global light appearance:
+         * hemisphere color / ground color / intensity
+         * directional color / intensity.
+         *
+         * V24 remains world-art/material semantic authority only.
+         */
         return;
       }
 
@@ -606,31 +542,7 @@ function createClassroomReferenceWorldArtV24({
           strength
         );
 
-        if (
-          Number.isFinite(
-            material.roughness
-          )
-        ) {
-          material.roughness =
-            Math.max(
-              material.roughness,
-              0.70
-            );
-        }
 
-        if (
-          Number.isFinite(
-            material.metalness
-          ) &&
-          role !==
-            "metal"
-        ) {
-          material.metalness =
-            Math.min(
-              material.metalness,
-              0.10
-            );
-        }
 
         material.needsUpdate =
           true;
@@ -998,73 +910,27 @@ function createClassroomReferenceWorldArtV24({
         state.color
       );
 
-      if (
-        state.roughness !==
-          null
-      ) {
-        state.material.roughness =
-          state.roughness;
-      }
 
-      if (
-        state.metalness !==
-          null
-      ) {
-        state.material.metalness =
-          state.metalness;
-      }
 
       state.material.needsUpdate =
         true;
     }
 
-    for (
-      const state
-      of lightStates
-    ) {
-      if (
-        state.color
-      ) {
-        state.object.color.copy(
-          state.color
-        );
-      }
+    /*
+ * CW08.3C-E:
+ * V24 does not acquire canonical light appearance authority.
+ * V35 owns runtime hemisphere/directional color and intensity.
+ *
+ * Therefore V24 must not restore captured light appearance
+ * during disposal. Doing so would re-apply a downstream
+ * snapshot after V35 has already restored its own state.
+ */
 
-      if (
-        state.groundColor
-      ) {
-        state.object.groundColor.copy(
-          state.groundColor
-        );
-      }
-
-      if (
-        state.intensity !==
-          null
-      ) {
-        state.object.intensity =
-          state.intensity;
-      }
-    }
-
-    if (
-      previousBackground &&
-      scene.background?.isColor
-    ) {
-      scene.background.copy(
-        previousBackground
-      );
-    }
-
-    if (
-      previousFog &&
-      scene.fog?.color?.isColor
-    ) {
-      scene.fog.color.copy(
-        previousFog
-      );
-    }
-
+    /*
+     * CW08.3B:
+     * V24 never acquired atmosphere authority,
+     * therefore disposal does not restore it.
+     */
     box.dispose();
     inkMaterial.dispose();
     warmMaterial.dispose();

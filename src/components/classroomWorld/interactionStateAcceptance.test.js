@@ -25,7 +25,7 @@ test(
 
         assert.match(
           worldSource,
-          /\{!hasEntered\s*&&\s*\(/u,
+          /\{interactionStateV54\.showEntryGate\s*&&\s*\(/u,
         );
 
         assert.doesNotMatch(
@@ -40,7 +40,7 @@ test(
       () => {
         assert.match(
           worldSource,
-          /setHasEntered\(true\);[\s\S]*?controlsRef\.current\?\.lock\(\)/u,
+          /setInterventionFeedbackTarget\([\s\S]*?null[\s\S]*?\)[\s\S]*?setSelectedStudent\([\s\S]*?null[\s\S]*?\)[\s\S]*?setHasEntered\([\s\S]*?true[\s\S]*?\)[\s\S]*?controlsRef\.current\?\.lock\(\)/u,
         );
       },
     );
@@ -60,7 +60,7 @@ test(
       () => {
         assert.match(
           worldSource,
-          /hasEntered\s*&&[\s\S]*?!selectedStudent\s*&&[\s\S]*?!isLocked[\s\S]*?controlsRef\.current\?\.lock\(\)/u,
+          /interactionStateV54[\s\S]*?canAcquirePointerLock[\s\S]*?controlsRef\.current\?\.lock\(\)/u,
         );
       },
     );
