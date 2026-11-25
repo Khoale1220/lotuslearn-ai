@@ -165,6 +165,18 @@ import "./classroomWorld.css";
 
 const POINTER_SPEED = 0.7;
 const PLAYER_HEIGHT = 1.65;
+
+/*
+ * P4A camera composition.
+ *
+ * Keep player height and locomotion unchanged while
+ * narrowing the first-person composition and preventing
+ * extreme ceiling-dominant viewing angles.
+ */
+const CLASSROOM_CAMERA_VERTICAL_FOV = 56;
+const CLASSROOM_CAMERA_MIN_POLAR_ANGLE = Math.PI / 3;
+const CLASSROOM_CAMERA_MAX_POLAR_ANGLE =
+  (7 * Math.PI) / 9;
 const ROOM_LIMIT = 7.2;
 
 function addBox(scene, size, position, color) {
@@ -460,7 +472,7 @@ function ClassroomWorld({
       z: 0,
     });
 
-    const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 50);
+    const camera = new THREE.PerspectiveCamera(CLASSROOM_CAMERA_VERTICAL_FOV, 16 / 9, 0.1, 50);
     camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
     camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
     scene.add(camera);
@@ -700,6 +712,12 @@ function ClassroomWorld({
     const keys = new Set();
 
     const controls = new PointerLockControls(camera, renderer.domElement);
+
+    controls.minPolarAngle =
+      CLASSROOM_CAMERA_MIN_POLAR_ANGLE;
+
+    controls.maxPolarAngle =
+      CLASSROOM_CAMERA_MAX_POLAR_ANGLE;
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
 
