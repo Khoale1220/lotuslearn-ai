@@ -1188,6 +1188,7 @@ const classroomInteractionAuthorityV11 =
     raycaster.far = INTERACTION_DISTANCE;
 
     const center = new THREE.Vector2(0, 0);
+    const movementForward = new THREE.Vector3();
     const timer = new THREE.Timer();
     timer.connect(document);
 
@@ -1334,6 +1335,39 @@ const classroomInteractionAuthorityV11 =
           z: camera.position.z
         };
 
+        /*
+         * CW08_P4A4_CAMERA_DIRECTION_MOVEMENT_AUTHORITY
+         *
+         * PointerLockControls owns camera orientation.
+         * Derive horizontal movement yaw from the actual
+         * rendered camera direction instead of reading a
+         * potentially stale/ambiguous Euler Y component.
+         */
+        controls.getDirection(
+          movementForward
+        );
+
+        movementForward.y = 0;
+
+        if (
+          movementForward.lengthSq() <=
+          Number.EPSILON
+        ) {
+          movementForward.set(
+            0,
+            0,
+            -1
+          );
+        } else {
+          movementForward.normalize();
+        }
+
+        const movementYaw =
+          Math.atan2(
+            -movementForward.x,
+            -movementForward.z
+          );
+
         const locomotion =
           stepPlayerLocomotion({
             position:
@@ -1346,7 +1380,7 @@ const classroomInteractionAuthorityV11 =
               movementInput,
 
             yaw:
-              camera.rotation.y,
+              movementYaw,
 
             deltaSeconds:
               delta

@@ -18,7 +18,15 @@ describe("CW06 velocity runtime integration contract", () => {
       /velocity:\s*playerVelocity/
     );
     assert.match(source, /deltaSeconds:\s*delta/);
-    assert.match(source, /yaw:\s*camera\.rotation\.y/);
+    assert.match(
+    source,
+    /controls\.getDirection\(\s*movementForward\s*\)/
+  );
+
+  assert.match(
+    source,
+    /yaw:\s*movementYaw/
+  );
   });
 
   it("routes proposed movement through collision resolution", () => {
