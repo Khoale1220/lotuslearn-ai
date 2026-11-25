@@ -643,12 +643,25 @@ function ClassroomWorld({
     const classroomInteractionReplayAuditV12 =
       createClassroomInteractionReplayAuditV12();
 
+    const keys = new Set();
+
     const controls = new PointerLockControls(camera, renderer.domElement);
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
 
-    const onLock = () => setIsLocked(true);
-    const onUnlock = () => setIsLocked(false);
+    const onLock = () =>
+      setIsLocked(true);
+
+    const onUnlock = () => {
+      /*
+       * Pointer-lock loss is an input boundary.
+       * Never allow held movement state to leak
+       * into the next lock session.
+       */
+      keys.clear();
+
+      setIsLocked(false);
+    };
 
     controls.addEventListener("lock", onLock);
     controls.addEventListener("unlock", onUnlock);
@@ -1056,7 +1069,6 @@ const classroomInteractionAuthorityV11 =
     raycaster.far = INTERACTION_DISTANCE;
 
     const center = new THREE.Vector2(0, 0);
-    const keys = new Set();
     const timer = new THREE.Timer();
     timer.connect(document);
 
@@ -1105,8 +1117,18 @@ const classroomInteractionAuthorityV11 =
       keys.delete(event.code);
     };
 
+    const onWindowBlur = () => {
+      /*
+       * Browsers may not deliver keyup after the
+       * window loses focus. Drop all movement intent
+       * at that boundary to prevent sticky keys.
+       */
+      keys.clear();
+    };
+
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onWindowBlur);
 
     const resizeCamera = () => {
       const width = host.clientWidth || 16;
@@ -1342,6 +1364,7 @@ const classroomInteractionAuthorityV11 =
 
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onWindowBlur);
 
       controls.removeEventListener("lock", onLock);
       controls.removeEventListener("unlock", onUnlock);

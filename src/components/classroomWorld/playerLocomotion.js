@@ -60,13 +60,22 @@ function getWorldDirection({
   const cosYaw =
     Math.cos(yaw);
 
+  /*
+   * Three.js first-person camera basis:
+   *
+   * local forward = -Z
+   * local right   = +X
+   *
+   * Keep locomotion aligned with the actual camera
+   * orientation convention used by PointerLockControls.
+   */
   return {
     x:
-      sinYaw * intent.forward +
+      -sinYaw * intent.forward +
       cosYaw * intent.right,
 
     z:
-      -cosYaw * intent.forward +
+      -cosYaw * intent.forward -
       sinYaw * intent.right
   };
 }
