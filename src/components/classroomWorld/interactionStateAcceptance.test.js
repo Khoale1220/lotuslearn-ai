@@ -25,7 +25,7 @@ test(
 
         assert.match(
           worldSource,
-          /\{!hasEntered\s*&&\s*\(/u,
+          /\{interactionStateV54\.showEntryGate\s*&&\s*\(/u,
         );
 
         assert.doesNotMatch(

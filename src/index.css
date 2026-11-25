@@ -527,3 +527,86 @@
   + .classroom-world__teacher-intervention-status {
   display: none;
 }
+
+
+/* CW07_V55_HUD_POINTER_UX */
+
+.cw-world__hud,
+.cw-world__crosshair,
+.cw-world__resume-hint {
+  pointer-events: none;
+  user-select: none;
+}
+
+.cw-world__student-hud,
+.cw-world__student-hud button,
+.classroom-world__teacher-intervention-trigger {
+  pointer-events: auto;
+}
+
+.cw-world__hud {
+  max-width: min(18rem, calc(100% - 2rem));
+  opacity: 0.78;
+  background: rgba(8, 18, 23, 0.72);
+  box-shadow: none;
+}
+
+.cw-world[data-gameplay-active="false"]
+  .cw-world__crosshair {
+  display: none;
+}
+
+.cw-world__resume-hint {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(235, 220, 153, 0.72);
+  background: rgba(8, 18, 23, 0.82);
+  color: #efe3a5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.075em;
+  white-space: nowrap;
+}
+
+.cw-world[data-interaction-mode="PLAYING_UNLOCKED"]
+  .cw-world__viewport {
+  cursor: pointer;
+}
+
+.cw-world[data-interaction-mode="INSPECTING_STUDENT"]
+  .cw-world__viewport,
+.cw-world[data-interaction-mode="INTERVENTION_PENDING"]
+  .cw-world__viewport,
+.cw-world[data-interaction-mode="INTERVENTION_SUCCESS"]
+  .cw-world__viewport,
+.cw-world[data-interaction-mode="INTERVENTION_CONFLICT"]
+  .cw-world__viewport,
+.cw-world[data-interaction-mode="INTERVENTION_ERROR"]
+  .cw-world__viewport {
+  cursor: default;
+}
+
+.cw-world[data-interaction-mode="INSPECTING_STUDENT"]
+  .cw-world__hud,
+.cw-world[data-interaction-mode="INTERVENTION_PENDING"]
+  .cw-world__hud,
+.cw-world[data-interaction-mode="INTERVENTION_SUCCESS"]
+  .cw-world__hud,
+.cw-world[data-interaction-mode="INTERVENTION_CONFLICT"]
+  .cw-world__hud,
+.cw-world[data-interaction-mode="INTERVENTION_ERROR"]
+  .cw-world__hud {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cw-world__resume-hint,
+  .cw-world__hud,
+  .cw-world__crosshair {
+    transition: none;
+  }
+}

@@ -1565,6 +1565,11 @@ const classroomInteractionAuthorityV11 =
       data-interaction-mode={
         interactionStateV54.mode
       }
+      data-gameplay-active={
+        interactionStateV54.canMove
+          ? "true"
+          : "false"
+      }
     >
       <div
         ref={hostRef}
@@ -1579,20 +1584,46 @@ const classroomInteractionAuthorityV11 =
         }}
       />
 
-      <div className="cw-world__hud">
+      {/* CW07_V55_HUD_GUARD */ (
+        interactionStateV54.canMove ||
+        interactionStateV54.canAcquirePointerLock
+      ) ? (
+        <div
+          className="cw-world__hud"
+          aria-hidden="true"
+        >
         <strong>CLASSROOM WORLD // CW03</strong>
         <span>WASD MOVE · MOUSE LOOK · ESC RELEASE</span>
       </div>
+      ) : null}
 
-      <div className="cw-world__crosshair">+</div>
+      {interactionStateV54.canAcquirePointerLock ? (
+        <div
+          className="cw-world__resume-hint"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          CLICK VIEW TO RESUME
+        </div>
+      ) : null}
 
-      {targetLabel && isLocked && (
+      {interactionStateV54.canMove ? (
+        <div
+          className="cw-world__crosshair"
+          aria-hidden="true"
+        >
+          +
+        </div>
+      ) : null}
+
+      {targetLabel && interactionStateV54.canMove && (
         <div className="cw-world__prompt">
           [E] VIEW {targetLabel.toUpperCase()}
         </div>
       )}
 
-      {!hasEntered && (
+      {interactionStateV54.showEntryGate && (
         <div className="cw-world__entry">
           <div className="cw-world__entry-card">
             <small>CW03 RENDERING SPIKE</small>
