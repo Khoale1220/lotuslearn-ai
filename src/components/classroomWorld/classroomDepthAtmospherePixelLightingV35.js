@@ -12,25 +12,25 @@
     palette:
       Object.freeze({
         fog:
-          0xb7c4cc,
+          0x7895a8,
 
         hemisphereSky:
-          0xddebf0,
+          0xb7d6e8,
 
         hemisphereGround:
-          0x8a8177,
+          0x665c54,
 
         directionalKey:
-          0xffddb0
+          0xffd29d
       }),
 
     depth:
       Object.freeze({
         foregroundClearUntil:
-          14,
+          11.5,
 
         atmosphericFar:
-          32,
+          40,
 
         model:
           "linear"
@@ -39,10 +39,10 @@
     lighting:
       Object.freeze({
         hemisphereIntensityMultiplier:
-          1.12,
+          0.78,
 
         directionalIntensityMultiplier:
-          0.96
+          1.14
       }),
 
     addedMeshes:

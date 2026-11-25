@@ -1117,7 +1117,7 @@ function createClassroom64BitVisualUpgrade({
       wallTexture,
 
     roughness:
-      0.86,
+      0.78,
 
     metalness:
       0
@@ -1131,7 +1131,7 @@ function createClassroom64BitVisualUpgrade({
       wallTexture,
 
     roughness:
-      0.91,
+      0.88,
 
     metalness:
       0
@@ -1145,7 +1145,7 @@ function createClassroom64BitVisualUpgrade({
       woodTexture,
 
     roughness:
-      0.65,
+      0.52,
 
     metalness:
       0
@@ -1159,7 +1159,7 @@ function createClassroom64BitVisualUpgrade({
       woodTexture,
 
     roughness:
-      0.7,
+      0.58,
 
     metalness:
       0
@@ -1173,10 +1173,10 @@ function createClassroom64BitVisualUpgrade({
       metalTexture,
 
     roughness:
-      0.42,
+      0.32,
 
     metalness:
-      0.34
+      0.38
   });
 
   upgradeSharedMaterial({
@@ -1187,10 +1187,10 @@ function createClassroom64BitVisualUpgrade({
       metalTexture,
 
     roughness:
-      0.4,
+      0.28,
 
     metalness:
-      0.48
+      0.52
   });
 
   upgradeSharedMaterial({
@@ -1201,7 +1201,7 @@ function createClassroom64BitVisualUpgrade({
       chalkboardTexture,
 
     roughness:
-      0.94,
+      0.90,
 
     metalness:
       0
@@ -1222,7 +1222,7 @@ function createClassroom64BitVisualUpgrade({
         0xffffff,
 
       roughness:
-        0.82,
+        0.68,
 
       metalness:
         0

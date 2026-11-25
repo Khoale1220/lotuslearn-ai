@@ -345,14 +345,44 @@ test(
       expectedDirectional
     );
 
+    /*
+     * CW08 P3B:
+     *
+     * Friendly visual balance now uses stronger directional
+     * modeling and lower ambient hemisphere fill.
+     *
+     * The exact intensities above are already verified against
+     * the profile. These relational assertions therefore test
+     * the intended visual semantics rather than the retired
+     * flat-lighting direction.
+     */
     assert.ok(
-      hemisphere.intensity >
+      hemisphere.intensity <
         originalHemisphere
     );
 
     assert.ok(
-      directional.intensity <
+      directional.intensity >
         originalDirectional
+    );
+
+    assert.ok(
+      directional.intensity >
+        hemisphere.intensity
+    );
+
+    assert.ok(
+      CLASSROOM_DEPTH_ATMOSPHERE_PIXEL_LIGHTING_V35_PROFILE
+        .lighting
+        .hemisphereIntensityMultiplier <
+        1
+    );
+
+    assert.ok(
+      CLASSROOM_DEPTH_ATMOSPHERE_PIXEL_LIGHTING_V35_PROFILE
+        .lighting
+        .directionalIntensityMultiplier >
+        1
     );
 
     assert.equal(
@@ -371,8 +401,17 @@ test(
         expectedHemisphere
     );
 
+    /*
+     * CW08 P3B:
+     *
+     * Ambient hemisphere fill is intentionally reduced while
+     * directional key modeling is intentionally strengthened.
+     *
+     * Therefore key-to-fill ratio must increase relative to
+     * the previous visual baseline.
+     */
     assert.ok(
-      snapshot.directionalToHemisphereRatio <
+      snapshot.directionalToHemisphereRatio >
         originalRatio
     );
 
