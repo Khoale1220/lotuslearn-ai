@@ -954,34 +954,15 @@ function createClassroomReferenceWorldArtV24({
         true;
     }
 
-    for (
-      const state
-      of lightStates
-    ) {
-      if (
-        state.color
-      ) {
-        state.object.color.copy(
-          state.color
-        );
-      }
-
-      if (
-        state.groundColor
-      ) {
-        state.object.groundColor.copy(
-          state.groundColor
-        );
-      }
-
-      if (
-        state.intensity !==
-          null
-      ) {
-        state.object.intensity =
-          state.intensity;
-      }
-    }
+    /*
+ * CW08.3C-E:
+ * V24 does not acquire canonical light appearance authority.
+ * V35 owns runtime hemisphere/directional color and intensity.
+ *
+ * Therefore V24 must not restore captured light appearance
+ * during disposal. Doing so would re-apply a downstream
+ * snapshot after V35 has already restored its own state.
+ */
 
     /*
      * CW08.3B:
