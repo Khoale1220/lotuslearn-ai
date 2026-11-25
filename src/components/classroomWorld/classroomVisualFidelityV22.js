@@ -627,81 +627,26 @@ function createClassroomVisualFidelityV22({
     root
   );
 
-  const rendererShadowState =
-    Object.freeze({
-      enabled:
-        renderer.shadowMap.enabled,
-
-      type:
-        renderer.shadowMap.type
-    });
-
-  renderer.shadowMap.enabled =
-    true;
+  /*
+   * CW08.3C-D:
+   * V22 does not acquire renderer shadow enable/type
+   * authority.
+   */
 
   const sunlight =
     scene.getObjectByName(
       "classroom-window-sun"
     );
 
-  let sunlightState =
-    null;
-
-  if (
-    sunlight &&
-    sunlight.shadow
-  ) {
-    sunlightState =
-      Object.freeze({
-        castShadow:
-          sunlight.castShadow,
-
-        mapWidth:
-          sunlight.shadow
-            .mapSize.x,
-
-        mapHeight:
-          sunlight.shadow
-            .mapSize.y,
-
-        bias:
-          sunlight.shadow.bias,
-
-        normalBias:
-          sunlight.shadow
-            .normalBias
-      });
-
-    sunlight.castShadow =
-      true;
-
-    const currentSize =
-      Math.max(
-        sunlight.shadow
-          .mapSize.x,
-        sunlight.shadow
-          .mapSize.y
-      );
-
-    const nextSize =
-      Math.max(
-        currentSize,
-        profile.shadowMapSize
-      );
-
-    sunlight.shadow
-      .mapSize
-      .set(
-        nextSize,
-        nextSize
-      );
-
-    sunlight.shadow.bias =
-      -0.0006;
-
-    sunlight.shadow.normalBias =
-      0.025;
-  }
+  /*
+   * CW08.3C-D:
+   * V22 does not mutate canonical sunlight shadow
+   * infrastructure.
+   *
+   * V22 continues to own shadow participation,
+   * contact shadows, light pools, and shadow catcher
+   * artwork.
+   */
 
   const shadowParticipantStates =
     configureShadowParticipantsV22(
@@ -1303,36 +1248,12 @@ function createClassroomVisualFidelityV22({
         state.receiveShadow;
     }
 
-    if (
-      sunlight &&
-      sunlight.shadow &&
-      sunlightState
-    ) {
-      sunlight.castShadow =
-        sunlightState.castShadow;
-
-      sunlight.shadow
-        .mapSize
-        .set(
-          sunlightState
-            .mapWidth,
-
-          sunlightState
-            .mapHeight
-        );
-
-      sunlight.shadow.bias =
-        sunlightState.bias;
-
-      sunlight.shadow.normalBias =
-        sunlightState.normalBias;
-    }
-
-    renderer.shadowMap.enabled =
-      rendererShadowState.enabled;
-
-    renderer.shadowMap.type =
-      rendererShadowState.type;
+    /*
+     * CW08.3C-D:
+     * V22 acquired no renderer/sunlight infrastructure
+     * authority, therefore there is no global shadow state
+     * to restore here.
+     */
 
     for (
       const geometry

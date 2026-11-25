@@ -1,3 +1,4 @@
+import fs from "node:fs";
 ﻿import assert from "node:assert/strict";
 import {
   readFileSync
@@ -209,10 +210,10 @@ test(
       /\.computeBoundingSphere\s*\(\s*\)/u
     );
 
-    assert.match(
-      source,
-      /\.mapSize\s*\.set\s*\(/u
-    );
+    assert.doesNotMatch(
+  source,
+  /\.mapSize\s*\.set\s*\(/u
+);
 
     assert.match(
       source,
@@ -260,6 +261,61 @@ test(
         source
       ),
       false
+    );
+  }
+);
+
+
+test(
+  "CW08.3C-D V22 delegates global shadow infrastructure",
+  () => {
+    const sourceText =
+      fs.readFileSync(
+        new URL(
+          "./classroomVisualFidelityV22.js",
+          import.meta.url
+        ),
+        "utf8"
+      );
+
+    assert.doesNotMatch(
+      sourceText,
+      /renderer\.shadowMap\.enabled\s*=/u
+    );
+
+    assert.doesNotMatch(
+      sourceText,
+      /renderer\.shadowMap\.type\s*=/u
+    );
+
+    assert.doesNotMatch(
+      sourceText,
+      /sunlight\.shadow\.mapSize\.set\s*\(/u
+    );
+
+    assert.doesNotMatch(
+      sourceText,
+      /sunlight\.shadow\.bias\s*=/u
+    );
+
+    assert.doesNotMatch(
+      sourceText,
+      /sunlight\.shadow\.normalBias\s*=/u
+    );
+
+    assert.match(
+      sourceText,
+      /object\.castShadow\s*=/u
+    );
+
+    assert.match(
+      sourceText,
+      /object\.receiveShadow\s*=/u
+    );
+
+    assert.match(
+      sourceText,
+      /new THREE\.ShadowMaterial/u
     );
   }
 );

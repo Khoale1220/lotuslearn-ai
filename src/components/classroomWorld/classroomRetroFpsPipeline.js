@@ -458,9 +458,10 @@ function createClassroomRetroFpsPipeline({
         ? renderer.getPixelRatio()
         : 1,
 
-    shadowType:
-      renderer.shadowMap
-        ?.type,
+    /*
+     * CW08.3C-D:
+     * Shadow-map type belongs to classroomLightingV2.
+     */
 
     canvasImageRendering:
       canvas.style
@@ -500,10 +501,11 @@ function createClassroomRetroFpsPipeline({
       renderer
     );
 
-  if (renderer.shadowMap) {
-    renderer.shadowMap.type =
-      THREE.BasicShadowMap;
-  }
+  /*
+   * CW08.3C-D:
+   * Retro FPS owns presentation scaling, not global
+   * shadow-map filtering.
+   */
 
   /*
    * CW08.3B:
@@ -1262,11 +1264,11 @@ function createClassroomRetroFpsPipeline({
         );
       }
 
-      if (renderer.shadowMap) {
-        renderer.shadowMap.type =
-          rendererState
-            .shadowType;
-      }
+      /*
+       * CW08.3C-D:
+       * Retro FPS acquired no shadow-map type authority,
+       * therefore there is nothing to restore.
+       */
 
       /*
        * CW08.3B:

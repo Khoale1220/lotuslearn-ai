@@ -114,15 +114,15 @@ test(
           /imageRendering\s*=\s*"pixelated"/u
         );
 
-        assert.match(
-          pipelineSource,
-          /THREE\.BasicShadowMap/u
-        );
+        assert.doesNotMatch(
+  pipelineSource,
+  /THREE\.BasicShadowMap/u
+);
 
-        assert.match(
-          pipelineSource,
-          /THREE\.NoToneMapping/u
-        );
+        assert.doesNotMatch(
+  pipelineSource,
+  /renderer\\\.toneMapping\\s*=/u
+);
       }
     );
 

@@ -45,6 +45,17 @@ function createClassroomLightingV2({
       renderer.shadowMap.type
   };
 
+  /*
+   * CW08.3C-D:
+   * classroomLightingV2 is the canonical owner of
+   * renderer shadow enablement, shadow-map filtering,
+   * directional shadow-map sizing, bias, normalBias,
+   * and directional shadow-camera configuration.
+   *
+   * Downstream visual modules may configure shadow
+   * participants or contact-shadow artwork, but must not
+   * mutate global shadow infrastructure.
+   */
   renderer.shadowMap.enabled =
     true;
 
