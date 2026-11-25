@@ -134,6 +134,10 @@ import {
 } from "./classroomInterventionFeedbackV53.js";
 
 import {
+  deriveClassroomInteractionStateV54
+} from "./classroomInteractionStateV54.js";
+
+import {
   createClassroomInteractionReplayAuditV12
 } from "./classroomInteractionReplayAuditV12.js";
 
@@ -323,6 +327,17 @@ function ClassroomWorld({
 
       target:
         interventionFeedbackTarget
+    });
+
+  const interactionStateV54 =
+    deriveClassroomInteractionStateV54({
+      hasEntered,
+
+      isLocked,
+
+      selectedStudent,
+
+      interventionFeedback
     });
 
   const emitTeacherInterventionCommand = (input) => {
@@ -1114,7 +1129,14 @@ const classroomInteractionAuthorityV11 =
 
     const onKeyDown = (event) => {
       if (event.code === "Escape") {
-        setSelectedStudent(null);
+        setInterventionFeedbackTarget(
+          null
+        );
+
+        setSelectedStudent(
+          null
+        );
+
         return;
       }
       keys.add(event.code);
@@ -1138,6 +1160,10 @@ const classroomInteractionAuthorityV11 =
 
         controls.unlock();
       keys.clear();
+
+      setInterventionFeedbackTarget(
+        null
+      );
 
       setSelectedStudent(
         store.requireStudent(activeStudent.studentKey)
@@ -1534,15 +1560,19 @@ const classroomInteractionAuthorityV11 =
   }, []);
 
   return (
-    <section className="cw-world">
+    <section
+      className="cw-world"
+      data-interaction-mode={
+        interactionStateV54.mode
+      }
+    >
       <div
         ref={hostRef}
         className="cw-world__viewport"
         onClick={() => {
           if (
-            hasEntered &&
-            !selectedStudent &&
-            !isLocked
+            interactionStateV54
+              .canAcquirePointerLock
           ) {
             controlsRef.current?.lock();
           }
@@ -1575,7 +1605,18 @@ const classroomInteractionAuthorityV11 =
             <button
               type="button"
               onClick={() => {
-                setHasEntered(true);
+                setInterventionFeedbackTarget(
+                  null
+                );
+
+                setSelectedStudent(
+                  null
+                );
+
+                setHasEntered(
+                  true
+                );
+
                 controlsRef.current?.lock();
               }}
             >
