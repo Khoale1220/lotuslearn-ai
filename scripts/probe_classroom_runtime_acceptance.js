@@ -1289,7 +1289,15 @@ if (isDirect) {
 
 
 export {
+  CdpClient,
+  allocatePort,
   buildClassroomNavigationExpression,
   buildSnapshotExpression,
-  validateAcceptanceResultV56
+  findBrowserBinary,
+  parseArgs,
+  sleep,
+  validateAcceptanceResultV56,
+  waitForCondition,
+  waitForDevTools,
+  waitForPageTarget
 };
