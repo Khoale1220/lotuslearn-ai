@@ -981,11 +981,11 @@ const classroomInteractionAuthorityV11 =
 
 
 
-    scene.add(new THREE.HemisphereLight(0xe7efff, 0x2c2436, 2.4));
-
-    const keyLight = new THREE.DirectionalLight(0xfff0d8, 2.2);
-    keyLight.position.set(4, 7, 5);
-    scene.add(keyLight);
+    /*
+     * CW08.3C-C:
+     * createClassroomLightingV2 owns the canonical classroom light rig.
+     * Do not create a second anonymous Hemisphere/Directional pair here.
+     */
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(16, 18),

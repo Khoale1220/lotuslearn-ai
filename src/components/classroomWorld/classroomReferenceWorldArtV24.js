@@ -410,57 +410,14 @@ function createClassroomReferenceWorldArtV24({
       if (
         object.isLight
       ) {
-        lightStates.push({
-          object,
-
-          color:
-            object.color?.isColor
-              ? object.color.clone()
-              : null,
-
-          groundColor:
-            object.groundColor?.isColor
-              ? object.groundColor.clone()
-              : null,
-
-          intensity:
-            Number.isFinite(
-              object.intensity
-            )
-              ? object.intensity
-              : null
-        });
-
-        if (
-          object.isHemisphereLight
-        ) {
-          object.color.setHex(
-            palette.sky
-          );
-
-          object.groundColor.setHex(
-            palette.deepPlum
-          );
-
-          object.intensity *=
-            0.92;
-        }
-        else if (
-          object.isDirectionalLight
-        ) {
-          object.color.setHex(
-            palette.cream
-          );
-
-          if (
-            object.name ===
-            "classroom-window-sun"
-          ) {
-            object.intensity *=
-              1.10;
-          }
-        }
-
+        /*
+         * CW08.3C-C:
+         * V35 owns global light appearance:
+         * hemisphere color / ground color / intensity
+         * directional color / intensity.
+         *
+         * V24 remains world-art/material semantic authority only.
+         */
         return;
       }
 
