@@ -478,3 +478,52 @@
     scroll-behavior: auto !important;
   }
 }
+
+
+/* CW07_V53_INTERVENTION_FEEDBACK */
+
+.cw-world__intervention-feedback {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid currentColor;
+  background: rgba(12, 22, 28, 0.92);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  letter-spacing: 0.035em;
+}
+
+.cw-world__intervention-feedback strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+}
+
+.cw-world__intervention-feedback span {
+  opacity: 0.88;
+}
+
+.cw-world__intervention-feedback[data-phase="pending"] {
+  color: #f2d783;
+}
+
+.cw-world__intervention-feedback[data-phase="success"] {
+  color: #a9d99b;
+}
+
+.cw-world__intervention-feedback[data-phase="conflict"] {
+  color: #f0bc73;
+}
+
+.cw-world__intervention-feedback[data-phase="error"] {
+  color: #eaa19b;
+}
+
+/*
+ * Preserve the established legacy status contract
+ * in source while avoiding duplicate visible text.
+ */
+.cw-world__intervention-feedback
+  + .classroom-world__teacher-intervention-status {
+  display: none;
+}

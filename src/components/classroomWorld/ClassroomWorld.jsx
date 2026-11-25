@@ -129,6 +129,11 @@ import {
 } from "./classroomInteractionAuthorityV11.js";
 
 import {
+  captureTeacherInterventionFeedbackTargetV53,
+  createClassroomInterventionFeedbackV53
+} from "./classroomInterventionFeedbackV53.js";
+
+import {
   createClassroomInteractionReplayAuditV12
 } from "./classroomInteractionReplayAuditV12.js";
 
@@ -304,6 +309,21 @@ function ClassroomWorld({
   const [hasEntered, setHasEntered] = useState(false);
   const [targetLabel, setTargetLabel] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [
+    interventionFeedbackTarget,
+    setInterventionFeedbackTarget
+  ] = useState(null);
+
+  const interventionFeedback =
+    createClassroomInterventionFeedbackV53({
+      status:
+        teacherInterventionStatus,
+
+      selectedStudent,
+
+      target:
+        interventionFeedbackTarget
+    });
 
   const emitTeacherInterventionCommand = (input) => {
     if (
@@ -386,6 +406,18 @@ function ClassroomWorld({
           ? { analysisKey }
           : {})
       });
+
+    setInterventionFeedbackTarget(
+      captureTeacherInterventionFeedbackTargetV53(
+        selectedStudent?.studentKey ===
+          input.studentKey
+          ? selectedStudent
+          : {
+              studentKey:
+                input.studentKey
+            }
+      )
+    );
 
     return onTeacherIntervention(
       command
@@ -1582,7 +1614,15 @@ const classroomInteractionAuthorityV11 =
             <button
               type="button"
               className="cw-world__student-hud-close"
-              onClick={() => setSelectedStudent(null)}
+              onClick={() => {
+                setInterventionFeedbackTarget(
+                  null
+                );
+
+                setSelectedStudent(
+                  null
+                );
+              }}
               aria-label="Close student intelligence"
             >
               X
@@ -1641,10 +1681,32 @@ const classroomInteractionAuthorityV11 =
                   );
                 }}
           >
-            {teacherInterventionStatus?.phase === "pending"
-              ? "SAVING..."
-              : "APPLY INTERVENTION"}
+            {interventionFeedback?.buttonLabel ??
+              (teacherInterventionStatus?.phase === "pending"
+                ? "SAVING..."
+                : "APPLY INTERVENTION")}
           </button>
+
+          {interventionFeedback ? (
+            <div
+              className="cw-world__intervention-feedback"
+              role={interventionFeedback.role}
+              aria-live={interventionFeedback.ariaLive}
+              aria-atomic="true"
+              data-phase={interventionFeedback.phase}
+              data-student-key={interventionFeedback.studentKey}
+            >
+              <strong>
+                {interventionFeedback.title}
+              </strong>
+
+              <span>
+                {interventionFeedback.studentLabel}
+                {" // "}
+                {interventionFeedback.detail}
+              </span>
+            </div>
+          ) : null}
 
           {teacherInterventionStatus?.phase &&
           teacherInterventionStatus.phase !== "idle" ? (
