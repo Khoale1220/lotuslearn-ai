@@ -542,31 +542,7 @@ function createClassroomReferenceWorldArtV24({
           strength
         );
 
-        if (
-          Number.isFinite(
-            material.roughness
-          )
-        ) {
-          material.roughness =
-            Math.max(
-              material.roughness,
-              0.70
-            );
-        }
 
-        if (
-          Number.isFinite(
-            material.metalness
-          ) &&
-          role !==
-            "metal"
-        ) {
-          material.metalness =
-            Math.min(
-              material.metalness,
-              0.10
-            );
-        }
 
         material.needsUpdate =
           true;
@@ -934,21 +910,7 @@ function createClassroomReferenceWorldArtV24({
         state.color
       );
 
-      if (
-        state.roughness !==
-          null
-      ) {
-        state.material.roughness =
-          state.roughness;
-      }
 
-      if (
-        state.metalness !==
-          null
-      ) {
-        state.material.metalness =
-          state.metalness;
-      }
 
       state.material.needsUpdate =
         true;

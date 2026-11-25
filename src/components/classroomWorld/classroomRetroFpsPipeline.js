@@ -613,58 +613,11 @@ function createClassroomRetroFpsPipeline({
       );
     }
 
-    if (
-      "flatShading" in
-      material
-    ) {
-      material.flatShading =
-        true;
-    }
-
-    if (
-      typeof material
-        .roughness ===
-      "number"
-    ) {
-      material.roughness =
-        Math.max(
-          0.84,
-          material.roughness
-        );
-    }
-
-    if (
-      typeof material
-        .metalness ===
-      "number"
-    ) {
-      material.metalness =
-        Math.min(
-          0.08,
-          material.metalness
-        );
-    }
-
-    if (
-      typeof material
-        .transmission ===
-      "number"
-    ) {
-      material.transmission =
-        0;
-    }
-
-    if (
-      typeof material
-        .clearcoat ===
-      "number"
-    ) {
-      material.clearcoat =
-        0;
-    }
-
-    material.needsUpdate =
-      true;
+    /*
+     * CW08.3C-E P2B:
+     * Retro FPS owns pixel presentation and sampling only.
+     * Canonical PBR surface response belongs to V64.
+     */
   }
 
   function refreshSceneMaterials() {
@@ -1308,69 +1261,6 @@ function createClassroomRetroFpsPipeline({
           true;
       }
 
-      for (
-        const state
-        of materialStates.values()
-      ) {
-        const material =
-          state.material;
-
-        if (
-          "flatShading" in
-          material
-        ) {
-          material.flatShading =
-            state.flatShading;
-        }
-
-        if (
-          typeof state
-            .roughness ===
-          "number"
-        ) {
-          material.roughness =
-            state.roughness;
-        }
-
-        if (
-          typeof state
-            .metalness ===
-          "number"
-        ) {
-          material.metalness =
-            state.metalness;
-        }
-
-        if (
-          typeof state
-            .transmission ===
-          "number"
-        ) {
-          material.transmission =
-            state.transmission;
-        }
-
-        if (
-          typeof state
-            .clearcoat ===
-          "number"
-        ) {
-          material.clearcoat =
-            state.clearcoat;
-        }
-
-        if (
-          typeof state
-            .clearcoatRoughness ===
-          "number"
-        ) {
-          material.clearcoatRoughness =
-            state.clearcoatRoughness;
-        }
-
-        material.needsUpdate =
-          true;
-      }
 
       if (
         typeof globalThis

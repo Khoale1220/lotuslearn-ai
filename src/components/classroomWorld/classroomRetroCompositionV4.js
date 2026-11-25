@@ -1285,49 +1285,13 @@ function createClassroomRetroCompositionV4({
       return;
     }
 
-    sharedMaterialStates.push({
-      material,
-      map:
-        material.map,
-      roughness:
-        material.roughness,
-      metalness:
-        material.metalness,
-      flatShading:
-        material.flatShading
-    });
-
-    material.map =
-      map;
-
-    if (
-      typeof material
-        .roughness ===
-      "number"
-    ) {
-      material.roughness =
-        1;
-    }
-
-    if (
-      typeof material
-        .metalness ===
-      "number"
-    ) {
-      material.metalness =
-        0;
-    }
-
-    if (
-      "flatShading" in
-      material
-    ) {
-      material.flatShading =
-        true;
-    }
-
-    material.needsUpdate =
-      true;
+    /*
+     * CW08.3C-E P2B:
+     * shared classroom materials are canonical V64 surfaces.
+     * Retro Composition must not rewrite their map or PBR state.
+     * Keep the call boundary for compatibility.
+     */
+    void map;
   }
 
   overrideSharedMaterial({
@@ -2323,42 +2287,6 @@ function createClassroomRetroCompositionV4({
           state.visible;
       }
 
-      for (
-        const state
-        of sharedMaterialStates
-      ) {
-        state.material.map =
-          state.map;
-
-        if (
-          typeof state
-            .roughness ===
-          "number"
-        ) {
-          state.material.roughness =
-            state.roughness;
-        }
-
-        if (
-          typeof state
-            .metalness ===
-          "number"
-        ) {
-          state.material.metalness =
-            state.metalness;
-        }
-
-        if (
-          "flatShading" in
-          state.material
-        ) {
-          state.material.flatShading =
-            state.flatShading;
-        }
-
-        state.material.needsUpdate =
-          true;
-      }
 
       scene.remove(
         root
