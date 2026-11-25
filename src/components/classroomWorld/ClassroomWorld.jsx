@@ -121,6 +121,10 @@ import {
 } from "./classroomRuntimeObservabilityV7.js";
 
 import {
+  createClassroomRuntimeAcceptanceBridgeV56
+} from "./classroomRuntimeAcceptanceBridgeV56.js";
+
+import {
   createClassroomCharacterVisualIntegrationV10
 } from "./classroomCharacterVisualIntegrationV10.js";
 
@@ -924,6 +928,53 @@ const classroomInteractionAuthorityV11 =
         host
       });
 
+    const classroomRuntimeAcceptanceBridgeV56 =
+      createClassroomRuntimeAcceptanceBridgeV56({
+        target:
+          host,
+
+        readRuntimeSnapshot:
+          () =>
+            classroomRuntimeObservabilityV7
+              .getSnapshot(),
+
+        readInteractionSnapshot:
+          () => {
+            const root =
+              host.closest?.(
+                ".cw-world"
+              );
+
+            return {
+              mode:
+                root?.dataset
+                  ?.interactionMode ??
+                null,
+
+              gameplayActive:
+                root?.dataset
+                  ?.gameplayActive ===
+                "true",
+
+              pointerLocked:
+                controls.isLocked ===
+                true
+            };
+          },
+
+        createEvent:
+          (
+            type,
+            detail
+          ) =>
+            new CustomEvent(
+              type,
+              {
+                detail
+              }
+            )
+      });
+
 
 
 
@@ -1480,6 +1531,7 @@ const classroomInteractionAuthorityV11 =
 
       classroomFinalContentV6.dispose();
 
+      classroomRuntimeAcceptanceBridgeV56.dispose();
       classroomRuntimeObservabilityV7.dispose();
       classroomPixelArtGradeV23.dispose();
       classroomRetroFpsPipeline.dispose();
