@@ -66,7 +66,7 @@ test(
   () => {
     assert.match(
       source,
-      /yaw:\s*camera\.rotation\.y/u
+      /yaw:\s*movementYaw/u
     );
 
     assert.match(
