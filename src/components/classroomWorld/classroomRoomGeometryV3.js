@@ -46,7 +46,8 @@ function configureStaticMesh(
 
 function createClassroomRoomGeometryV3({
   scene,
-  materials
+  materials,
+  presentationMode = "retro"
 }) {
   if (
     !scene ||
@@ -71,8 +72,13 @@ function createClassroomRoomGeometryV3({
     );
   }
 
-  const root =
-    new THREE.Group();
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Invalid V3 presentation mode");
+  }
+
+  const hdMode = presentationMode === "hd";
+
+  const root = new THREE.Group();
 
   root.name =
     "classroom-room-geometry-v3";
@@ -141,6 +147,10 @@ function createClassroomRoomGeometryV3({
       )
     );
 
+    if (hdMode && name.startsWith("ceiling-rail-")) {
+      mesh.castShadow = false;
+    }
+
     return mesh;
   }
 
@@ -154,9 +164,9 @@ function createClassroomRoomGeometryV3({
   const ceilingTileGeometry =
     ownGeometry(
       new THREE.BoxGeometry(
-        2.12,
+        hdMode ? 2.38 : 2.12,
         0.045,
-        2.12
+        hdMode ? 2.38 : 2.12
       )
     );
 
@@ -252,6 +262,14 @@ function createClassroomRoomGeometryV3({
    * Ceiling grid rails.
    */
 
+  const ceilingRailMaterial = hdMode
+    ? ownMaterial(new THREE.MeshStandardMaterial({
+        color: 0xece9df,
+        roughness: 0.95,
+        metalness: 0.0
+      }))
+    : materials.metal;
+
   const ceilingRailLongGeometry =
     ownGeometry(
       new THREE.BoxGeometry(
@@ -284,7 +302,7 @@ function createClassroomRoomGeometryV3({
         ceilingRailLongGeometry,
 
       material:
-        materials.metal,
+        ceilingRailMaterial,
 
       name:
         "ceiling-rail-long-v3",
@@ -311,7 +329,7 @@ function createClassroomRoomGeometryV3({
         ceilingRailCrossGeometry,
 
       material:
-        materials.metal,
+        ceilingRailMaterial,
 
       name:
         "ceiling-rail-cross-v3",

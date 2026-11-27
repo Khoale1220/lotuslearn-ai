@@ -244,10 +244,29 @@ function applyDepthAtmospherePixelLightingV35({
   scene,
   hemisphereLight,
   directionalLight,
-  originalState
+  originalState,
+  presentationMode = "retro"
 }) {
   const profile =
     CLASSROOM_DEPTH_ATMOSPHERE_PIXEL_LIGHTING_V35_PROFILE;
+
+  const hdMode = presentationMode === "hd";
+
+  const lightingPalette = hdMode
+    ? {
+        hemisphereSky: 0xdde9ee,
+        hemisphereGround: 0x81766f,
+        directionalKey: 0xffe9d6
+      }
+    : profile.palette;
+
+  const hemisphereMultiplier = hdMode
+    ? 1.06
+    : profile.lighting.hemisphereIntensityMultiplier;
+
+  const directionalMultiplier = hdMode
+    ? 0.90
+    : profile.lighting.directionalIntensityMultiplier;
 
   const fogNear =
     Math.min(
@@ -298,21 +317,18 @@ function applyDepthAtmospherePixelLightingV35({
    */
 
   hemisphereLight.color.setHex(
-    profile.palette
-      .hemisphereSky
+    lightingPalette.hemisphereSky
   );
 
   hemisphereLight.groundColor.setHex(
-    profile.palette
-      .hemisphereGround
+    lightingPalette.hemisphereGround
   );
 
   hemisphereLight.intensity =
     clampV35(
       originalState
         .hemisphereIntensity *
-        profile.lighting
-          .hemisphereIntensityMultiplier,
+        hemisphereMultiplier,
 
       0.1,
       10
@@ -333,16 +349,14 @@ function applyDepthAtmospherePixelLightingV35({
    */
 
   directionalLight.color.setHex(
-    profile.palette
-      .directionalKey
+    lightingPalette.directionalKey
   );
 
   directionalLight.intensity =
     clampV35(
       originalState
         .directionalIntensity *
-        profile.lighting
-          .directionalIntensityMultiplier,
+        directionalMultiplier,
 
       0.1,
       10
@@ -410,8 +424,12 @@ function restoreDepthAtmospherePixelLightingV35({
 }
 
 function createClassroomDepthAtmospherePixelLightingV35({
-  scene
+  scene,
+  presentationMode = "retro"
 }) {
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Invalid V35 presentation mode");
+  }
   if (
     !scene ||
     scene.isScene !==
@@ -467,7 +485,8 @@ function createClassroomDepthAtmospherePixelLightingV35({
       scene,
       hemisphereLight,
       directionalLight,
-      originalState
+      originalState,
+      presentationMode
     });
 
   let disposed =

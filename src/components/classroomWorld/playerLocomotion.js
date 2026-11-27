@@ -250,6 +250,44 @@ function integrateTowardTarget({
   };
 }
 
+function removeOpposingAxisMomentum({ velocity, intent, yaw, input }) {
+  // Prevent forward drift when a reverse key is pressed.
+  // Preserve lateral momentum for diagonal movement.
+  const sinYaw = Math.sin(yaw);
+  const cosYaw = Math.cos(yaw);
+
+  const forward = { x: -sinYaw, z: -cosYaw };
+  const right = { x: cosYaw, z: -sinYaw };
+
+  const forwardSpeed =
+    velocity.x * forward.x + velocity.z * forward.z;
+
+  const rightSpeed =
+    velocity.x * right.x + velocity.z * right.z;
+
+  const reverseForward =
+    Boolean(input.opposingForward) ||
+    (intent.forward !== 0 &&
+      forwardSpeed * intent.forward < -1e-9);
+
+  const reverseRight =
+    Boolean(input.opposingRight) ||
+    (intent.right !== 0 &&
+      rightSpeed * intent.right < -1e-9);
+
+  if (!reverseForward && !reverseRight) {
+    return velocity;
+  }
+
+  const nextForward = reverseForward ? 0 : forwardSpeed;
+  const nextRight = reverseRight ? 0 : rightSpeed;
+
+  return {
+    x: nextForward * forward.x + nextRight * right.x,
+    z: nextForward * forward.z + nextRight * right.z
+  };
+}
+
 function stepPlayerLocomotion({
   position,
   velocity = {
@@ -301,9 +339,15 @@ function stepPlayerLocomotion({
       config.maxSpeed
   };
 
+  const directionalVelocity = removeOpposingAxisMomentum({
+    velocity,
+    intent,
+    yaw,
+    input
+  });
   const integration =
     integrateTowardTarget({
-      velocity,
+      velocity: directionalVelocity,
       targetVelocity,
 
       rate:

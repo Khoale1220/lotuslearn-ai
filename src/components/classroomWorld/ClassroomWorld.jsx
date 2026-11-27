@@ -1,3 +1,4 @@
+import { isolateClassroomHdVisualLayersR74B10B } from "./classroomHdVisualLayerIsolationR74B10B.js";
 import { createClassroomEnvironmentalAudioV20 } from "./classroomEnvironmentalAudioV20.js";
 import {
   createClassroomVisualFidelityV22
@@ -475,6 +476,14 @@ function ClassroomWorld({
     const camera = new THREE.PerspectiveCamera(CLASSROOM_CAMERA_VERTICAL_FOV, 16 / 9, 0.1, 50);
     camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
     camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
+    // CW08_R74B11M_SAFE_CAMERA_SPAWN
+    // Move inward along the original horizontal view direction.
+    // Preserve camera orientation, input, and collision authority.
+    const spawnIntoRoom = new THREE.Vector3();
+    camera.getWorldDirection(spawnIntoRoom);
+    spawnIntoRoom.y = 0;
+    spawnIntoRoom.normalize();
+    camera.position.addScaledVector(spawnIntoRoom, 2.0);
     scene.add(camera);
 
     const classroomOceanSkyWorldV15 =
@@ -519,14 +528,15 @@ function ClassroomWorld({
     const classroomFurnitureV2 =
       createClassroomFurnitureV2({
         scene,
-        materials:
-          classroomVisualSystem.materials
+        materials: classroomVisualSystem.materials,
+        presentationMode: "hd"
       });
 
     const classroomLightingV2 =
       createClassroomLightingV2({
         renderer,
-        scene
+        scene,
+        presentationMode: "hd"
       });
 
     const classroomEnvironmentDetailV2 =
@@ -568,11 +578,13 @@ function ClassroomWorld({
         documentObject: document
       });
 
+    classroomFurnitureV2.applyHdMaterialFinish();
+
     const classroomRoomGeometryV3 =
       createClassroomRoomGeometryV3({
         scene,
-        materials:
-          classroomVisualSystem.materials
+        materials: classroomVisualSystem.materials,
+        presentationMode: "hd"
       });
 
     const classroomCharacterV3 =
@@ -601,12 +613,14 @@ function ClassroomWorld({
       createClassroomRetroFpsPipeline({
         renderer,
         scene,
-        documentObject: document
+        documentObject: document,
+        presentationMode: "hd"
       });
 
     const classroomPixelArtGradeV23 =
       createClassroomPixelArtGradeV23({
-        renderer
+        renderer,
+        presentationMode: "hd"
       });
 
     const classroomRetroCompositionV4 =
@@ -629,7 +643,8 @@ function ClassroomWorld({
 
     const classroomReferenceSurfaceSilhouetteV29 =
       createClassroomReferenceSurfaceSilhouetteV29({
-        scene
+        scene,
+        presentationMode: "hd"
       });
 
     const classroomReferenceLightFramingV30 =
@@ -660,7 +675,8 @@ function ClassroomWorld({
 
     const classroomDepthAtmospherePixelLightingV35 =
       createClassroomDepthAtmospherePixelLightingV35({
-        scene
+        scene,
+        presentationMode: "hd"
       });
 
     const classroomPixelContactGroundingV36 =
@@ -1005,6 +1021,9 @@ const classroomInteractionAuthorityV11 =
      * Do not create a second anonymous Hemisphere/Directional pair here.
      */
 
+    // R7.4B.10B: hide visual-only HD obstructions.
+    isolateClassroomHdVisualLayersR74B10B(scene);
+
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(16, 18),
       new THREE.MeshLambertMaterial({ color: 0x6f5844 })
@@ -1200,6 +1219,8 @@ const classroomInteractionAuthorityV11 =
     let activeStudent = null;
     let animationFrame = 0;
 
+
+
     const onKeyDown = (event) => {
       if (event.code === "Escape") {
         setInterventionFeedbackTarget(
@@ -1264,6 +1285,11 @@ const classroomInteractionAuthorityV11 =
     const resizeCamera = () => {
       const width = host.clientWidth || 16;
       const height = host.clientHeight || 9;
+
+      classroomRetroFpsPipeline.resize({
+        displayWidth: width,
+        displayHeight: height
+      });
 
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
@@ -1404,6 +1430,7 @@ const classroomInteractionAuthorityV11 =
             obstacles:
               collisionObstaclesRef.current
           });
+
 
         playerVelocity =
           resolveVelocityAfterCollision({

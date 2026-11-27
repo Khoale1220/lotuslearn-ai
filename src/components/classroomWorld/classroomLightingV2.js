@@ -17,8 +17,13 @@ const CLASSROOM_LIGHTING_CONFIG =
 
 function createClassroomLightingV2({
   renderer,
-  scene
+  scene,
+  presentationMode = "retro"
 }) {
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Invalid lighting presentation mode");
+  }
+  const hdMode = presentationMode === "hd";
   if (
     !renderer ||
     !renderer.shadowMap
@@ -66,7 +71,7 @@ function createClassroomLightingV2({
    */
 
   renderer.shadowMap.type =
-    THREE.BasicShadowMap;
+    hdMode ? THREE.PCFShadowMap : THREE.BasicShadowMap;
 
   const rig =
     new THREE.Group();
@@ -173,17 +178,13 @@ function createClassroomLightingV2({
 
   const ceilingMaterial =
     new THREE.MeshStandardMaterial({
-      color:
-        0xf4e9ca,
+      color: hdMode ? 0xf5f1e9 : 0xf4e9ca,
 
-      emissive:
-        0xffddb0,
+      emissive: hdMode ? 0xffe8d2 : 0xffddb0,
 
-      emissiveIntensity:
-        1.25,
+      emissiveIntensity: hdMode ? 0.78 : 1.25,
 
-      roughness:
-        0.64,
+      roughness: hdMode ? 0.82 : 0.64,
 
       metalness:
         0,

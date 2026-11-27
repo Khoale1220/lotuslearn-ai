@@ -452,10 +452,10 @@ function createFloorTexture({
     });
 
   const tile =
-    64;
+    128;
 
   context.fillStyle =
-    "#b2916f";
+    "#c2bbb0";
 
   context.fillRect(
     0,
@@ -482,30 +482,30 @@ function createFloorTexture({
 
       context.fillStyle =
         alternate
-          ? "#b89876"
-          : "#aa8968";
+          ? "#c6bfb4"
+          : "#bdb6ab";
 
       context.fillRect(
-        x + 2,
-        y + 2,
-        tile - 4,
-        tile - 4
+        x + 1,
+        y + 1,
+        tile - 2,
+        tile - 2
       );
 
       context.fillStyle =
-        "rgba(80,58,40,0.12)";
+        "rgba(91,85,76,0.025)";
 
       context.fillRect(
         x,
         y,
         tile,
-        2
+        1
       );
 
       context.fillRect(
         x,
         y,
-        2,
+        1,
         tile
       );
     }
@@ -530,8 +530,8 @@ function createFloorTexture({
 
     context.fillStyle =
       index % 2 === 0
-        ? "rgba(255,245,225,0.045)"
-        : "rgba(62,44,33,0.04)";
+        ? "rgba(255,245,232,0.02)"
+        : "rgba(92,89,82,0.015)";
 
     context.fillRect(
       x,

@@ -112,7 +112,8 @@ function createShadowMesh({
 
 function createClassroomFurnitureV2({
   scene,
-  materials
+  materials,
+  presentationMode = "retro"
 }) {
   if (
     !scene ||
@@ -135,8 +136,12 @@ function createClassroomFurnitureV2({
     );
   }
 
-  const root =
-    new THREE.Group();
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Invalid furniture presentation mode");
+  }
+
+  const hdMode = presentationMode === "hd";
+  const root = new THREE.Group();
 
   root.name =
     "classroom-furniture-v2";
@@ -668,8 +673,49 @@ function createClassroomFurnitureV2({
     root
   );
 
-  let disposed =
-    false;
+  const ownedHdMaterials = new Set();
+  let hdFinishApplied = false;
+
+  function applyHdMaterialFinish() {
+    if (!hdMode || hdFinishApplied) return false;
+
+    const finishes = [
+      ["wood", 0xb89470, 0.86, 0.01],
+      ["woodDark", 0x87674f, 0.90, 0.01],
+      ["metal", 0x829091, 0.72, 0.18]
+    ];
+
+    const replacements = new Map();
+
+    for (const [key, color, roughness, metalness] of finishes) {
+      if (!materials[key]?.isMeshStandardMaterial) {
+        throw new TypeError("HD furniture requires standard materials");
+      }
+    }
+
+    for (const [key, color, roughness, metalness] of finishes) {
+      const source = materials[key];
+      const finish = source.clone();
+
+      finish.color.setHex(color);
+      finish.roughness = roughness;
+      finish.metalness = metalness;
+
+      replacements.set(source, finish);
+      ownedHdMaterials.add(finish);
+    }
+
+    for (const object of root.children) {
+      if (object.isMesh && replacements.has(object.material)) {
+        object.material = replacements.get(object.material);
+      }
+    }
+
+    hdFinishApplied = true;
+    return true;
+  }
+
+  let disposed = false;
 
   return {
     group:
@@ -677,6 +723,8 @@ function createClassroomFurnitureV2({
 
     storageInstanceCount:
       cubbyPositions.length,
+
+    applyHdMaterialFinish,
 
     dispose() {
       if (disposed) {
@@ -694,6 +742,10 @@ function createClassroomFurnitureV2({
         of ownedGeometries
       ) {
         geometry.dispose();
+      }
+
+      for (const material of ownedHdMaterials) {
+        material.dispose();
       }
     }
   };

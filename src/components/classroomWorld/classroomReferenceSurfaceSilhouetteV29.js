@@ -982,7 +982,8 @@ function createWindowSilhouetteBlueprintsV29() {
 }
 
 function createClassroomReferenceSurfaceSilhouetteV29({
-  scene
+  scene,
+  presentationMode = "retro"
 }) {
   if (
     !scene ||
@@ -994,8 +995,12 @@ function createClassroomReferenceSurfaceSilhouetteV29({
     );
   }
 
-  const profile =
-    CLASSROOM_REFERENCE_SURFACE_V29_PROFILE;
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Invalid V29 presentation mode");
+  }
+
+  const hdMode = presentationMode === "hd";
+  const profile = CLASSROOM_REFERENCE_SURFACE_V29_PROFILE;
 
   const root =
     new THREE.Group();
@@ -1020,8 +1025,15 @@ function createClassroomReferenceSurfaceSilhouetteV29({
   const materials =
     new Set();
 
-  const textures =
-    createReferenceSurfaceTextureSetV29();
+  const textures = createReferenceSurfaceTextureSetV29();
+
+  if (hdMode) {
+    for (const texture of Object.values(textures)) {
+      texture.magFilter = THREE.LinearFilter;
+      texture.minFilter = THREE.LinearFilter;
+      texture.needsUpdate = true;
+    }
+  }
 
   function ownGeometry(
     geometry
@@ -1110,7 +1122,7 @@ function createClassroomReferenceSurfaceSilhouetteV29({
           textures.wallWear,
 
         opacity:
-          0.74
+          hdMode ? 0.48 : 0.74
       })
     );
 
@@ -1121,7 +1133,7 @@ function createClassroomReferenceSurfaceSilhouetteV29({
           textures.floorScuff,
 
         opacity:
-          0.68
+          hdMode ? 0.24 : 0.68
       })
     );
 
@@ -1132,7 +1144,7 @@ function createClassroomReferenceSurfaceSilhouetteV29({
           textures.woodGrain,
 
         opacity:
-          0.76
+          hdMode ? 0.56 : 0.76
       })
     );
 
@@ -1143,7 +1155,7 @@ function createClassroomReferenceSurfaceSilhouetteV29({
           textures.boardSmudge,
 
         opacity:
-          0.70
+          hdMode ? 0.58 : 0.70
       })
     );
 

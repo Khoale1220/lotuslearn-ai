@@ -96,7 +96,12 @@ function getPixelArtGradeV23Profile() {
   };
 }
 
-function createPixelArtGradeShaderV23() {
+function createPixelArtGradeShaderV23({
+  presentationMode = "retro"
+} = {}) {
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Unsupported shader presentation mode");
+  }
   return {
     uniforms:
       {
@@ -138,8 +143,10 @@ function createPixelArtGradeShaderV23() {
                 .contrast
           },
 
-        uEdgeStrength:
-          {
+        uPosterizeStrength: {
+          value: presentationMode === "hd" ? 0 : 1
+        },
+        uEdgeStrength: {
             value:
               CLASSROOM_PIXEL_ART_GRADE_V23_PROFILE
                 .edgeStrength
@@ -178,6 +185,7 @@ function createPixelArtGradeShaderV23() {
 
         uniform float uSaturation;
         uniform float uContrast;
+        uniform float uPosterizeStrength;
         uniform float uEdgeStrength;
         uniform float uDitherStrength;
 
@@ -660,45 +668,23 @@ function createPixelArtGradeShaderV23() {
               color
             );
 
-          float matrixValue =
-            bayer4(
-              gl_FragCoord.xy
-            );
+          if (uPosterizeStrength > 0.0) {
+            float matrixValue = bayer4(gl_FragCoord.xy);
+            float dither =
+              ((matrixValue + 0.5) / 16.0 - 0.5) * uDitherStrength;
 
-          float dither =
-            (
-              (
-                matrixValue +
-                0.5
-              ) /
-                16.0 -
-                0.5
-            ) *
-            uDitherStrength;
-
-          color =
-            posterize(
+            color = mix(
               color,
-              dither
+              posterize(color, dither),
+              clamp(uPosterizeStrength, 0.0, 1.0)
             );
+          }
 
-          float edge =
-            detectInkEdge();
-
-          vec3 ink =
-            vec3(
-              0.11,
-              0.12,
-              0.13
-            );
-
-          color =
-            mix(
-              color,
-              ink,
-              edge *
-                uEdgeStrength
-            );
+          if (uEdgeStrength > 0.0) {
+            float edge = detectInkEdge();
+            vec3 ink = vec3(0.11, 0.12, 0.13);
+            color = mix(color, ink, edge * uEdgeStrength);
+          }
 
           vec2 centered =
             vUv *
@@ -737,7 +723,8 @@ function createPixelArtGradeShaderV23() {
 }
 
 function createClassroomPixelArtGradeV23({
-  renderer
+  renderer,
+  presentationMode = "retro"
 }) {
   if (
     !renderer ||
@@ -753,8 +740,15 @@ function createClassroomPixelArtGradeV23({
     );
   }
 
-  let disposed =
-    false;
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Unsupported V23 presentation mode");
+  }
+
+  const sceneSamplingFilter = presentationMode === "hd"
+    ? THREE.LinearFilter
+    : THREE.NearestFilter;
+
+  let disposed = false;
 
   const size =
     new THREE.Vector2();
@@ -790,14 +784,18 @@ function createClassroomPixelArtGradeV23({
         stencilBuffer:
           false,
 
-        magFilter:
-          THREE.NearestFilter,
+        magFilter: sceneSamplingFilter,
 
-        minFilter:
-          THREE.NearestFilter,
+        minFilter: sceneSamplingFilter,
 
         generateMipmaps:
-          false
+          false,
+
+        samples:
+          presentationMode === "hd" &&
+          (renderer.capabilities?.maxSamples ?? 0) >= 2
+            ? 2
+            : 0
       }
     );
 
@@ -810,14 +808,12 @@ function createClassroomPixelArtGradeV23({
   renderTarget.texture.generateMipmaps =
     false;
 
-  renderTarget.texture.magFilter =
-    THREE.NearestFilter;
+  renderTarget.texture.magFilter = sceneSamplingFilter;
 
-  renderTarget.texture.minFilter =
-    THREE.NearestFilter;
+  renderTarget.texture.minFilter = sceneSamplingFilter;
 
   const shaderDefinition =
-    createPixelArtGradeShaderV23();
+    createPixelArtGradeShaderV23({ presentationMode });
 
   const material =
     new THREE.ShaderMaterial({
@@ -1104,12 +1100,12 @@ function createClassroomPixelArtGradeV23({
         renderTarget.height,
 
       nearestSceneSampling:
-        renderTarget.texture
-          .magFilter ===
-          THREE.NearestFilter &&
-        renderTarget.texture
-          .minFilter ===
-          THREE.NearestFilter,
+        renderTarget.texture.magFilter === THREE.NearestFilter &&
+        renderTarget.texture.minFilter === THREE.NearestFilter,
+
+      linearSceneSampling:
+        renderTarget.texture.magFilter === THREE.LinearFilter &&
+        renderTarget.texture.minFilter === THREE.LinearFilter,
 
       mipmaps:
         renderTarget.texture

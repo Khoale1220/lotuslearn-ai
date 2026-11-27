@@ -260,7 +260,7 @@ test(
 );
 
 test(
-  "V23 keeps nearest low-resolution post-process sampling",
+  "V23 supports retro nearest and HD linear sampling",
   () => {
     const source =
       readSource(
@@ -275,10 +275,8 @@ test(
     );
 
     assert.equal(
-      /LinearFilter/gu.test(
-        source
-      ),
-      false
+      /THREE\.LinearFilter/gu.test(source),
+      true
     );
 
     assert.equal(

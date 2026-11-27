@@ -132,6 +132,29 @@ function computeRetroRenderSize({
   };
 }
 
+function computeHdRenderSize({ displayWidth, displayHeight }) {
+  if (
+    !Number.isFinite(displayWidth) ||
+    !Number.isFinite(displayHeight) ||
+    displayWidth <= 0 ||
+    displayHeight <= 0
+  ) {
+    throw new RangeError("HD display dimensions must be positive");
+  }
+
+  const scale = Math.min(
+    1,
+    1280 / displayWidth,
+    720 / displayHeight
+  );
+
+  return {
+    width: Math.max(1, Math.round(displayWidth * scale)),
+    height: Math.max(1, Math.round(displayHeight * scale)),
+    aspect: displayWidth / displayHeight
+  };
+}
+
 function applyRetroTextureSampling(
   texture
 ) {
@@ -404,9 +427,14 @@ function drawTeacherClipboard({
 function createClassroomRetroFpsPipeline({
   renderer,
   scene,
-  documentObject =
-    globalThis.document
+  documentObject = globalThis.document,
+  presentationMode = "retro"
 }) {
+  if (presentationMode !== "retro" && presentationMode !== "hd") {
+    throw new RangeError("Unsupported presentation mode");
+  }
+
+  const hdMode = presentationMode === "hd";
   if (
     !renderer ||
     !renderer.domElement ||
@@ -513,14 +541,13 @@ function createClassroomRetroFpsPipeline({
    * not global renderer tone mapping.
    */
 
-  canvas.style.imageRendering =
-    "pixelated";
-
-  canvas.style.imageRendering =
-    "crisp-edges";
-
-  canvas.style.imageRendering =
-    "pixelated";
+  if (hdMode) {
+    canvas.style.imageRendering = "auto";
+  } else {
+    canvas.style.imageRendering = "pixelated";
+    canvas.style.imageRendering = "crisp-edges";
+    canvas.style.imageRendering = "pixelated";
+  }
 
   const textureStates =
     new Map();
@@ -559,9 +586,9 @@ function createClassroomRetroFpsPipeline({
       }
     );
 
-    applyRetroTextureSampling(
-      texture
-    );
+    if (!hdMode) {
+      applyRetroTextureSampling(texture);
+    }
   }
 
   function captureMaterial(
@@ -669,19 +696,19 @@ function createClassroomRetroFpsPipeline({
     displayWidth,
     displayHeight
   }) {
-    const retroSize =
-      computeRetroRenderSize({
-        displayWidth,
-        displayHeight
-      });
+    const renderSize = hdMode
+      ? computeHdRenderSize({ displayWidth, displayHeight })
+      : computeRetroRenderSize({ displayWidth, displayHeight });
 
     /*
      * Drawing buffer becomes intentionally low-res.
      * CSS canvas remains at layout resolution.
      */
+    // CW08_R74B11Q8_HD_RENDER_AUTHORITY
+    // One canonical HD size calculation.
     nativeSetSize(
-      retroSize.width,
-      retroSize.height,
+      renderSize.width,
+      renderSize.height,
       false
     );
 
@@ -705,14 +732,14 @@ function createClassroomRetroFpsPipeline({
 
     lastInternalSize = {
       width:
-        retroSize.width,
+        renderSize.width,
 
       height:
-        retroSize.height
+        renderSize.height
     };
 
     return {
-      ...retroSize
+      ...renderSize
     };
   }
 
@@ -1296,6 +1323,7 @@ export {
   RETRO_TEACHER_INTERVENTION_UI_EVENT,
   applyRetroTextureSampling,
   computeRetroRenderSize,
+  computeHdRenderSize,
   computeTeacherToolPose,
   createClassroomRetroFpsPipeline,
   getRetroFpsProfile
