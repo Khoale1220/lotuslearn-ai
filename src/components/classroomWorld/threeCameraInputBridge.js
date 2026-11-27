@@ -44,8 +44,11 @@ function createThreeCameraMovementInput(
     right:
       lateralAxis > 0,
 
-    left:
-      lateralAxis < 0
+    left: lateralAxis < 0,
+    ...(keys.has("KeyW") && keys.has("KeyS")
+      ? { opposingForward: true } : {}),
+    ...(keys.has("KeyA") && keys.has("KeyD")
+      ? { opposingRight: true } : {})
   };
 }
 

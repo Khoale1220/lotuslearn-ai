@@ -1,3 +1,4 @@
+import { isolateClassroomHdVisualLayersR74B10B } from "./classroomHdVisualLayerIsolationR74B10B.js";
 import { createClassroomEnvironmentalAudioV20 } from "./classroomEnvironmentalAudioV20.js";
 import {
   createClassroomVisualFidelityV22
@@ -165,6 +166,18 @@ import "./classroomWorld.css";
 
 const POINTER_SPEED = 0.7;
 const PLAYER_HEIGHT = 1.65;
+
+/*
+ * P4A camera composition.
+ *
+ * Keep player height and locomotion unchanged while
+ * narrowing the first-person composition and preventing
+ * extreme ceiling-dominant viewing angles.
+ */
+const CLASSROOM_CAMERA_VERTICAL_FOV = 56;
+const CLASSROOM_CAMERA_MIN_POLAR_ANGLE = Math.PI / 3;
+const CLASSROOM_CAMERA_MAX_POLAR_ANGLE =
+  (7 * Math.PI) / 9;
 const ROOM_LIMIT = 7.2;
 
 function addBox(scene, size, position, color) {
@@ -460,9 +473,17 @@ function ClassroomWorld({
       z: 0,
     });
 
-    const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 50);
+    const camera = new THREE.PerspectiveCamera(CLASSROOM_CAMERA_VERTICAL_FOV, 16 / 9, 0.1, 50);
     camera.position.set(teacherAnchor.x + 2.5, PLAYER_HEIGHT, 5.5);
     camera.lookAt(teacherAnchor.x, 1.4, teacherAnchor.z);
+    // CW08_R74B11M_SAFE_CAMERA_SPAWN
+    // Move inward along the original horizontal view direction.
+    // Preserve camera orientation, input, and collision authority.
+    const spawnIntoRoom = new THREE.Vector3();
+    camera.getWorldDirection(spawnIntoRoom);
+    spawnIntoRoom.y = 0;
+    spawnIntoRoom.normalize();
+    camera.position.addScaledVector(spawnIntoRoom, 2.0);
     scene.add(camera);
 
     const classroomOceanSkyWorldV15 =
@@ -507,14 +528,15 @@ function ClassroomWorld({
     const classroomFurnitureV2 =
       createClassroomFurnitureV2({
         scene,
-        materials:
-          classroomVisualSystem.materials
+        materials: classroomVisualSystem.materials,
+        presentationMode: "hd"
       });
 
     const classroomLightingV2 =
       createClassroomLightingV2({
         renderer,
-        scene
+        scene,
+        presentationMode: "hd"
       });
 
     const classroomEnvironmentDetailV2 =
@@ -556,11 +578,13 @@ function ClassroomWorld({
         documentObject: document
       });
 
+    classroomFurnitureV2.applyHdMaterialFinish();
+
     const classroomRoomGeometryV3 =
       createClassroomRoomGeometryV3({
         scene,
-        materials:
-          classroomVisualSystem.materials
+        materials: classroomVisualSystem.materials,
+        presentationMode: "hd"
       });
 
     const classroomCharacterV3 =
@@ -589,12 +613,14 @@ function ClassroomWorld({
       createClassroomRetroFpsPipeline({
         renderer,
         scene,
-        documentObject: document
+        documentObject: document,
+        presentationMode: "hd"
       });
 
     const classroomPixelArtGradeV23 =
       createClassroomPixelArtGradeV23({
-        renderer
+        renderer,
+        presentationMode: "hd"
       });
 
     const classroomRetroCompositionV4 =
@@ -617,7 +643,8 @@ function ClassroomWorld({
 
     const classroomReferenceSurfaceSilhouetteV29 =
       createClassroomReferenceSurfaceSilhouetteV29({
-        scene
+        scene,
+        presentationMode: "hd"
       });
 
     const classroomReferenceLightFramingV30 =
@@ -648,7 +675,8 @@ function ClassroomWorld({
 
     const classroomDepthAtmospherePixelLightingV35 =
       createClassroomDepthAtmospherePixelLightingV35({
-        scene
+        scene,
+        presentationMode: "hd"
       });
 
     const classroomPixelContactGroundingV36 =
@@ -700,6 +728,12 @@ function ClassroomWorld({
     const keys = new Set();
 
     const controls = new PointerLockControls(camera, renderer.domElement);
+
+    controls.minPolarAngle =
+      CLASSROOM_CAMERA_MIN_POLAR_ANGLE;
+
+    controls.maxPolarAngle =
+      CLASSROOM_CAMERA_MAX_POLAR_ANGLE;
     controls.pointerSpeed = POINTER_SPEED;
     controlsRef.current = controls;
 
@@ -987,6 +1021,9 @@ const classroomInteractionAuthorityV11 =
      * Do not create a second anonymous Hemisphere/Directional pair here.
      */
 
+    // R7.4B.10B: hide visual-only HD obstructions.
+    isolateClassroomHdVisualLayersR74B10B(scene);
+
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(16, 18),
       new THREE.MeshLambertMaterial({ color: 0x6f5844 })
@@ -1170,6 +1207,7 @@ const classroomInteractionAuthorityV11 =
     raycaster.far = INTERACTION_DISTANCE;
 
     const center = new THREE.Vector2(0, 0);
+    const movementForward = new THREE.Vector3();
     const timer = new THREE.Timer();
     timer.connect(document);
 
@@ -1180,6 +1218,8 @@ const classroomInteractionAuthorityV11 =
 
     let activeStudent = null;
     let animationFrame = 0;
+
+
 
     const onKeyDown = (event) => {
       if (event.code === "Escape") {
@@ -1245,6 +1285,11 @@ const classroomInteractionAuthorityV11 =
     const resizeCamera = () => {
       const width = host.clientWidth || 16;
       const height = host.clientHeight || 9;
+
+      classroomRetroFpsPipeline.resize({
+        displayWidth: width,
+        displayHeight: height
+      });
 
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
@@ -1316,6 +1361,39 @@ const classroomInteractionAuthorityV11 =
           z: camera.position.z
         };
 
+        /*
+         * CW08_P4A4_CAMERA_DIRECTION_MOVEMENT_AUTHORITY
+         *
+         * PointerLockControls owns camera orientation.
+         * Derive horizontal movement yaw from the actual
+         * rendered camera direction instead of reading a
+         * potentially stale/ambiguous Euler Y component.
+         */
+        controls.getDirection(
+          movementForward
+        );
+
+        movementForward.y = 0;
+
+        if (
+          movementForward.lengthSq() <=
+          Number.EPSILON
+        ) {
+          movementForward.set(
+            0,
+            0,
+            -1
+          );
+        } else {
+          movementForward.normalize();
+        }
+
+        const movementYaw =
+          Math.atan2(
+            -movementForward.x,
+            -movementForward.z
+          );
+
         const locomotion =
           stepPlayerLocomotion({
             position:
@@ -1328,7 +1406,7 @@ const classroomInteractionAuthorityV11 =
               movementInput,
 
             yaw:
-              camera.rotation.y,
+              movementYaw,
 
             deltaSeconds:
               delta
@@ -1352,6 +1430,7 @@ const classroomInteractionAuthorityV11 =
             obstacles:
               collisionObstaclesRef.current
           });
+
 
         playerVelocity =
           resolveVelocityAfterCollision({

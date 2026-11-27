@@ -206,11 +206,14 @@ test(
         "utf8"
       );
 
-    assert.equal(
-      source.includes(
-        "new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 50)"
-      ),
-      true
+    assert.match(
+      source,
+      /const\s+CLASSROOM_CAMERA_VERTICAL_FOV\s*=\s*56\s*;/u
+    );
+
+    assert.match(
+      source,
+      /new\s+THREE\.PerspectiveCamera\(\s*CLASSROOM_CAMERA_VERTICAL_FOV\s*,\s*16\s*\/\s*9\s*,\s*0\.1\s*,\s*50\s*\)/u
     );
   }
 );
